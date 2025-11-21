@@ -1,0 +1,44 @@
+{
+  "name": "raku-raku-notion",
+  "version": "1.0.0",
+  "description": "Simplified Notion web clipper browser extension",
+  "displayName": "Raku Raku Notion",
+  "scripts": {
+    "dev": "plasmo dev",
+    "build": "plasmo build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/otagao/raku-raku-notion.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/otagao/raku-raku-notion/issues"
+  },
+  "homepage": "https://github.com/otagao/raku-raku-notion#readme",
+  "devDependencies": {
+    "@types/chrome": "^0.1.31",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.6",
+    "@types/react-dom": "^19.2.3",
+    "plasmo": "^0.90.5",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "manifest": {
+    "host_permissions": [
+      "https://*/*"
+    ],
+    "permissions": [
+      "storage",
+      "activeTab"
+    ]
+  }
+}
