@@ -30,23 +30,38 @@
    - Chrome Storage API統合 ([storage.ts](src/services/storage.ts))
    - フォームの作成・保存・取得
    - モックデータの初期化システム
+   - タブ情報取得ユーティリティ (`getCurrentTabInfo()`)
 
-3. **モック機能**
+3. **Notion API統合** 🆕
+   - Notion API クライアント実装 ([notion.ts](src/services/notion.ts))
+   - ページ作成API (`createPage()`)
+   - 接続テスト (`testConnection()`)
+   - データベース一覧取得 (`listDatabases()`)
+   - データベーススキーマ取得 (`getDatabaseSchema()`)
+   - OAuth認証と手動トークン入力の両対応
+
+4. **Background Service Worker** 🆕
+   - メッセージベースのAPI呼び出しハンドラ ([background/index.ts](src/background/index.ts))
+   - `send-to-notion`: Notionページ作成
+   - `test-notion-connection`: 接続テスト
+   - `list-databases`: データベース一覧取得
+
+5. **モック機能**
    - 初回起動時に2つのデモフォームを自動配置
    - targetURLを持つフォームは新しいタブでURLを開く
    - DEMOバッジでモックフォームを視覚的に識別
 
-4. **開発ツール**
+6. **開発ツール**
    - `resetStorage()`: ストレージをクリアして再初期化
    - `debugStorage()`: ストレージ内容をコンソールに出力
 
 #### 未実装機能 🚧
 
-1. **Notion API連携** (優先度: 高)
-   - APIキー設定UI
-   - データベース選択機能
-   - ページ作成API実装
-   - サービス層は準備済み ([notion.ts](src/services/notion.ts))
+1. **Notion API UI統合** (優先度: 高)
+   - APIキー/トークン設定画面
+   - データベース選択UI
+   - フォームからのNotion送信機能
+   - OAuth認証フロー（将来実装）
 
 2. **フォームフィールドのカスタマイズ** (優先度: 高)
    - テキスト、テキストエリア、選択肢、チェックボックス
@@ -54,9 +69,9 @@
    - 型定義は準備済み (FormField interface)
 
 3. **コンテンツスクリプト機能** (優先度: 中)
-   - 現在のページ情報取得 (タイトル、URL)
    - 選択テキストの取得
    - スクリーンショット機能
+   - ページメタデータの自動抽出
 
 4. **高度な機能** (優先度: 低)
    - タグ・カテゴリ管理
@@ -75,10 +90,12 @@ raku-raku-notion/
 │   │   ├── FormListScreen.tsx    # フォーム一覧 + URL遷移ロジック
 │   │   └── DemoScreen.tsx    # プレースホルダー画面
 │   ├── services/              # ビジネスロジック層
-│   │   ├── storage.ts        # Chrome Storage API ラッパー
-│   │   └── notion.ts         # Notion API クライアント (将来実装)
+│   │   ├── storage.ts        # Chrome Storage API ラッパー + タブ情報取得
+│   │   └── notion.ts         # Notion API クライアント (実装済み)
+│   ├── background/            # バックグラウンドスクリプト
+│   │   └── index.ts          # Service Worker (メッセージハンドラ)
 │   ├── types/                 # TypeScript型定義
-│   │   └── index.ts          # Form, FormField, NotionConfig など
+│   │   └── index.ts          # Form, NotionConfig, NotionPageData など
 │   ├── styles/                # グローバルCSS
 │   │   └── global.css        # Notionスタイルを参考にしたデザイン
 │   ├── components/            # 再利用可能コンポーネント (未使用)
@@ -111,9 +128,10 @@ raku-raku-notion/
 }
 ```
 
-### 2. Form型定義
+### 2. 型定義
 
 ```typescript
+// フォーム定義
 interface Form {
   id: string              // UUID
   name: string            // フォーム名
@@ -121,6 +139,23 @@ interface Form {
   targetUrl?: string      // モック用: 遷移先URL
   isMock?: boolean        // モックフラグ
   fields?: FormField[]    // フォームフィールド (未実装)
+}
+
+// Notion設定 (OAuth/手動トークン両対応)
+interface NotionConfig {
+  authMethod: 'manual' | 'oauth'
+  apiKey?: string         // 手動入力のトークン
+  databaseId?: string
+  accessToken?: string    // OAuth用トークン
+  workspaceId?: string    // OAuth用
+  botId?: string          // OAuth用
+}
+
+// Notionページデータ
+interface NotionPageData {
+  title: string
+  url: string
+  memo?: string
 }
 ```
 
@@ -225,10 +260,11 @@ npm run dev
 
 ## 次のステップ (優先順位順)
 
-### Phase 1: Notion API基本統合
-1. Notion API キー設定画面の実装
-2. データベース一覧取得機能
-3. 簡単なページ作成機能
+### Phase 1: Notion API UI統合
+1. Notion API キー/トークン設定画面の実装
+2. データベース選択UIの実装
+3. フォームからのNotion送信機能
+4. エラーハンドリングとユーザーフィードバック
 
 ### Phase 2: フォームカスタマイズ
 1. フィールド追加UI
@@ -236,11 +272,17 @@ npm run dev
 3. 必須項目設定
 
 ### Phase 3: コンテンツスクリプト
-1. 現在のページ情報取得
-2. 選択テキストの取得
+1. 選択テキストの取得
+2. ページメタデータの抽出
 3. フォーム自動入力
+4. スクリーンショット機能
 
-### Phase 4: UX改善
+### Phase 4: OAuth認証 (将来実装)
+1. Notion OAuth フロー実装
+2. トークンリフレッシュ機能
+3. 複数ワークスペース対応
+
+### Phase 5: UX改善
 1. エラーハンドリングの強化
 2. ローディング状態の表示
 3. トースト通知の実装
@@ -287,8 +329,38 @@ npm run dev
 - XSS対策: React の自動エスケープに依存
 - CSRF対策: Notion API はトークンベース認証
 
+### Notion API統合について
+
+#### 認証方式
+本プロジェクトは2つの認証方式に対応:
+1. **手動トークン入力** (現在の推奨方法)
+   - Notion Integration Tokenを手動で入力
+   - `NotionConfig.authMethod = 'manual'`
+   - `NotionConfig.apiKey` にトークンを格納
+
+2. **OAuth認証** (将来実装予定)
+   - Notion OAuth フローによる認証
+   - `NotionConfig.authMethod = 'oauth'`
+   - `NotionConfig.accessToken` にOAuthトークンを格納
+   - トークンリフレッシュ機能も実装予定
+
+#### API呼び出し方法
+```typescript
+// 方法1: 直接呼び出し (popup内)
+import { createNotionClient } from '~services/notion'
+const config = await StorageService.getNotionConfig()
+const client = createNotionClient(config)
+await client.createPage({ title, url, memo })
+
+// 方法2: Background経由 (推奨)
+chrome.runtime.sendMessage({
+  type: 'send-to-notion',
+  data: { title, url, memo }
+})
+```
+
 ---
 
-**最終更新**: 2024-11-21
-**バージョン**: 1.0.0 (MVP)
+**最終更新**: 2025-11-22
+**バージョン**: 1.1.0 (Notion API統合)
 **メンテナー**: Claude Code

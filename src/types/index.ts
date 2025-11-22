@@ -21,7 +21,25 @@ export interface NavigationState {
   selectedFormId?: string
 }
 
+export type AuthMethod = 'manual' | 'oauth'
+
 export interface NotionConfig {
+  authMethod: AuthMethod
   apiKey?: string
   databaseId?: string
+  // OAuth用フィールド (将来実装)
+  accessToken?: string
+  workspaceId?: string
+  botId?: string
+}
+
+export interface NotionPageData {
+  title: string
+  url: string
+  memo?: string
+}
+
+export interface CurrentTabInfo {
+  title: string
+  url: string
 }
