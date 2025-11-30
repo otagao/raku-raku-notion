@@ -1,4 +1,4 @@
-export type Screen = 'home' | 'create-form' | 'form-list' | 'demo'
+export type Screen = 'home' | 'create-form' | 'form-list' | 'demo' | 'settings'
 
 export interface Form {
   id: string
@@ -27,10 +27,41 @@ export interface NotionConfig {
   authMethod: AuthMethod
   apiKey?: string
   databaseId?: string
-  // OAuth用フィールド (将来実装)
+  // OAuth用フィールド
   accessToken?: string
+  refreshToken?: string
+  tokenExpiresAt?: number
   workspaceId?: string
+  workspaceName?: string
   botId?: string
+}
+
+// Notion OAuth設定
+export interface NotionOAuthConfig {
+  clientId: string
+  clientSecret: string
+  redirectUri: string
+}
+
+// OAuth認証レスポンス
+export interface NotionOAuthResponse {
+  access_token: string
+  token_type: string
+  bot_id: string
+  workspace_id: string
+  workspace_name?: string
+  workspace_icon?: string
+  owner?: {
+    type: string
+    user?: any
+  }
+  duplicated_template_id?: string
+}
+
+// OAuth トークンリフレッシュレスポンス
+export interface NotionTokenRefreshResponse {
+  access_token: string
+  token_type: string
 }
 
 export interface NotionPageData {

@@ -9,6 +9,22 @@ const HomeScreen: FC<HomeScreenProps> = ({ onNavigate }) => {
     <div className="container">
       <div className="header">
         <h1>Raku Raku Notion</h1>
+        <button
+          onClick={() => onNavigate('settings')}
+          style={{
+            position: 'absolute',
+            top: '20px',
+            right: '20px',
+            background: 'transparent',
+            border: 'none',
+            fontSize: '20px',
+            cursor: 'pointer',
+            padding: '4px 8px'
+          }}
+          title="設定"
+        >
+          ⚙️
+        </button>
       </div>
 
       <div className="empty-state">
