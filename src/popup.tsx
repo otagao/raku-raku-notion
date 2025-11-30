@@ -3,6 +3,7 @@ import HomeScreen from "~screens/HomeScreen"
 import CreateFormScreen from "~screens/CreateFormScreen"
 import FormListScreen from "~screens/FormListScreen"
 import DemoScreen from "~screens/DemoScreen"
+import { SettingsScreen } from "~screens/SettingsScreen"
 import { StorageService } from "~services/storage"
 import type { Screen, Form } from "~types"
 import "~styles/global.css"
@@ -53,6 +54,8 @@ function IndexPopup() {
         return <FormListScreen forms={forms} onNavigate={handleNavigate} allForms={forms} />
       case 'demo':
         return <DemoScreen formId={selectedFormId} onNavigate={handleNavigate} />
+      case 'settings':
+        return <SettingsScreen onBack={() => handleNavigate('home')} />
       default:
         return <HomeScreen onNavigate={handleNavigate} />
     }

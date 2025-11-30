@@ -27,13 +27,16 @@ Notionの公式ウェブクリッパーよりもシンプルで、カスタマ�
 
 - ✅ **フォーム管理**: 複数のカスタムフォームを作成・保存
 - ✅ **データ永続化**: Chrome Storage APIによるローカル保存
+- ✅ **Notion OAuth認証**: OAuth 2.0による安全な認証フロー
+- ✅ **Notion API統合**: Notionデータベースへのページ作成機能
+- ✅ **設定画面**: OAuth/手動トークン両対応の設定UI
 - ✅ **モック機能**: 開発・デモ用の初期フォーム
 - ✅ **シンプルなUI**: Notionスタイルを参考にした直感的なデザイン
 - ✅ **開発ツール**: ストレージリセット・デバッグ機能
 
 ### 今後実装予定
 
-- 🚧 **Notion API連携**: 実際にNotionへデータを保存
+- 🚧 **フォームからのNotion送信**: 作成したフォームからNotionへデータを送信
 - 🚧 **フォームカスタマイズ**: フィールドの追加・編集
 - 🚧 **コンテンツスクリプト**: 現在のページ情報を自動取得
 - 🚧 **高度な機能**: タグ管理、ショートカットキー
@@ -185,12 +188,113 @@ npm run dev
 
 ## 📖 使い方
 
+### Notion認証の設定
+
+拡張機能を使用する前に、Notionとの連携設定が必要です。
+
+**2つの認証方法**:
+1. **手動トークン入力**（推奨 - 開発・テスト用）- シンプルで即座に使える
+2. **OAuth認証**（本番環境用）- ユーザーフレンドリーだが設定が複雑
+
+#### 開発・テスト時の推奨設定（手動トークン）
+
+最も簡単な方法は、Internal Integrationを使用した手動トークン入力です。
+
+**セットアップ手順**:
+
+1. [Notion Developers](https://www.notion.so/my-integrations) で「New integration」作成
+   - Type: **Internal integration**
+   - Capabilities: Read, Update, Insert content を有効化
+2. **Internal Integration Token**（秘密キー）をコピー
+3. 拡張機能の設定画面（⚙️）を開く
+4. 「手動トークン入力」を選択してトークンを貼り付け
+5. Notionのデータベースページで「接続」から作成したIntegrationを追加
+
+詳細は [OAUTH_SETUP_GUIDE.md](OAUTH_SETUP_GUIDE.md) を参照してください。
+
+---
+
+#### OAuth認証の設定（上級者向け）
+
+**重要**: NotionのOAuth認証では`chrome-extension://`スキームが使用できません。開発環境ではngrokやCloudflare Tunnelなどのトンネリングサービスが必要です。
+
+#### 1. Notion Integrationの作成
+
+1. [Notion Developers](https://www.notion.so/my-integrations) にアクセス
+2. 「New integration」をクリック
+3. 以下の情報を入力:
+   - **Name**: Raku Raku Notion（任意の名前）
+   - **Type**: Public integration を選択
+   - **Associated workspace**: 使用するワークスペースを選択
+4. 「Capabilities」で以下を有効化:
+   - ✅ Read content
+   - ✅ Update content
+   - ✅ Insert content
+5. 「OAuth Domain & URIs」で以下を設定:
+   - **Redirect URIs**: `http://localhost:3000/oauth/callback`
+6. 「Submit」をクリックして保存
+7. **Client ID** と **Client Secret** をコピー
+
+#### 2. 環境変数の設定
+
+プロジェクトルートに `.env` ファイルを作成:
+
+```bash
+# .env.example をコピー
+cp .env.example .env
+
+# エディタで編集
+code .env
+```
+
+`.env` ファイルに以下を追加:
+
+```env
+PLASMO_PUBLIC_NOTION_CLIENT_ID=your_client_id_here
+PLASMO_PUBLIC_NOTION_CLIENT_SECRET=your_client_secret_here
+```
+
+#### 3. 開発サーバーとOAuthサーバーの起動
+
+OAuth認証を使用するには、2つのサーバーを同時に起動する必要があります:
+
+```bash
+# 方法1: 一括起動（推奨）
+npm run dev:full
+
+# 方法2: 個別起動
+# ターミナル1
+npm run dev
+
+# ターミナル2
+npm run oauth-server
+```
+
+OAuthサーバーが起動すると、以下のメッセージが表示されます:
+```
+🚀 Raku Raku Notion - OAuth Callback Server
+✓ Server running at http://localhost:3000
+✓ Callback URL: http://localhost:3000/oauth/callback
+```
+
+#### 4. OAuth認証の実行
+
+1. 拡張機能を開く
+2. 右上の ⚙️（設定）アイコンをクリック
+3. 「認証方法」で「OAuth認証（推奨）」を選択
+4. 「Notionで認証」ボタンをクリック
+5. Notionの認証画面で「許可する」をクリック
+6. `http://localhost:3000`にリダイレクトされ、自動的に認証が完了します
+7. 設定画面に戻り、接続状態が「接続済み」になります
+8. データベース一覧から使用するデータベースを選択
+
 ### 基本的な使い方
 
 1. **拡張機能を開く**: ツールバーのアイコンをクリック
 2. **フォーム一覧を見る**: 作成済みフォームを確認
 3. **モックフォームを試す**: DEMOバッジ付きフォームをクリック
 4. **新しいフォームを作成**: 「+ 新しいフォームを作成」から追加
+5. **Notionへ保存**: フォームに入力してNotionデータベースに保存（実装予定）
 
 ### 開発者向け機能
 
@@ -314,18 +418,20 @@ npx tsc --noEmit
 - [x] モック機能
 - [x] 開発ツール
 
-### Phase 2: Notion API統合 (進行中) 🚧
+### Phase 2: Notion API統合 (完了) ✅
 
 **目標**: 実際にNotionへデータを保存できるようにする
 
-- [ ] Notion API キー設定UI
-- [ ] データベース一覧取得
-- [ ] データベース選択機能
-- [ ] 簡単なページ作成機能
-- [ ] エラーハンドリング
+- [x] Notion OAuth認証フロー実装
+- [x] 設定画面UI（OAuth/手動トークン両対応）
+- [x] データベース一覧取得
+- [x] データベース選択機能
+- [x] ページ作成API実装
+- [x] トークン有効性チェック機能
+- [x] エラーハンドリング
 
 **優先度**: 高
-**予定工数**: 2-3週間
+**完了日**: 2025-11-30
 
 ### Phase 3: フォームカスタマイズ 🔜
 

@@ -51,6 +51,43 @@ export class NotionService {
   }
 
   /**
+   * アクセストークンの有効性をチェック
+   * 401エラーが返された場合、トークンが無効または期限切れ
+   */
+  async validateToken(): Promise<{ valid: boolean; error?: string }> {
+    try {
+      const response = await fetch(`${NOTION_API_BASE}/users/me`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${this.getAuthToken()}`,
+          "Notion-Version": NOTION_VERSION
+        }
+      })
+
+      if (response.status === 401) {
+        return {
+          valid: false,
+          error: 'トークンが無効または期限切れです。再認証が必要です。'
+        }
+      }
+
+      if (!response.ok) {
+        return {
+          valid: false,
+          error: `API接続エラー: ${response.statusText}`
+        }
+      }
+
+      return { valid: true }
+    } catch (error) {
+      return {
+        valid: false,
+        error: error instanceof Error ? error.message : '不明なエラー'
+      }
+    }
+  }
+
+  /**
    * Notionデータベースにページを作成する
    */
   async createPage(data: NotionPageData): Promise<string> {
