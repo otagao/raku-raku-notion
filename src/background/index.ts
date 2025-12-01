@@ -291,7 +291,7 @@ async function handleCompleteOAuth(
  * Webページをクリップ（データベースにページを追加）
  */
 async function handleClipPage(
-  data: { title: string; url: string; databaseId: string; content?: string; thumbnail?: string },
+  data: { title: string; url: string; databaseId: string; tabId?: number; content?: string; thumbnail?: string; memo?: string },
   sendResponse: (response?: any) => void
 ) {
   try {
@@ -305,14 +305,40 @@ async function handleClipPage(
       return
     }
 
+    // Content Scriptからコンテンツを抽出（tabIdが指定されている場合）
+    let extractedContent: { text?: string; thumbnail?: string; icon?: string } = {}
+    if (data.tabId) {
+      try {
+        console.log('[Background] Extracting content from tab:', data.tabId)
+        const response = await chrome.tabs.sendMessage(data.tabId, { type: 'extract-content' })
+
+        if (response?.success && response.content) {
+          extractedContent = {
+            text: response.content.text,
+            thumbnail: response.content.thumbnail,
+            icon: response.content.icon
+          }
+          console.log('[Background] Content extracted successfully')
+        } else {
+          console.warn('[Background] Failed to extract content:', response?.error)
+        }
+      } catch (error) {
+        // Content Scriptが読み込まれていない場合など
+        console.warn('[Background] Could not extract content from page:', error)
+      }
+    }
+
     const notionClient = createNotionClient(config)
 
     const webClipData: WebClipData = {
       title: data.title,
       url: data.url,
       databaseId: data.databaseId,
-      content: data.content,
-      thumbnail: data.thumbnail
+      // Content Scriptから取得したコンテンツを優先、なければdata引数を使用
+      content: extractedContent.text || data.content,
+      thumbnail: extractedContent.thumbnail || data.thumbnail,
+      icon: extractedContent.icon,
+      memo: data.memo
     }
 
     const pageId = await notionClient.createWebClip(webClipData)

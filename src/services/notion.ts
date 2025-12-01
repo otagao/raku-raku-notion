@@ -311,6 +311,9 @@ export class NotionService {
             "URL": {
               url: {}
             },
+            "メモ": {
+              rich_text: {}
+            },
             "作成日時": {
               created_time: {}
             }
@@ -341,7 +344,7 @@ export class NotionService {
    * Webクリップをデータベースに追加する
    */
   async createWebClip(data: WebClipData): Promise<string> {
-    const { title, url, content, thumbnail, databaseId } = data
+    const { title, url, content, thumbnail, icon, memo, databaseId } = data
 
     try {
       const children: any[] = []
@@ -375,6 +378,45 @@ export class NotionService {
         })
       }
 
+      // ページオブジェクトの構築
+      const pageData: any = {
+        parent: { database_id: databaseId },
+        properties: {
+          "名前": {
+            title: [{ text: { content: title } }]
+          },
+          "URL": {
+            url: url
+          }
+        },
+        // サムネイルとテキストはページコンテンツ（children）として保存
+        children: children.length > 0 ? children : undefined
+      }
+
+      // メモがある場合はプロパティに追加
+      if (memo) {
+        pageData.properties["メモ"] = {
+          rich_text: [
+            {
+              type: "text",
+              text: {
+                content: memo
+              }
+            }
+          ]
+        }
+      }
+
+      // アイコンがある場合はページアイコンとして設定
+      if (icon) {
+        pageData.icon = {
+          type: "external",
+          external: {
+            url: icon
+          }
+        }
+      }
+
       const response = await fetch(`${NOTION_API_BASE}/pages`, {
         method: "POST",
         headers: {
@@ -382,18 +424,7 @@ export class NotionService {
           "Notion-Version": NOTION_VERSION,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          parent: { database_id: databaseId },
-          properties: {
-            "名前": {
-              title: [{ text: { content: title } }]
-            },
-            "URL": {
-              url: url
-            }
-          },
-          children: children.length > 0 ? children : undefined
-        })
+        body: JSON.stringify(pageData)
       })
 
       if (!response.ok) {

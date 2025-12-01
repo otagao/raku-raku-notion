@@ -7,6 +7,7 @@ import ClipboardListScreen from "~screens/ClipboardListScreen"
 import SelectClipboardScreen from "~screens/SelectClipboardScreen"
 import DemoScreen from "~screens/DemoScreen"
 import { SettingsScreen } from "~screens/SettingsScreen"
+import MemoDialog from "~components/MemoDialog"
 import { StorageService } from "~services/storage"
 import { createNotionClient } from "~services/notion"
 import type { Screen, Form, Clipboard } from "~types"
@@ -18,6 +19,8 @@ function IndexPopup() {
   const [clipboards, setClipboards] = useState<Clipboard[]>([])
   const [selectedFormId, setSelectedFormId] = useState<string | undefined>()
   const [selectedClipboardId, setSelectedClipboardId] = useState<string | undefined>()
+  const [showMemoDialog, setShowMemoDialog] = useState(false)
+  const [pendingClipDatabaseId, setPendingClipDatabaseId] = useState<string | undefined>()
 
   useEffect(() => {
     initializeAndLoadData()
@@ -95,9 +98,10 @@ function IndexPopup() {
       return
     }
 
-    // クリップボードが1つだけの場合は自動選択
+    // クリップボードが1つだけの場合は自動選択してメモダイアログを表示
     if (clipboards.length === 1) {
-      await performClip(clipboards[0].notionDatabaseId)
+      setPendingClipDatabaseId(clipboards[0].notionDatabaseId)
+      setShowMemoDialog(true)
       return
     }
 
@@ -106,10 +110,25 @@ function IndexPopup() {
   }
 
   const handleSelectClipboard = async (databaseId: string) => {
-    await performClip(databaseId)
+    // メモダイアログを表示
+    setPendingClipDatabaseId(databaseId)
+    setShowMemoDialog(true)
   }
 
-  const performClip = async (databaseId: string) => {
+  const handleMemoConfirm = async (memo: string) => {
+    setShowMemoDialog(false)
+    if (pendingClipDatabaseId) {
+      await performClip(pendingClipDatabaseId, memo)
+      setPendingClipDatabaseId(undefined)
+    }
+  }
+
+  const handleMemoCancel = () => {
+    setShowMemoDialog(false)
+    setPendingClipDatabaseId(undefined)
+  }
+
+  const performClip = async (databaseId: string, memo?: string) => {
     try {
       const tabInfo = await StorageService.getCurrentTabInfo()
       if (!tabInfo) {
@@ -117,13 +136,15 @@ function IndexPopup() {
         return
       }
 
-      // Backgroundにメッセージを送信してクリップを実行
+      // Backgroundにメッセージを送信してクリップを実行（tabIdとmemoを含む）
       const response = await chrome.runtime.sendMessage({
         type: 'clip-page',
         data: {
           title: tabInfo.title,
           url: tabInfo.url,
-          databaseId
+          databaseId,
+          tabId: tabInfo.tabId, // Content Scriptからコンテンツを抽出するためのタブID
+          memo: memo || undefined // メモがあれば含める
         }
       })
 
@@ -190,7 +211,17 @@ function IndexPopup() {
     }
   }
 
-  return renderScreen()
+  return (
+    <>
+      {renderScreen()}
+      {showMemoDialog && (
+        <MemoDialog
+          onConfirm={handleMemoConfirm}
+          onCancel={handleMemoCancel}
+        />
+      )}
+    </>
+  )
 }
 
 export default IndexPopup
