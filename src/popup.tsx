@@ -4,6 +4,7 @@ import CreateFormScreen from "~screens/CreateFormScreen"
 import FormListScreen from "~screens/FormListScreen"
 import CreateClipboardScreen from "~screens/CreateClipboardScreen"
 import ClipboardListScreen from "~screens/ClipboardListScreen"
+import SelectClipboardScreen from "~screens/SelectClipboardScreen"
 import DemoScreen from "~screens/DemoScreen"
 import { SettingsScreen } from "~screens/SettingsScreen"
 import { StorageService } from "~services/storage"
@@ -100,8 +101,12 @@ function IndexPopup() {
       return
     }
 
-    // 複数ある場合は選択UIを表示（今後実装）
-    alert('複数のクリップボードから選択する機能は後ほど実装します')
+    // 複数ある場合は選択UIを表示
+    handleNavigate('select-clipboard')
+  }
+
+  const handleSelectClipboard = async (databaseId: string) => {
+    await performClip(databaseId)
   }
 
   const performClip = async (databaseId: string) => {
@@ -166,6 +171,14 @@ function IndexPopup() {
             clipboards={clipboards}
             onNavigate={handleNavigate}
             onDeleteClipboard={handleDeleteClipboard}
+          />
+        )
+      case 'select-clipboard':
+        return (
+          <SelectClipboardScreen
+            clipboards={clipboards}
+            onNavigate={handleNavigate}
+            onSelectClipboard={handleSelectClipboard}
           />
         )
       case 'demo':

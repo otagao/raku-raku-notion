@@ -10,13 +10,11 @@ interface SettingsScreenProps {
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
   const [authMethod, setAuthMethod] = useState<'manual' | 'oauth'>('oauth')
   const [apiKey, setApiKey] = useState('')
-  const [databaseId, setDatabaseId] = useState('')
   const [isConnected, setIsConnected] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [workspaceName, setWorkspaceName] = useState('')
-  const [databases, setDatabases] = useState<any[]>([])
 
   // OAuth設定（localhost:3000を使用）
   const oauthConfig: NotionOAuthConfig = {
@@ -36,7 +34,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
       if (config) {
         setAuthMethod(config.authMethod || 'oauth')
         setApiKey(config.apiKey || '')
-        setDatabaseId(config.databaseId || '')
         setWorkspaceName(config.workspaceName || '')
 
         // 接続状態を確認
@@ -56,12 +53,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
       const client = createNotionClient(currentConfig)
       const connected = await client.testConnection()
       setIsConnected(connected)
-
-      if (connected && authMethod === 'oauth') {
-        // データベース一覧を取得
-        const dbs = await client.listDatabases()
-        setDatabases(dbs)
-      }
     } catch (err) {
       setIsConnected(false)
     }
@@ -117,8 +108,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
 
       const config: NotionConfig = {
         authMethod: 'manual',
-        apiKey: apiKey.trim(),
-        databaseId: databaseId.trim() || undefined
+        apiKey: apiKey.trim()
       }
 
       // 接続テスト
@@ -133,34 +123,10 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
       await StorageService.saveNotionConfig(config)
       setIsConnected(true)
       setSuccessMessage('設定を保存しました')
-
-      // データベース一覧を取得（オプション）
-      if (databaseId.trim()) {
-        try {
-          const dbs = await client.listDatabases()
-          setDatabases(dbs)
-        } catch (err) {
-          console.warn('Failed to load databases:', err)
-        }
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '設定の保存に失敗しました')
     } finally {
       setIsLoading(false)
-    }
-  }
-
-  const handleDatabaseSelect = async (dbId: string) => {
-    try {
-      const config = await StorageService.getNotionConfig()
-      await StorageService.saveNotionConfig({
-        ...config,
-        databaseId: dbId
-      })
-      setDatabaseId(dbId)
-      setSuccessMessage('データベースを選択しました')
-    } catch (err) {
-      setError('データベースの選択に失敗しました')
     }
   }
 
@@ -170,16 +136,13 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
         authMethod: 'oauth',
         apiKey: undefined,
         accessToken: undefined,
-        databaseId: undefined,
         workspaceId: undefined,
         workspaceName: undefined,
         botId: undefined
       })
       setIsConnected(false)
       setApiKey('')
-      setDatabaseId('')
       setWorkspaceName('')
-      setDatabases([])
       setSuccessMessage('Notion連携を解除しました')
     } catch (err) {
       setError('連携解除に失敗しました')
@@ -268,9 +231,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
         <div>
           <p style={{ marginBottom: '16px', color: '#666' }}>
             NotionのOAuth認証を使用してアクセス許可を付与します。<br />
-            データベースへのアクセス権限を自動的に取得できます。
+            クリップボード作成時に自動的にデータベースを作成します。
           </p>
-          {!isConnected ? (
+          {!isConnected && (
             <button
               onClick={handleOAuthLogin}
               disabled={isLoading || !oauthConfig.clientId}
@@ -279,37 +242,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
             >
               {isLoading ? '処理中...' : 'Notionで認証'}
             </button>
-          ) : (
-            <div>
-              <h3 style={{ marginTop: '24px', marginBottom: '12px' }}>データベース選択</h3>
-              {databases.length > 0 ? (
-                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                  {databases.map((db) => (
-                    <div
-                      key={db.id}
-                      onClick={() => handleDatabaseSelect(db.id)}
-                      style={{
-                        padding: '12px',
-                        marginBottom: '8px',
-                        border: databaseId === db.id ? '2px solid #0078d4' : '1px solid #ddd',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        backgroundColor: databaseId === db.id ? '#f0f8ff' : '#fff'
-                      }}
-                    >
-                      <strong>
-                        {db.title?.[0]?.plain_text || 'Untitled'}
-                      </strong>
-                      {databaseId === db.id && (
-                        <span style={{ marginLeft: '8px', color: '#0078d4' }}>✓</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p style={{ color: '#666' }}>データベースが見つかりませんでした</p>
-              )}
-            </div>
           )}
         </div>
       ) : (
@@ -339,29 +271,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
               >
                 Notion Integration
               </a>
-              から作成できます
-            </small>
-          </div>
-
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
-              Database ID（オプション）
-            </label>
-            <input
-              type="text"
-              value={databaseId}
-              onChange={(e) => setDatabaseId(e.target.value)}
-              placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-              disabled={isLoading || isConnected}
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #ddd',
-                borderRadius: '4px'
-              }}
-            />
-            <small style={{ color: '#666' }}>
-              NotionデータベースのURLから取得できます
+              から作成できます。クリップボード作成時に自動的にデータベースを作成します。
             </small>
           </div>
 

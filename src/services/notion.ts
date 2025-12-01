@@ -10,14 +10,12 @@ const NOTION_API_BASE = "https://api.notion.com/v1"
  */
 export class NotionService {
   private apiKey: string | undefined
-  private databaseId: string | undefined
   private authMethod: 'manual' | 'oauth'
 
   constructor(config: NotionConfig) {
     this.authMethod = config.authMethod || 'manual'
     // OAuth使用時はaccessTokenを、手動入力時はapiKeyを使用
     this.apiKey = config.authMethod === 'oauth' ? config.accessToken : config.apiKey
-    this.databaseId = config.databaseId
   }
 
   /**
@@ -89,13 +87,14 @@ export class NotionService {
 
   /**
    * Notionデータベースにページを作成する
+   * @deprecated クリップボード機能ではcreateWebClipを使用してください
    */
-  async createPage(data: NotionPageData): Promise<string> {
-    if (!this.databaseId) {
-      throw new Error('Notion database ID is not configured')
-    }
+  async createPage(data: NotionPageData & { databaseId: string }): Promise<string> {
+    const { title, url, memo, databaseId } = data
 
-    const { title, url, memo } = data
+    if (!databaseId) {
+      throw new Error('Notion database ID is required')
+    }
 
     try {
       const response = await fetch(`${NOTION_API_BASE}/pages`, {
@@ -106,7 +105,7 @@ export class NotionService {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          parent: { database_id: this.databaseId },
+          parent: { database_id: databaseId },
           properties: {
             // Notion データベースのプロパティ名に合わせて調整が必要
             // デフォルトでは「名前」と「URL」を想定
@@ -151,13 +150,9 @@ export class NotionService {
   /**
    * データベースの構造を取得する
    */
-  async getDatabaseSchema(): Promise<any> {
-    if (!this.databaseId) {
-      throw new Error('Notion database ID is not configured')
-    }
-
+  async getDatabaseSchema(databaseId: string): Promise<any> {
     try {
-      const response = await fetch(`${NOTION_API_BASE}/databases/${this.databaseId}`, {
+      const response = await fetch(`${NOTION_API_BASE}/databases/${databaseId}`, {
         method: "GET",
         headers: {
           "Authorization": `Bearer ${this.getAuthToken()}`,
@@ -233,82 +228,62 @@ export class NotionService {
   }
 
   /**
+   * ワークスペース直下に新しいページを作成する
+   */
+  private async createWorkspacePage(title: string): Promise<string> {
+    const response = await fetch(`${NOTION_API_BASE}/pages`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${this.getAuthToken()}`,
+        "Notion-Version": NOTION_VERSION,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        parent: {
+          type: "workspace",
+          workspace: true
+        },
+        properties: {
+          title: {
+            title: [
+              {
+                type: "text",
+                text: {
+                  content: title
+                }
+              }
+            ]
+          }
+        }
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      console.error('[NotionService.createWorkspacePage] Error:', errorData)
+      throw new Error(`ワークスペースページの作成に失敗しました: ${errorData.message || response.statusText}`)
+    }
+
+    const result = await response.json()
+    console.log('[NotionService.createWorkspacePage] Page created:', result.id)
+    return result.id
+  }
+
+  /**
    * 新しいフルページデータベースを作成する（クリップボード用）
+   * 常にワークスペース直下にコンテナページを作成し、その下にデータベースを配置
    */
   async createDatabase(name: string): Promise<{ id: string; url: string }> {
     try {
-      let parentPageId: string | null = null
-
       console.log('[NotionService.createDatabase] Creating database:', name)
-      console.log('[NotionService.createDatabase] this.databaseId:', this.databaseId)
 
-      // 設定でデータベースが選択されている場合、その親ページを取得
-      if (this.databaseId) {
-        console.log('[NotionService.createDatabase] Fetching parent from database:', this.databaseId)
-        try {
-          const dbResponse = await fetch(`${NOTION_API_BASE}/databases/${this.databaseId}`, {
-            method: "GET",
-            headers: {
-              "Authorization": `Bearer ${this.getAuthToken()}`,
-              "Notion-Version": NOTION_VERSION
-            }
-          })
-
-          console.log('[NotionService.createDatabase] Database fetch response status:', dbResponse.status)
-
-          if (dbResponse.ok) {
-            const dbData = await dbResponse.json()
-            console.log('[NotionService.createDatabase] Database parent:', dbData.parent)
-
-            // 親ページのIDを取得
-            if (dbData.parent?.type === 'page_id') {
-              parentPageId = dbData.parent.page_id
-              console.log('[NotionService.createDatabase] Using parent page:', parentPageId)
-            } else if (dbData.parent?.type === 'workspace') {
-              // ワークスペース直下の場合はnullのまま
-              parentPageId = null
-              console.log('[NotionService.createDatabase] Database is at workspace root')
-            }
-          }
-        } catch (error) {
-          console.warn('[NotionService.createDatabase] Failed to get parent from selected database:', error)
-        }
-      } else {
-        console.log('[NotionService.createDatabase] No databaseId in config')
-      }
-
-      // 親ページが見つからない場合、ワークスペース内のページを検索
-      if (!parentPageId) {
-        const searchResponse = await fetch(`${NOTION_API_BASE}/search`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${this.getAuthToken()}`,
-            "Notion-Version": NOTION_VERSION,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            filter: {
-              value: "page",
-              property: "object"
-            },
-            page_size: 1
-          })
-        })
-
-        if (searchResponse.ok) {
-          const searchResult = await searchResponse.json()
-          const page = searchResult.results?.[0]
-          if (page) {
-            parentPageId = page.id
-          }
-        }
-      }
-
-      if (!parentPageId) {
-        throw new Error('親ページが見つかりません。Notionワークスペースにページまたはデータベースを作成してください。')
-      }
+      // ワークスペース直下にコンテナページを作成
+      console.log('[NotionService.createDatabase] Creating workspace container page...')
+      const parentPageId = await this.createWorkspacePage(`${name} - コンテナ`)
+      console.log('[NotionService.createDatabase] Container page created:', parentPageId)
 
       // データベースを作成
+      console.log('[NotionService.createDatabase] Creating database under page:', parentPageId)
       const response = await fetch(`${NOTION_API_BASE}/databases`, {
         method: "POST",
         headers: {
@@ -345,19 +320,19 @@ export class NotionService {
 
       if (!response.ok) {
         const errorData = await response.json()
-        console.error('Notion API error:', errorData)
+        console.error('[NotionService.createDatabase] Error:', errorData)
         throw new Error(`データベースの作成に失敗しました: ${errorData.message || response.statusText}`)
       }
 
       const result = await response.json()
-      console.log('Notion database created successfully:', result)
+      console.log('[NotionService.createDatabase] Database created successfully:', result)
 
       return {
         id: result.id,
         url: result.url
       }
     } catch (error) {
-      console.error('Error creating Notion database:', error)
+      console.error('[NotionService.createDatabase] Error creating database:', error)
       throw error
     }
   }

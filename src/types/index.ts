@@ -1,4 +1,4 @@
-export type Screen = 'home' | 'create-clipboard' | 'clipboard-list' | 'demo' | 'settings'
+export type Screen = 'home' | 'create-clipboard' | 'clipboard-list' | 'select-clipboard' | 'demo' | 'settings'
 
 // クリップボード: Notionのデータベースに紐づく
 export interface Clipboard {
@@ -39,7 +39,6 @@ export type AuthMethod = 'manual' | 'oauth'
 export interface NotionConfig {
   authMethod: AuthMethod
   apiKey?: string
-  databaseId?: string
   // OAuth用フィールド
   accessToken?: string
   refreshToken?: string
