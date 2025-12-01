@@ -2,9 +2,10 @@ import type { FC } from "react"
 
 interface HomeScreenProps {
   onNavigate: (screen: string) => void
+  onClipPage?: () => void
 }
 
-const HomeScreen: FC<HomeScreenProps> = ({ onNavigate }) => {
+const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage }) => {
   return (
     <div className="container">
       <div className="header">
@@ -30,21 +31,36 @@ const HomeScreen: FC<HomeScreenProps> = ({ onNavigate }) => {
       <div className="empty-state">
         <div className="empty-state-icon">📝</div>
         <div className="empty-state-text">
-          フォームを作成してNotionへの保存を簡単に
+          ウェブページをNotionに簡単保存
         </div>
+
         <button
           className="button"
-          onClick={() => onNavigate('form-list')}
-        >
-          フォーム一覧を見る
-        </button>
-        <button
-          className="button button-secondary"
-          onClick={() => onNavigate('create-form')}
+          onClick={onClipPage}
           style={{ marginTop: '12px' }}
         >
-          + 新しいフォームを作成
+          📎 このページをクリップ
         </button>
+
+        <div style={{
+          marginTop: '24px',
+          paddingTop: '24px',
+          borderTop: '1px solid #e9e9e7'
+        }}>
+          <button
+            className="button button-secondary"
+            onClick={() => onNavigate('clipboard-list')}
+          >
+            クリップボード一覧を見る
+          </button>
+          <button
+            className="button button-secondary"
+            onClick={() => onNavigate('create-clipboard')}
+            style={{ marginTop: '12px' }}
+          >
+            + 新しいクリップボードを作成
+          </button>
+        </div>
       </div>
     </div>
   )

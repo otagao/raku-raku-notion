@@ -142,3 +142,24 @@ body {
   font-size: 12px;
   color: #787774;
 }
+
+.hint {
+  font-size: 12px;
+  color: #787774;
+  margin-top: 4px;
+}
+
+.error-message {
+  padding: 12px;
+  margin-bottom: 16px;
+  background: #ffe5e5;
+  border: 1px solid #ff6b6b;
+  border-radius: 6px;
+  color: #d63031;
+  font-size: 13px;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -1,5 +1,17 @@
-export type Screen = 'home' | 'create-form' | 'form-list' | 'demo' | 'settings'
+export type Screen = 'home' | 'create-clipboard' | 'clipboard-list' | 'demo' | 'settings'
 
+// クリップボード: Notionのデータベースに紐づく
+export interface Clipboard {
+  id: string                    // ローカルのユニークID
+  name: string                  // クリップボード名
+  createdAt: Date | string     // 作成日時（ストレージでは文字列）
+  lastClippedAt?: Date | string // 最終クリップ日時
+  notionDatabaseId: string     // NotionのデータベースID
+  notionDatabaseUrl?: string   // NotionデータベースのURL
+  createdByExtension: boolean  // この拡張機能で作成されたか
+}
+
+// 後方互換性のため残す（削除予定）
 export interface Form {
   id: string
   name: string
@@ -19,6 +31,7 @@ export interface FormField {
 export interface NavigationState {
   screen: Screen
   selectedFormId?: string
+  selectedClipboardId?: string
 }
 
 export type AuthMethod = 'manual' | 'oauth'
@@ -68,6 +81,15 @@ export interface NotionPageData {
   title: string
   url: string
   memo?: string
+}
+
+// Webクリップデータ
+export interface WebClipData {
+  title: string
+  url: string
+  content?: string       // ページ本文（テキスト）
+  thumbnail?: string     // サムネイル画像URL
+  databaseId: string     // 保存先データベースID
 }
 
 export interface CurrentTabInfo {
