@@ -22,7 +22,7 @@
 
 ### 開発状況
 
-**現在のフェーズ**: Phase 3 完了 - Webクリップ機能実装完了
+**現在のフェーズ**: Phase 3 完了 - Webクリップ機能拡張完了
 
 #### 実装済み機能 ✅
 
@@ -102,7 +102,7 @@
    - クリップボード概念の導入（フォーム → クリップボードへ移行）
    - クリップボード作成画面 ([CreateClipboardScreen.tsx](src/screens/CreateClipboardScreen.tsx))
    - クリップボード一覧画面 ([ClipboardListScreen.tsx](src/screens/ClipboardListScreen.tsx))
-   - クリップボード選択画面 ([SelectClipboardScreen.tsx](src/screens/SelectClipboardScreen.tsx)) 🆕
+   - クリップボード選択画面 ([SelectClipboardScreen.tsx](src/screens/SelectClipboardScreen.tsx))
    - Notionデータベース自動作成 - ワークスペース直下にコンテナページを作成し、その下にデータベースを配置
    - Webページクリップ機能 (`createWebClip()`)
    - 複数クリップボード選択機能 - クリップボードが複数ある場合は選択UIを表示
@@ -112,24 +112,32 @@
      - `clip-page`: ページをクリップ
      - `create-database`: データベース作成
 
+11. **Content Script - 自動コンテンツ抽出** 🆕 (完了)
+   - ページ本文の自動抽出 ([extract-content.ts](src/contents/extract-content.ts))
+   - OGP画像・サムネイル自動取得
+   - Favicon（ページアイコン）自動取得
+   - メタデータ抽出（タイトル、URL）
+   - 賢いテキスト抽出（article/main要素優先、スクリプト・スタイル除外）
+   - 全URLで動作（`<all_urls>`）
+
+12. **メモ機能** 🆕 (完了)
+   - クリップ時のメモ入力ダイアログ ([MemoDialog.tsx](src/components/MemoDialog.tsx))
+   - IME対応（日本語入力時の変換確定を検知）
+   - Shift + Enter で改行、Enter で確定
+   - データベースプロパティとして「メモ」を保存
+
 #### 未実装機能 🚧
 
-1. **Webクリップ機能の拡張** (優先度: 高)
-   - ページ本文の自動抽出（Content Script実装）
-   - サムネイル画像の取得（OGP対応）
-   - メタデータの自動抽出
-
-2. **フォームフィールドのカスタマイズ** (優先度: 中)
+1. **フォームフィールドのカスタマイズ** (優先度: 中)
    - テキスト、テキストエリア、選択肢、チェックボックス
    - 必須項目の設定
    - 型定義は準備済み (FormField interface)
 
-3. **コンテンツスクリプト機能** (優先度: 中)
+2. **コンテンツスクリプト機能拡張** (優先度: 中)
    - 選択テキストの取得
    - スクリーンショット機能
-   - ページメタデータの自動抽出
 
-4. **高度な機能** (優先度: 低)
+3. **高度な機能** (優先度: 低)
    - タグ・カテゴリ管理
    - ショートカットキー対応
    - クリップボードのエクスポート/インポート
@@ -139,28 +147,31 @@
 ```
 raku-raku-notion/
 ├── src/
-│   ├── popup.tsx              # メインエントリーポイント (画面ルーティング)
+│   ├── popup.tsx              # メインエントリーポイント (画面ルーティング + メモダイアログ)
 │   ├── screens/               # 画面コンポーネント
 │   │   ├── HomeScreen.tsx    # ホーム画面 (クリップボタン + 導線)
 │   │   ├── CreateClipboardScreen.tsx  # クリップボード作成画面
 │   │   ├── ClipboardListScreen.tsx    # クリップボード一覧画面
-│   │   ├── SelectClipboardScreen.tsx  # クリップボード選択画面 🆕
+│   │   ├── SelectClipboardScreen.tsx  # クリップボード選択画面
 │   │   ├── SettingsScreen.tsx         # Notion設定画面 (OAuth/手動トークン)
 │   │   ├── CreateFormScreen.tsx       # 旧フォーム作成画面（後方互換）
 │   │   ├── FormListScreen.tsx         # 旧フォーム一覧画面（後方互換）
 │   │   └── DemoScreen.tsx             # 旧デモページ（後方互換）
+│   ├── components/            # 再利用可能コンポーネント
+│   │   └── MemoDialog.tsx    # メモ入力ダイアログ（IME対応）🆕
+│   ├── contents/              # Content Scripts
+│   │   └── extract-content.ts # ページコンテンツ抽出 🆕
 │   ├── services/              # ビジネスロジック層
 │   │   ├── storage.ts        # Chrome Storage API ラッパー + タブ情報取得
-│   │   └── notion.ts         # Notion API クライアント (OAuth対応)
+│   │   └── notion.ts         # Notion API クライアント (OAuth + メモ対応)
 │   ├── background/            # バックグラウンドスクリプト
-│   │   └── index.ts          # Service Worker (OAuth + API呼び出し)
+│   │   └── index.ts          # Service Worker (OAuth + API + コンテンツ抽出)
 │   ├── utils/                 # ユーティリティ関数
 │   │   └── oauth.ts          # OAuth認証ヘルパー関数
 │   ├── types/                 # TypeScript型定義
 │   │   └── index.ts          # Clipboard, NotionConfig, WebClipData など
-│   ├── styles/                # グローバルCSS
-│   │   └── global.css        # Notionスタイルを参考にしたデザイン
-│   └── components/            # 再利用可能コンポーネント (未使用)
+│   └── styles/                # グローバルCSS
+│       └── global.css        # Notionスタイルを参考にしたデザイン
 ├── assets/
 │   ├── icon.png              # 拡張機能アイコン (512x512)
 │   └── ICON_SETUP.md         # アイコン作成ガイド
@@ -510,5 +521,5 @@ Notion Integrationの設定:
 ---
 
 **最終更新**: 2025-12-01
-**バージョン**: 1.3.0 (Webクリップ機能完成)
+**バージョン**: 1.4.0 (コンテンツ自動抽出＆メモ機能追加)
 **メンテナー**: Claude Code

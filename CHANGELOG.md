@@ -1,5 +1,77 @@
 # Changelog
 
+## 2025-12-01 - コンテンツ自動抽出＆メモ機能追加
+
+### 追加された機能
+
+#### Content Script - 自動コンテンツ抽出機能
+- **ページ本文の自動抽出** ([extract-content.ts](src/contents/extract-content.ts))
+  - article/main要素優先、スクリプト・スタイル除外
+  - 最大5000文字のテキスト抽出
+- **OGP画像・サムネイル自動取得**
+  - og:image、twitter:image、記事内画像から自動選択
+- **Favicon（ページアイコン）自動取得**
+  - Notionページのアイコンとして自動設定
+  - link[rel="icon"]、Apple Touch Icon、/favicon.icoに対応
+- **メタデータ抽出**
+  - タイトル、URLを自動取得
+- **全URLで動作** (`<all_urls>`)
+
+#### メモ機能
+- **クリップ時のメモ入力ダイアログ** ([MemoDialog.tsx](src/components/MemoDialog.tsx))
+  - モーダルダイアログでメモを入力
+  - **IME対応** - 日本語入力時の変換確定を正しく検知
+  - **Shift + Enter で改行、Enter で確定**
+  - **Escapeキーでキャンセル**
+  - 操作方法をダイアログに明記
+- **データベーススキーマの拡張**
+  - 「メモ」プロパティを追加（rich_text型）
+  - Notionのデータベースビューでメモを確認可能
+
+### 技術的な変更
+
+#### 型定義の拡張 ([types/index.ts](src/types/index.ts))
+```typescript
+export interface WebClipData {
+  title: string
+  url: string
+  content?: string       // ページ本文（テキスト）
+  thumbnail?: string     // サムネイル画像URL
+  icon?: string          // ページアイコン（favicon）URL 🆕
+  memo?: string          // ユーザーメモ 🆕
+  databaseId: string
+}
+
+export interface CurrentTabInfo {
+  title: string
+  url: string
+  tabId: number          // 🆕 Content Script通信用
+}
+```
+
+#### Background Service Workerの拡張 ([background/index.ts](src/background/index.ts))
+- Content Scriptからのコンテンツ抽出統合
+- `handleClipPage`でtabIdを使用してContent Scriptと通信
+- 抽出されたコンテンツをNotionに転送
+
+#### Notion APIサービスの拡張 ([services/notion.ts](src/services/notion.ts))
+- `createWebClip()`メソッドでicon、memoをサポート
+- ページアイコンの設定（external type）
+- メモをプロパティとして保存
+- サムネイルとテキストはページコンテンツ（children）として保存
+
+### ファイル変更一覧
+- `src/components/MemoDialog.tsx` - 新規作成（メモ入力ダイアログ）
+- `src/contents/extract-content.ts` - 新規作成（Content Script）
+- `src/popup.tsx` - メモダイアログ統合
+- `src/background/index.ts` - Content Script連携追加
+- `src/services/notion.ts` - icon、memo対応
+- `src/services/storage.ts` - tabIdをCurrentTabInfoに追加
+- `src/types/index.ts` - WebClipData、CurrentTabInfo拡張
+- `CLAUDE.md` - ドキュメント更新
+
+---
+
 ## 2025-11-22 - Notion API統合
 
 ### 追加された機能

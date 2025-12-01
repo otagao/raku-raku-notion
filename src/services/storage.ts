@@ -122,12 +122,13 @@ export class StorageService {
   static async getCurrentTabInfo(): Promise<CurrentTabInfo | null> {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-      if (!tab || !tab.title || !tab.url) {
+      if (!tab || !tab.title || !tab.url || tab.id === undefined) {
         return null
       }
       return {
         title: tab.title,
-        url: tab.url
+        url: tab.url,
+        tabId: tab.id
       }
     } catch (error) {
       console.error('Failed to get current tab info:', error)

@@ -88,10 +88,13 @@ export interface WebClipData {
   url: string
   content?: string       // ページ本文（テキスト）
   thumbnail?: string     // サムネイル画像URL
+  icon?: string          // ページアイコン（favicon）URL
+  memo?: string          // ユーザーメモ
   databaseId: string     // 保存先データベースID
 }
 
 export interface CurrentTabInfo {
   title: string
   url: string
+  tabId: number
 }
