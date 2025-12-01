@@ -33,3 +33,6 @@ coverage/
 
 # Misc
 .cache/
+
+# Claude Code
+.claude/
