@@ -1,4 +1,4 @@
-import type { NotionConfig, NotionPageData } from "~types"
+import type { NotionConfig, NotionPageData, WebClipData } from "~types"
 
 const NOTION_VERSION = "2022-06-28"
 const NOTION_API_BASE = "https://api.notion.com/v1"
@@ -228,6 +228,211 @@ export class NotionService {
       return result.results || []
     } catch (error) {
       console.error('Error listing databases:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 新しいフルページデータベースを作成する（クリップボード用）
+   */
+  async createDatabase(name: string): Promise<{ id: string; url: string }> {
+    try {
+      let parentPageId: string | null = null
+
+      console.log('[NotionService.createDatabase] Creating database:', name)
+      console.log('[NotionService.createDatabase] this.databaseId:', this.databaseId)
+
+      // 設定でデータベースが選択されている場合、その親ページを取得
+      if (this.databaseId) {
+        console.log('[NotionService.createDatabase] Fetching parent from database:', this.databaseId)
+        try {
+          const dbResponse = await fetch(`${NOTION_API_BASE}/databases/${this.databaseId}`, {
+            method: "GET",
+            headers: {
+              "Authorization": `Bearer ${this.getAuthToken()}`,
+              "Notion-Version": NOTION_VERSION
+            }
+          })
+
+          console.log('[NotionService.createDatabase] Database fetch response status:', dbResponse.status)
+
+          if (dbResponse.ok) {
+            const dbData = await dbResponse.json()
+            console.log('[NotionService.createDatabase] Database parent:', dbData.parent)
+
+            // 親ページのIDを取得
+            if (dbData.parent?.type === 'page_id') {
+              parentPageId = dbData.parent.page_id
+              console.log('[NotionService.createDatabase] Using parent page:', parentPageId)
+            } else if (dbData.parent?.type === 'workspace') {
+              // ワークスペース直下の場合はnullのまま
+              parentPageId = null
+              console.log('[NotionService.createDatabase] Database is at workspace root')
+            }
+          }
+        } catch (error) {
+          console.warn('[NotionService.createDatabase] Failed to get parent from selected database:', error)
+        }
+      } else {
+        console.log('[NotionService.createDatabase] No databaseId in config')
+      }
+
+      // 親ページが見つからない場合、ワークスペース内のページを検索
+      if (!parentPageId) {
+        const searchResponse = await fetch(`${NOTION_API_BASE}/search`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${this.getAuthToken()}`,
+            "Notion-Version": NOTION_VERSION,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            filter: {
+              value: "page",
+              property: "object"
+            },
+            page_size: 1
+          })
+        })
+
+        if (searchResponse.ok) {
+          const searchResult = await searchResponse.json()
+          const page = searchResult.results?.[0]
+          if (page) {
+            parentPageId = page.id
+          }
+        }
+      }
+
+      if (!parentPageId) {
+        throw new Error('親ページが見つかりません。Notionワークスペースにページまたはデータベースを作成してください。')
+      }
+
+      // データベースを作成
+      const response = await fetch(`${NOTION_API_BASE}/databases`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${this.getAuthToken()}`,
+          "Notion-Version": NOTION_VERSION,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          parent: {
+            type: "page_id",
+            page_id: parentPageId
+          },
+          title: [
+            {
+              type: "text",
+              text: {
+                content: name
+              }
+            }
+          ],
+          properties: {
+            "名前": {
+              title: {}
+            },
+            "URL": {
+              url: {}
+            },
+            "作成日時": {
+              created_time: {}
+            }
+          }
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Notion API error:', errorData)
+        throw new Error(`データベースの作成に失敗しました: ${errorData.message || response.statusText}`)
+      }
+
+      const result = await response.json()
+      console.log('Notion database created successfully:', result)
+
+      return {
+        id: result.id,
+        url: result.url
+      }
+    } catch (error) {
+      console.error('Error creating Notion database:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Webクリップをデータベースに追加する
+   */
+  async createWebClip(data: WebClipData): Promise<string> {
+    const { title, url, content, thumbnail, databaseId } = data
+
+    try {
+      const children: any[] = []
+
+      // サムネイルがある場合は画像ブロックとして追加
+      if (thumbnail) {
+        children.push({
+          object: "block",
+          type: "image",
+          image: {
+            type: "external",
+            external: {
+              url: thumbnail
+            }
+          }
+        })
+      }
+
+      // 本文がある場合は段落ブロックとして追加
+      if (content) {
+        // 長いテキストは2000文字ごとに分割（Notion APIの制限）
+        const chunks = content.match(/.{1,2000}/g) || []
+        chunks.forEach(chunk => {
+          children.push({
+            object: "block",
+            type: "paragraph",
+            paragraph: {
+              rich_text: [{ text: { content: chunk } }]
+            }
+          })
+        })
+      }
+
+      const response = await fetch(`${NOTION_API_BASE}/pages`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${this.getAuthToken()}`,
+          "Notion-Version": NOTION_VERSION,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          parent: { database_id: databaseId },
+          properties: {
+            "名前": {
+              title: [{ text: { content: title } }]
+            },
+            "URL": {
+              url: url
+            }
+          },
+          children: children.length > 0 ? children : undefined
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Notion API error:', errorData)
+        throw new Error(`Webクリップの作成に失敗しました: ${errorData.message || response.statusText}`)
+      }
+
+      const result = await response.json()
+      console.log('Web clip created successfully:', result)
+
+      return result.id
+    } catch (error) {
+      console.error('Error creating web clip:', error)
       throw error
     }
   }

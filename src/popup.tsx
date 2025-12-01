@@ -2,24 +2,30 @@ import { useEffect, useState } from "react"
 import HomeScreen from "~screens/HomeScreen"
 import CreateFormScreen from "~screens/CreateFormScreen"
 import FormListScreen from "~screens/FormListScreen"
+import CreateClipboardScreen from "~screens/CreateClipboardScreen"
+import ClipboardListScreen from "~screens/ClipboardListScreen"
 import DemoScreen from "~screens/DemoScreen"
 import { SettingsScreen } from "~screens/SettingsScreen"
 import { StorageService } from "~services/storage"
-import type { Screen, Form } from "~types"
+import { createNotionClient } from "~services/notion"
+import type { Screen, Form, Clipboard } from "~types"
 import "~styles/global.css"
 
 function IndexPopup() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('home')
   const [forms, setForms] = useState<Form[]>([])
+  const [clipboards, setClipboards] = useState<Clipboard[]>([])
   const [selectedFormId, setSelectedFormId] = useState<string | undefined>()
+  const [selectedClipboardId, setSelectedClipboardId] = useState<string | undefined>()
 
   useEffect(() => {
-    initializeAndLoadForms()
+    initializeAndLoadData()
   }, [])
 
-  const initializeAndLoadForms = async () => {
+  const initializeAndLoadData = async () => {
     await StorageService.initializeMockData()
     await loadForms()
+    await loadClipboards()
   }
 
   const loadForms = async () => {
@@ -27,10 +33,19 @@ function IndexPopup() {
     setForms(loadedForms)
   }
 
-  const handleNavigate = (screen: string, formId?: string) => {
+  const loadClipboards = async () => {
+    const loadedClipboards = await StorageService.getClipboards()
+    setClipboards(loadedClipboards)
+  }
+
+  const handleNavigate = (screen: string, idParam?: string) => {
     setCurrentScreen(screen as Screen)
-    if (formId) {
-      setSelectedFormId(formId)
+    if (idParam) {
+      if (screen === 'demo') {
+        setSelectedFormId(idParam)
+      } else {
+        setSelectedClipboardId(idParam)
+      }
     }
   }
 
@@ -39,10 +54,96 @@ function IndexPopup() {
     await loadForms()
   }
 
+  const handleCreateClipboard = async (clipboardName: string) => {
+    // Notion認証チェック
+    const config = await StorageService.getNotionConfig()
+    console.log('[handleCreateClipboard] Loaded config:', JSON.stringify(config, null, 2))
+
+    if (!config.accessToken && !config.apiKey) {
+      alert('Notion連携が必要です。設定画面でNotionアカウントを連携してください。')
+      handleNavigate('settings')
+      throw new Error('Notion連携が必要です')
+    }
+
+    // Notionにデータベースを作成
+    console.log('[handleCreateClipboard] Creating Notion client with databaseId:', config.databaseId)
+    const notionClient = createNotionClient(config)
+    const { id: databaseId, url: databaseUrl } = await notionClient.createDatabase(clipboardName)
+
+    // クリップボードを保存
+    await StorageService.addClipboard({
+      name: clipboardName,
+      notionDatabaseId: databaseId,
+      notionDatabaseUrl: databaseUrl,
+      createdByExtension: true
+    })
+
+    await loadClipboards()
+  }
+
+  const handleDeleteClipboard = async (clipboardId: string) => {
+    await StorageService.deleteClipboard(clipboardId)
+    await loadClipboards()
+  }
+
+  const handleClipPage = async () => {
+    // クリップボードがない場合
+    if (clipboards.length === 0) {
+      alert('クリップボードを先に作成してください')
+      handleNavigate('create-clipboard')
+      return
+    }
+
+    // クリップボードが1つだけの場合は自動選択
+    if (clipboards.length === 1) {
+      await performClip(clipboards[0].notionDatabaseId)
+      return
+    }
+
+    // 複数ある場合は選択UIを表示（今後実装）
+    alert('複数のクリップボードから選択する機能は後ほど実装します')
+  }
+
+  const performClip = async (databaseId: string) => {
+    try {
+      const tabInfo = await StorageService.getCurrentTabInfo()
+      if (!tabInfo) {
+        alert('ページ情報を取得できませんでした')
+        return
+      }
+
+      // Backgroundにメッセージを送信してクリップを実行
+      const response = await chrome.runtime.sendMessage({
+        type: 'clip-page',
+        data: {
+          title: tabInfo.title,
+          url: tabInfo.url,
+          databaseId
+        }
+      })
+
+      if (response.success) {
+        // 最終クリップ日時を更新
+        const clipboard = await StorageService.getClipboardByDatabaseId(databaseId)
+        if (clipboard) {
+          await StorageService.updateClipboardLastClipped(clipboard.id)
+        }
+
+        alert('クリップしました！')
+        window.close()
+      } else {
+        alert(`クリップに失敗しました: ${response.error}`)
+      }
+    } catch (error) {
+      console.error('Clip error:', error)
+      alert(`エラーが発生しました: ${error instanceof Error ? error.message : '不明なエラー'}`)
+    }
+  }
+
   const renderScreen = () => {
     switch (currentScreen) {
       case 'home':
-        return <HomeScreen onNavigate={handleNavigate} />
+        return <HomeScreen onNavigate={handleNavigate} onClipPage={handleClipPage} />
       case 'create-form':
         return (
           <CreateFormScreen
@@ -52,12 +153,27 @@ function IndexPopup() {
         )
       case 'form-list':
         return <FormListScreen forms={forms} onNavigate={handleNavigate} allForms={forms} />
+      case 'create-clipboard':
+        return (
+          <CreateClipboardScreen
+            onNavigate={handleNavigate}
+            onCreateClipboard={handleCreateClipboard}
+          />
+        )
+      case 'clipboard-list':
+        return (
+          <ClipboardListScreen
+            clipboards={clipboards}
+            onNavigate={handleNavigate}
+            onDeleteClipboard={handleDeleteClipboard}
+          />
+        )
       case 'demo':
         return <DemoScreen formId={selectedFormId} onNavigate={handleNavigate} />
       case 'settings':
         return <SettingsScreen onBack={() => handleNavigate('home')} />
       default:
-        return <HomeScreen onNavigate={handleNavigate} />
+        return <HomeScreen onNavigate={handleNavigate} onClipPage={handleClipPage} />
     }
   }
 

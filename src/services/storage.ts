@@ -1,7 +1,8 @@
-import type { Form, NotionConfig, CurrentTabInfo } from "~types"
+import type { Form, NotionConfig, CurrentTabInfo, Clipboard } from "~types"
 
 const STORAGE_KEYS = {
   FORMS: 'raku-forms',
+  CLIPBOARDS: 'raku-clipboards',
   NOTION_CONFIG: 'raku-notion-config',
   INITIALIZED: 'raku-initialized'
 } as const
@@ -132,5 +133,98 @@ export class StorageService {
       console.error('Failed to get current tab info:', error)
       return null
     }
+  }
+
+  // ========== クリップボード管理 ==========
+
+  /**
+   * クリップボード一覧を取得
+   */
+  static async getClipboards(): Promise<Clipboard[]> {
+    try {
+      const result = await chrome.storage.local.get(STORAGE_KEYS.CLIPBOARDS)
+      const clipboards = result[STORAGE_KEYS.CLIPBOARDS] || []
+
+      // 文字列からDateオブジェクトに変換
+      return clipboards.map((cb: any) => ({
+        ...cb,
+        createdAt: cb.createdAt ? new Date(cb.createdAt) : new Date(),
+        lastClippedAt: cb.lastClippedAt ? new Date(cb.lastClippedAt) : undefined
+      }))
+    } catch (error) {
+      console.error('Failed to get clipboards:', error)
+      return []
+    }
+  }
+
+  /**
+   * クリップボード一覧を保存
+   */
+  static async saveClipboards(clipboards: Clipboard[]): Promise<void> {
+    try {
+      // DateオブジェクトをISO文字列に変換
+      const serialized = clipboards.map(cb => ({
+        ...cb,
+        createdAt: cb.createdAt instanceof Date ? cb.createdAt.toISOString() : cb.createdAt,
+        lastClippedAt: cb.lastClippedAt instanceof Date ? cb.lastClippedAt.toISOString() : cb.lastClippedAt
+      }))
+      await chrome.storage.local.set({ [STORAGE_KEYS.CLIPBOARDS]: serialized })
+    } catch (error) {
+      console.error('Failed to save clipboards:', error)
+      throw error
+    }
+  }
+
+  /**
+   * クリップボードを追加
+   */
+  static async addClipboard(clipboard: Omit<Clipboard, 'id' | 'createdAt'>): Promise<Clipboard> {
+    const clipboards = await this.getClipboards()
+    const newClipboard: Clipboard = {
+      ...clipboard,
+      id: crypto.randomUUID(),
+      createdAt: new Date()
+    }
+    clipboards.push(newClipboard)
+    await this.saveClipboards(clipboards)
+    return newClipboard
+  }
+
+  /**
+   * クリップボードを削除
+   */
+  static async deleteClipboard(clipboardId: string): Promise<void> {
+    const clipboards = await this.getClipboards()
+    const filteredClipboards = clipboards.filter(cb => cb.id !== clipboardId)
+    await this.saveClipboards(filteredClipboards)
+  }
+
+  /**
+   * IDでクリップボードを取得
+   */
+  static async getClipboardById(clipboardId: string): Promise<Clipboard | null> {
+    const clipboards = await this.getClipboards()
+    return clipboards.find(cb => cb.id === clipboardId) || null
+  }
+
+  /**
+   * クリップボードの最終クリップ日時を更新
+   */
+  static async updateClipboardLastClipped(clipboardId: string): Promise<void> {
+    const clipboards = await this.getClipboards()
+    const index = clipboards.findIndex(cb => cb.id === clipboardId)
+
+    if (index !== -1) {
+      clipboards[index].lastClippedAt = new Date()
+      await this.saveClipboards(clipboards)
+    }
+  }
+
+  /**
+   * NotionデータベースIDからクリップボードを取得
+   */
+  static async getClipboardByDatabaseId(databaseId: string): Promise<Clipboard | null> {
+    const clipboards = await this.getClipboards()
+    return clipboards.find(cb => cb.notionDatabaseId === databaseId) || null
   }
 }

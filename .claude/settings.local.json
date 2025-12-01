@@ -3,7 +3,10 @@
     "allow": [
       "Bash(npm init:*)",
       "Bash(npm install:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(npm run oauth-server:*)",
+      "Bash(npm run build:*)",
+      "Bash(git add:*)"
     ]
   },
   "outputStyle": "default"

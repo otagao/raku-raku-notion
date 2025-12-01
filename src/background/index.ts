@@ -10,7 +10,7 @@
 import { createNotionClient } from "~services/notion"
 import { StorageService } from "~services/storage"
 import { generateOAuthUrl, generateState, exchangeCodeForToken } from "~utils/oauth"
-import type { NotionPageData, NotionOAuthConfig } from "~types"
+import type { NotionPageData, NotionOAuthConfig, WebClipData } from "~types"
 
 // メッセージリスナー
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -72,6 +72,14 @@ async function handleMessage(
 
       case "complete-oauth":
         await handleCompleteOAuth(message.data, sendResponse)
+        break
+
+      case "clip-page":
+        await handleClipPage(message.data, sendResponse)
+        break
+
+      case "create-database":
+        await handleCreateDatabase(message.data, sendResponse)
         break
 
       default:
@@ -275,6 +283,83 @@ async function handleCompleteOAuth(
     sendResponse({
       success: false,
       error: error instanceof Error ? error.message : "Failed to complete OAuth"
+    })
+  }
+}
+
+/**
+ * Webページをクリップ（データベースにページを追加）
+ */
+async function handleClipPage(
+  data: { title: string; url: string; databaseId: string; content?: string; thumbnail?: string },
+  sendResponse: (response?: any) => void
+) {
+  try {
+    const config = await StorageService.getNotionConfig()
+
+    if (!config.apiKey && !config.accessToken) {
+      sendResponse({
+        success: false,
+        error: "Notion API key or access token is not configured"
+      })
+      return
+    }
+
+    const notionClient = createNotionClient(config)
+
+    const webClipData: WebClipData = {
+      title: data.title,
+      url: data.url,
+      databaseId: data.databaseId,
+      content: data.content,
+      thumbnail: data.thumbnail
+    }
+
+    const pageId = await notionClient.createWebClip(webClipData)
+
+    sendResponse({
+      success: true,
+      pageId
+    })
+  } catch (error) {
+    console.error("Failed to clip page:", error)
+    sendResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to clip page"
+    })
+  }
+}
+
+/**
+ * Notionデータベースを作成
+ */
+async function handleCreateDatabase(
+  data: { name: string },
+  sendResponse: (response?: any) => void
+) {
+  try {
+    const config = await StorageService.getNotionConfig()
+
+    if (!config.apiKey && !config.accessToken) {
+      sendResponse({
+        success: false,
+        error: "Notion API key or access token is not configured"
+      })
+      return
+    }
+
+    const notionClient = createNotionClient(config)
+    const result = await notionClient.createDatabase(data.name)
+
+    sendResponse({
+      success: true,
+      database: result
+    })
+  } catch (error) {
+    console.error("Failed to create database:", error)
+    sendResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to create database"
     })
   }
 }
