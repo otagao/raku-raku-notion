@@ -22,16 +22,17 @@
 
 ### 開発状況
 
-**現在のフェーズ**: Phase 3 進行中 - Webクリップ機能実装
+**現在のフェーズ**: Phase 3 完了 - Webクリップ機能実装完了
 
 #### 実装済み機能 ✅
 
 1. **基本UI構造**
-   - ホーム画面 ([HomeScreen.tsx](src/screens/HomeScreen.tsx)) - 設定画面へのアクセス追加
-   - フォーム作成画面 ([CreateFormScreen.tsx](src/screens/CreateFormScreen.tsx))
-   - フォーム一覧画面 ([FormListScreen.tsx](src/screens/FormListScreen.tsx))
-   - デモページ ([DemoScreen.tsx](src/screens/DemoScreen.tsx))
-   - 設定画面 ([SettingsScreen.tsx](src/screens/SettingsScreen.tsx)) - 固定幅400px対応 🆕
+   - ホーム画面 ([HomeScreen.tsx](src/screens/HomeScreen.tsx))
+   - クリップボード作成画面 ([CreateClipboardScreen.tsx](src/screens/CreateClipboardScreen.tsx))
+   - クリップボード一覧画面 ([ClipboardListScreen.tsx](src/screens/ClipboardListScreen.tsx))
+   - クリップボード選択画面 ([SelectClipboardScreen.tsx](src/screens/SelectClipboardScreen.tsx)) 🆕
+   - 設定画面 ([SettingsScreen.tsx](src/screens/SettingsScreen.tsx)) - シンプル化（データベース選択機能削除）
+   - デモページ ([DemoScreen.tsx](src/screens/DemoScreen.tsx)) - 旧フォーム機能（後方互換）
 
 2. **データ永続化**
    - Chrome Storage API統合 ([storage.ts](src/services/storage.ts))
@@ -69,9 +70,9 @@
 6. **設定UI** 🆕
    - OAuth/手動トークン選択
    - Notion認証ボタン (OAuthサーバー起動確認付き)
-   - データベース一覧表示・選択
    - 接続状態表示
    - 連携解除機能
+   - シンプル化（データベース選択機能を削除、クリップボード作成時に自動作成）
    - レスポンシブデザイン (固定幅400px)
 
 7. **Background Service Worker** 🆕
@@ -97,25 +98,26 @@
    - OAuth開発サーバー (`npm run oauth-server`)
    - 統合開発環境 (`npm run dev:full` - 拡張機能 + OAuthサーバー同時起動)
 
-10. **Webクリップ機能** 🆕 (Phase 3 - 進行中)
+10. **Webクリップ機能** 🆕 (Phase 3 - 完了)
    - クリップボード概念の導入（フォーム → クリップボードへ移行）
    - クリップボード作成画面 ([CreateClipboardScreen.tsx](src/screens/CreateClipboardScreen.tsx))
    - クリップボード一覧画面 ([ClipboardListScreen.tsx](src/screens/ClipboardListScreen.tsx))
-   - Notionデータベース自動作成 (`createDatabase()`)
+   - クリップボード選択画面 ([SelectClipboardScreen.tsx](src/screens/SelectClipboardScreen.tsx)) 🆕
+   - Notionデータベース自動作成 - ワークスペース直下にコンテナページを作成し、その下にデータベースを配置
    - Webページクリップ機能 (`createWebClip()`)
+   - 複数クリップボード選択機能 - クリップボードが複数ある場合は選択UIを表示
    - クリップボード管理（作成・削除・一覧表示）
-   - 作成日・最終クリップ日時の記録
+   - 作成日・最終クリップ日時の自動記録・更新
    - Background Service Worker拡張:
      - `clip-page`: ページをクリップ
      - `create-database`: データベース作成
 
 #### 未実装機能 🚧
 
-1. **Webクリップ機能の拡張** (優先度: 高) 🔄
-   - 複数クリップボード選択UI
-   - ページ本文の自動抽出
-   - サムネイル画像の取得
-   - クリップボード作成位置の修正（設定で選択したデータベースの親ページ下に作成）
+1. **Webクリップ機能の拡張** (優先度: 高)
+   - ページ本文の自動抽出（Content Script実装）
+   - サムネイル画像の取得（OGP対応）
+   - メタデータの自動抽出
 
 2. **フォームフィールドのカスタマイズ** (優先度: 中)
    - テキスト、テキストエリア、選択肢、チェックボックス
@@ -139,11 +141,14 @@ raku-raku-notion/
 ├── src/
 │   ├── popup.tsx              # メインエントリーポイント (画面ルーティング)
 │   ├── screens/               # 画面コンポーネント
-│   │   ├── HomeScreen.tsx    # 初期画面 (フォーム一覧/作成への導線)
-│   │   ├── CreateFormScreen.tsx  # フォーム作成フォーム
-│   │   ├── FormListScreen.tsx    # フォーム一覧 + URL遷移ロジック
-│   │   ├── SettingsScreen.tsx    # Notion設定画面 (OAuth/手動トークン)
-│   │   └── DemoScreen.tsx    # プレースホルダー画面
+│   │   ├── HomeScreen.tsx    # ホーム画面 (クリップボタン + 導線)
+│   │   ├── CreateClipboardScreen.tsx  # クリップボード作成画面
+│   │   ├── ClipboardListScreen.tsx    # クリップボード一覧画面
+│   │   ├── SelectClipboardScreen.tsx  # クリップボード選択画面 🆕
+│   │   ├── SettingsScreen.tsx         # Notion設定画面 (OAuth/手動トークン)
+│   │   ├── CreateFormScreen.tsx       # 旧フォーム作成画面（後方互換）
+│   │   ├── FormListScreen.tsx         # 旧フォーム一覧画面（後方互換）
+│   │   └── DemoScreen.tsx             # 旧デモページ（後方互換）
 │   ├── services/              # ビジネスロジック層
 │   │   ├── storage.ts        # Chrome Storage API ラッパー + タブ情報取得
 │   │   └── notion.ts         # Notion API クライアント (OAuth対応)
@@ -152,13 +157,14 @@ raku-raku-notion/
 │   ├── utils/                 # ユーティリティ関数
 │   │   └── oauth.ts          # OAuth認証ヘルパー関数
 │   ├── types/                 # TypeScript型定義
-│   │   └── index.ts          # Form, NotionConfig, NotionOAuthConfig など
+│   │   └── index.ts          # Clipboard, NotionConfig, WebClipData など
 │   ├── styles/                # グローバルCSS
 │   │   └── global.css        # Notionスタイルを参考にしたデザイン
 │   └── components/            # 再利用可能コンポーネント (未使用)
 ├── assets/
 │   ├── icon.png              # 拡張機能アイコン (512x512)
 │   └── ICON_SETUP.md         # アイコン作成ガイド
+├── oauth-server.js            # OAuth開発サーバー (localhost:3000)
 ├── build/                     # ビルド出力 (gitignore)
 │   └── chrome-mv3-dev/       # 開発版拡張機能
 ├── .plasmo/                   # Plasmo内部ファイル (gitignore)
@@ -167,6 +173,7 @@ raku-raku-notion/
 ├── tsconfig.json              # TypeScript設定
 ├── README.md                  # プロジェクト説明
 ├── QUICKSTART.md              # セットアップ・使い方ガイド
+├── OAUTH_SETUP_GUIDE.md       # OAuth設定ガイド
 ├── CHANGELOG.md               # 変更履歴
 └── CLAUDE.md                  # このファイル
 ```
@@ -178,30 +185,31 @@ raku-raku-notion/
 ```typescript
 // Chrome Storage Local
 {
-  'raku-forms': Form[],           // フォームリスト
+  'raku-forms': Form[],               // 旧フォームリスト（後方互換）
+  'raku-clipboards': Clipboard[],     // クリップボードリスト
   'raku-notion-config': NotionConfig, // Notion設定
-  'raku-initialized': boolean     // 初期化フラグ
+  'raku-initialized': boolean         // 初期化フラグ
 }
 ```
 
 ### 2. 型定義
 
 ```typescript
-// フォーム定義
-interface Form {
-  id: string              // UUID
-  name: string            // フォーム名
-  createdAt: Date         // 作成日時
-  targetUrl?: string      // モック用: 遷移先URL
-  isMock?: boolean        // モックフラグ
-  fields?: FormField[]    // フォームフィールド (未実装)
+// クリップボード定義（メイン機能）
+interface Clipboard {
+  id: string                    // ローカルのユニークID
+  name: string                  // クリップボード名
+  createdAt: Date | string     // 作成日時（ストレージでは文字列）
+  lastClippedAt?: Date | string // 最終クリップ日時
+  notionDatabaseId: string     // NotionのデータベースID
+  notionDatabaseUrl?: string   // NotionデータベースのURL
+  createdByExtension: boolean  // この拡張機能で作成されたか
 }
 
 // Notion設定 (OAuth/手動トークン両対応)
 interface NotionConfig {
   authMethod: 'manual' | 'oauth'
   apiKey?: string         // 手動入力のトークン
-  databaseId?: string
   accessToken?: string    // OAuth用トークン
   refreshToken?: string   // OAuth用リフレッシュトークン
   tokenExpiresAt?: number // トークン有効期限
@@ -210,18 +218,13 @@ interface NotionConfig {
   botId?: string          // OAuth用ボットID
 }
 
-// Notion OAuth設定
-interface NotionOAuthConfig {
-  clientId: string
-  clientSecret: string
-  redirectUri: string
-}
-
-// Notionページデータ
-interface NotionPageData {
+// Webクリップデータ
+interface WebClipData {
   title: string
   url: string
-  memo?: string
+  content?: string       // ページ本文（テキスト）
+  thumbnail?: string     // サムネイル画像URL
+  databaseId: string     // 保存先データベースID
 }
 ```
 
@@ -229,11 +232,15 @@ interface NotionPageData {
 
 ```
 HomeScreen
-  ├─> FormListScreen (フォーム一覧を見る)
-  │     ├─> 新しいタブで URL を開く (targetUrl あり)
-  │     └─> DemoScreen (targetUrl なし)
-  ├─> CreateFormScreen (新規作成)
-  │     └─> FormListScreen (作成後)
+  ├─> 📎 このページをクリップ
+  │     ├─> (クリップボードが0個) → CreateClipboardScreen
+  │     ├─> (クリップボードが1個) → 自動クリップ → 完了
+  │     └─> (クリップボードが複数) → SelectClipboardScreen → クリップ → 完了
+  ├─> ClipboardListScreen (クリップボード一覧を見る)
+  │     ├─> Notionデータベースを新しいタブで開く
+  │     └─> CreateClipboardScreen (新規作成)
+  ├─> CreateClipboardScreen (新しいクリップボードを作成)
+  │     └─> ClipboardListScreen (作成後)
   └─> SettingsScreen (⚙️設定アイコン)
         ├─> OAuth認証フロー
         │     └─> Notion認証画面 → OAuthコールバック
@@ -502,6 +509,6 @@ Notion Integrationの設定:
 
 ---
 
-**最終更新**: 2025-11-30
-**バージョン**: 1.2.0 (Notion OAuth認証実装)
+**最終更新**: 2025-12-01
+**バージョン**: 1.3.0 (Webクリップ機能完成)
 **メンテナー**: Claude Code
