@@ -239,7 +239,7 @@ async function handleCompleteOAuth(
     const oauthConfig: NotionOAuthConfig = data.oauthConfig || {
       clientId: process.env.PLASMO_PUBLIC_NOTION_CLIENT_ID || '',
       clientSecret: process.env.PLASMO_PUBLIC_NOTION_CLIENT_SECRET || '',
-      redirectUri: 'http://localhost:3000/oauth/callback'
+      redirectUri: process.env.PLASMO_PUBLIC_OAUTH_REDIRECT_URI || 'https://raku-raku-notion.pages.dev/callback.html'
     }
 
     console.log('[Background] OAuth config - Client ID:', oauthConfig.clientId ? 'present' : 'missing');

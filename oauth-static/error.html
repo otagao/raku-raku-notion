@@ -200,6 +200,9 @@
     </div>
 
     <script>
+        // 拡張機能ID（デプロイ時に設定してください）
+        const EXTENSION_ID = 'YOUR_EXTENSION_ID'; // TODO: 実際の拡張機能IDに置き換えてください
+
         // URLパラメータからエラー理由を取得
         const urlParams = new URLSearchParams(window.location.search);
         const reason = urlParams.get('reason');
@@ -210,8 +213,13 @@
         }
 
         function retry() {
+            if (EXTENSION_ID === 'YOUR_EXTENSION_ID') {
+                alert('拡張機能IDが設定されていません。拡張機能アイコンをクリックして、設定画面からもう一度Notion認証を行ってください。');
+                return;
+            }
+
             // 設定画面を開く（拡張機能が存在する場合）
-            const extensionUrl = 'chrome-extension://YOUR_EXTENSION_ID/popup.html#settings';
+            const extensionUrl = `chrome-extension://${EXTENSION_ID}/popup.html#settings`;
             window.location.href = extensionUrl;
 
             // フォールバック: 拡張機能が開けない場合はメッセージ表示
@@ -221,7 +229,12 @@
         }
 
         function openExtension() {
-            const extensionUrl = 'chrome-extension://YOUR_EXTENSION_ID/popup.html';
+            if (EXTENSION_ID === 'YOUR_EXTENSION_ID') {
+                alert('拡張機能IDが設定されていません。拡張機能アイコンをクリックして、手動で開いてください。');
+                return;
+            }
+
+            const extensionUrl = `chrome-extension://${EXTENSION_ID}/popup.html`;
             window.location.href = extensionUrl;
 
             // フォールバック

@@ -121,6 +121,10 @@
 
     <script>
         (function() {
+            // 拡張機能ID（デプロイ時に設定してください）
+            // Chrome Web Storeで公開する場合は、公開後のIDに変更してください
+            const EXTENSION_ID = 'YOUR_EXTENSION_ID'; // TODO: 実際の拡張機能IDに置き換えてください
+
             // URLパラメータを取得
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
@@ -142,10 +146,17 @@
                 return;
             }
 
-            // 拡張機能にリダイレクト
-            const extensionUrl = `chrome-extension://YOUR_EXTENSION_ID/oauth-callback.html?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`;
+            // 拡張機能IDが設定されているかチェック
+            if (EXTENSION_ID === 'YOUR_EXTENSION_ID') {
+                showError('拡張機能IDが設定されていません。管理者に連絡してください。');
+                console.error('[OAuth Callback] EXTENSION_ID is not configured');
+                return;
+            }
 
-            console.log('[OAuth Callback] Redirecting to extension...');
+            // 拡張機能にリダイレクト
+            const extensionUrl = `chrome-extension://${EXTENSION_ID}/oauth-callback.html?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`;
+
+            console.log('[OAuth Callback] Redirecting to extension:', EXTENSION_ID);
 
             // リダイレクト試行
             try {
