@@ -105,29 +105,35 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
   }
 
   const handleOAuthLogin = async () => {
-    setIsLoading(true)
     setError('')
+    setSuccessMessage('')
 
     try {
       if (!oauthConfig.clientId) {
         throw new Error('Notion Client IDが設定されていません')
       }
 
+      // OAuth処理中フラグをセット（バックグラウンドでも設定されるが、UIの即座の反映のため）
+      setIsLoading(true)
+
       // バックグラウンドスクリプトにOAuth開始を依頼
+      // ポップアップが閉じられる可能性があるため、即座にローディングを解除
       chrome.runtime.sendMessage(
         {
           type: 'start-oauth',
           data: oauthConfig
         },
         (response) => {
-          if (response?.success) {
-            setSuccessMessage('Notion認証画面を開きました。認証を完了してください。')
-          } else {
-            setError(response?.error || 'OAuth認証の開始に失敗しました')
-          }
-          setIsLoading(false)
+          // レスポンスが届かない可能性があるため、ここでは何もしない
+          console.log('[Settings] OAuth start response:', response)
         }
       )
+
+      // OAuth認証画面が開くため、即座にローディングを解除し、メッセージを表示
+      setTimeout(() => {
+        setIsLoading(false)
+        setSuccessMessage('Notion認証画面を開きました。認証を完了してください。')
+      }, 100)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'OAuth認証に失敗しました')
       setIsLoading(false)
