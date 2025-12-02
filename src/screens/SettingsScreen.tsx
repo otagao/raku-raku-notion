@@ -26,6 +26,24 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
   // 初期化: 既存の設定を読み込む
   useEffect(() => {
     loadConfig()
+
+    // OAuth完了を監視（storage変更イベント）
+    const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }) => {
+      // OAuth完了フラグがfalseになった（OAuth処理完了）場合、設定をリロード
+      if (changes['raku-oauth-pending'] && !changes['raku-oauth-pending'].newValue) {
+        console.log('[Settings] OAuth completed, reloading config...')
+        setTimeout(() => {
+          loadConfig()
+          setSuccessMessage('Notion認証が完了しました！')
+        }, 500)
+      }
+    }
+
+    chrome.storage.onChanged.addListener(handleStorageChange)
+
+    return () => {
+      chrome.storage.onChanged.removeListener(handleStorageChange)
+    }
   }, [])
 
   // 認証方式が変更された場合、接続状態をリセット

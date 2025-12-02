@@ -7,6 +7,7 @@
 - ユーザーに対しては日本語で応答し、コミットメッセージも日本語で記述してください。
 - ユーザーは慣れない開発言語を用いることが想定されるため、指示に対して技術的に実装不可能な点や矛盾した点を見つけた場合はなるべく早く指摘してください。
 - 人間の可読性を重視し、可能な限りモジュール化して開発を進めてください。
+- CLAUDE.mdには細かな手順を追記せず、本当に重要なフローのみを追加するようにしてください。
 
 ## プロジェクト概要
 
@@ -40,11 +41,14 @@ raku-raku-notion/
 │   ├── utils/                 # ユーティリティ (oauth.ts)
 │   ├── types/                 # TypeScript型定義
 │   └── styles/                # グローバルCSS
-├── oauth-static/              # 静的OAuthコールバックページ
+├── assets/
+│   ├── oauth-callback.html    # 拡張機能内OAuthコールバックページ
+│   ├── oauth-callback.js      # コールバックページのスクリプト
+│   └── icon*.png              # 拡張機能アイコン
+├── oauth-static/              # 静的サイト用OAuthコールバックページ
 ├── docs/                      # ドキュメント
 │   ├── OAUTH_SETUP_GUIDE.md  # OAuth設定ガイド
 │   └── OAUTH_FIX.md          # OAuth修正履歴（アーカイブ）
-├── assets/                    # アイコン等
 ├── package.json               # マニフェスト設定
 └── .env                       # 環境変数（OAuth設定）
 ```
@@ -185,6 +189,8 @@ npm run dev
 - ✅ OAuth redirect URI不一致 → 環境変数に統一して解決
 - ✅ ローカルサーバー依存 → oauth-server.js削除、静的サイトに統一
 - ✅ 認証方式切り替え時のUI不具合 → 自動リセット処理追加で解決
+- ✅ OAuth認証時の無限ローディング → CSP違反解消とメッセージ処理改善で解決
+- ✅ 環境変数未読み込みエラー → oauthConfig送信削除、環境変数から直接取得に変更
 
 詳細は [docs/OAUTH_FIX.md](docs/OAUTH_FIX.md)（アーカイブ）を参照。
 
@@ -262,8 +268,38 @@ npm run build
 - [Chrome拡張機能ドキュメント](https://developer.chrome.com/docs/extensions/)
 - [Notion API リファレンス](https://developers.notion.com/)
 
+## OAuth認証の実装詳細
+
+### コールバックフロー
+
+1. **ユーザーが認証開始**
+   - SettingsScreen → `start-oauth` メッセージ
+   - Background: OAuth URLを生成し、Notion認証ページを開く
+   - `raku-oauth-pending: true` をストレージに保存
+
+2. **Notion認証完了**
+   - Notion → 静的サイトの `callback.html`
+   - `callback.html`: stateからextension IDを抽出
+   - リダイレクト: `chrome-extension://{extensionId}/oauth-callback.html`
+
+3. **拡張機能でトークン交換**
+   - `oauth-callback.js`: `complete-oauth` メッセージを送信（codeとstateのみ）
+   - Background: 環境変数からOAuth設定を取得
+   - Background: トークン交換、設定保存、`raku-oauth-pending` 削除
+
+4. **設定画面で完了検出**
+   - SettingsScreen: `chrome.storage.onChanged` で `raku-oauth-pending` 削除を検出
+   - 自動的に設定をリロード
+   - 成功メッセージを表示
+
+### 重要な設計判断
+
+- **CSP対応**: インラインスクリプトを外部ファイル（`oauth-callback.js`）に分離
+- **環境変数の扱い**: oauthConfigはbackgroundで環境変数から直接取得（コールバックから送信しない）
+- **ビルドプロセス**: `assets/oauth-callback.*` を `build/` に手動コピー（Plasmoの制限回避）
+
 ---
 
 **最終更新**: 2025-12-02
-**バージョン**: 1.6.0 (OAuth認証のローカルサーバー実装を削除、認証方式切り替えバグ修正)
+**バージョン**: 1.7.0 (OAuth認証の無限ローディング・CSP違反を修正)
 **メンテナー**: Claude Code
