@@ -2,25 +2,44 @@
 
 このガイドでは、Raku Raku NotionのNotion OAuth認証を設定する方法を説明します。
 
-## 問題: localhostへの接続が拒否される
+## 認証方式の選択
 
-Notionの「Public Integration」でOAuth認証を使用する場合、開発環境（localhost）では以下の制約があります:
+Raku Raku Notionは2つの認証方式に対応しています：
 
-1. **リダイレクトURIは`https://`から始まる必要がある**（一部例外あり）
-2. **ページ指定のアクセス許可がlocalhostで機能しない場合がある**
+### 🔧 Internal Integration（開発・テスト用、推奨）
 
-## 解決策
+**メリット**:
+- ✅ セットアップが簡単（5分で完了）
+- ✅ 追加のサーバー不要
+- ✅ 開発環境で即座に使用可能
 
-### オプション1: Internal Integration（開発・テスト用、推奨）
+**デメリット**:
+- ❌ 各データベースに手動でアクセス許可が必要
+- ❌ 他のユーザーと共有できない
 
-開発・テスト段階では、OAuth認証ではなく**Internal Integration**の使用を推奨します。
+### 🌐 Public OAuth Integration（本番環境向け）
 
-#### セットアップ手順
+**メリット**:
+- ✅ ユーザーがワンクリックで認証
+- ✅ データベースへのアクセス許可が自動
+- ✅ Chrome Web Storeで公開可能
+
+**デメリット**:
+- ❌ 静的サイトホスティングが必要
+- ❌ 初期セットアップがやや複雑
+
+---
+
+## オプション1: Internal Integration（推奨）
+
+### セットアップ手順
+
+#### 1. Notion Integrationの作成
 
 1. [Notion Developers](https://www.notion.so/my-integrations) にアクセス
 2. 「New integration」をクリック
 3. 以下を入力:
-   - **Name**: Raku Raku Notion Dev
+   - **Name**: `Raku Raku Notion Dev`
    - **Type**: **Internal integration** を選択
    - **Associated workspace**: 使用するワークスペース
 4. 「Capabilities」で以下を有効化:
@@ -30,168 +49,247 @@ Notionの「Public Integration」でOAuth認証を使用する場合、開発環
 5. 「Submit」をクリック
 6. **Internal Integration Token** (秘密キー) をコピー
 
-#### 拡張機能での設定
+#### 2. 拡張機能での設定
 
-1. 拡張機能を開く
+1. 拡張機能を開く（ブラウザのツールバーからアイコンをクリック）
 2. ⚙️（設定）アイコンをクリック
 3. 「認証方法」で **「手動トークン入力」** を選択
 4. 「Notion Integration Token」フィールドにトークンを貼り付け
 5. 「保存して接続」をクリック
+6. 「接続済み」と表示されれば成功！
 
-#### データベースへのアクセス許可
+#### 3. データベースへのアクセス許可
 
-Internal Integrationを使用する場合、使用するNotionデータベースに手動でアクセス許可を付与する必要があります:
+クリップボードを作成する前に、Notionワークスペースにアクセス許可を付与します：
 
-1. Notionでデータベースページを開く
-2. 右上の「...」メニューをクリック
-3. 「接続」→「Raku Raku Notion Dev」を選択
-4. これでIntegrationがそのデータベースにアクセスできるようになります
+1. Notionのホームページを開く
+2. 右上の「...」メニュー → 「接続」→「Raku Raku Notion Dev」を選択
+3. これでIntegrationがワークスペース全体にアクセスできるようになります
+
+または、個別のページ/データベースのみ許可する場合：
+1. 特定のページ/データベースを開く
+2. 右上の「...」メニュー → 「接続」→「Raku Raku Notion Dev」を選択
 
 ---
 
-### オプション2: Public Integration + ngrok（本番環境向け）
+## オプション2: Public OAuth Integration
 
-本番環境やPublic Integrationを使用したい場合は、ngrokなどのトンネリングサービスを使用します。
+### 前提条件
 
-#### 必要なツール
+- 静的サイトホスティングサービス（Cloudflare Pages、Netlify、GitHub Pagesなど）
+- デプロイ済みのOAuth認証ページ（`oauth-static/`ディレクトリ）
 
-- [ngrok](https://ngrok.com/) - ローカルサーバーをHTTPSで公開
+### セットアップ手順
 
-#### セットアップ手順
+#### 1. 静的サイトのデプロイ
 
-##### 1. ngrokのインストール
+`oauth-static/`ディレクトリを静的サイトホスティングにデプロイします。
+詳細は [oauth-static/README.md](../oauth-static/README.md) を参照。
 
-```bash
-# Homebrewを使用（macOS）
-brew install ngrok
+**推奨サービス**:
+- **Cloudflare Pages** - 高速、無料、CDN付き
+- **Netlify** - 簡単デプロイ、自動HTTPS
+- **GitHub Pages** - GitHubリポジトリから直接デプロイ
 
-# または公式サイトからダウンロード
-# https://ngrok.com/download
+デプロイ後のURL例:
+```
+https://raku-raku-notion.pages.dev/callback.html
 ```
 
-##### 2. ngrokでローカルサーバーを公開
+#### 2. 拡張機能IDの設定
 
-```bash
-# ターミナル1: OAuthサーバー起動
-npm run oauth-server
+1. Chromeで `chrome://extensions/` を開く
+2. **開発者モード** を有効化
+3. Raku Raku Notionの**ID**をコピー（例: `abcdefghijklmnopqrstuvwxyz012345`）
 
-# ターミナル2: ngrokでトンネル作成
-ngrok http 3000
-```
+**注意**: 拡張機能IDは`callback.html`や`error.html`にハードコーディングする必要が**なくなりました**。
+stateパラメータから自動的に抽出されます。
 
-ngrokが起動すると、以下のような出力が表示されます:
-
-```
-Forwarding  https://xxxx-xx-xx-xx-xx.ngrok-free.app -> http://localhost:3000
-```
-
-##### 3. Notion Integrationの設定
+#### 3. Notion Public Integrationの作成
 
 1. [Notion Developers](https://www.notion.so/my-integrations) にアクセス
 2. 「New integration」をクリック
 3. 以下を入力:
-   - **Name**: Raku Raku Notion
+   - **Name**: `Raku Raku Notion`
    - **Type**: **Public integration** を選択
    - **Associated workspace**: 使用するワークスペース
 4. 「Capabilities」で以下を有効化:
    - ✅ Read content
    - ✅ Update content
    - ✅ Insert content
-5. 「OAuth Domain & URIs」で以下を設定:
-   - **Redirect URIs**: `https://xxxx-xx-xx-xx-xx.ngrok-free.app/oauth/callback`
-   - （ngrokで表示されたURLを使用）
+5. 「OAuth Domain & URIs」セクション:
+   - **Redirect URIs**: デプロイした`callback.html`の完全なURL
+     ```
+     https://raku-raku-notion.pages.dev/callback.html
+     ```
+   - **⚠️ 重要**: 末尾スラッシュなし、完全一致が必要
 6. 「Submit」をクリック
-7. **Client ID** と **Client Secret** をコピー
+7. **OAuth client ID** と **OAuth client secret** をコピー
 
-##### 4. 拡張機能の設定更新
+#### 4. 環境変数の設定
 
-[src/screens/SettingsScreen.tsx](src/screens/SettingsScreen.tsx) の `redirectUri` を更新:
-
-```typescript
-const oauthConfig: NotionOAuthConfig = {
-  clientId: process.env.PLASMO_PUBLIC_NOTION_CLIENT_ID || '',
-  clientSecret: process.env.PLASMO_PUBLIC_NOTION_CLIENT_SECRET || '',
-  redirectUri: 'https://xxxx-xx-xx-xx-xx.ngrok-free.app/oauth/callback' // ngrokのURL
-}
-```
-
-##### 5. OAuth-serverの更新
-
-[oauth-server.js](oauth-server.js) でngrokのURLからのリクエストを許可:
-
-```javascript
-// CORSヘッダーを追加
-res.setHeader('Access-Control-Allow-Origin', '*');
-res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-```
-
----
-
-### オプション3: Cloudflare Tunnel（無料、安定）
-
-ngrokの無料版は一時的なURLを生成しますが、Cloudflare Tunnelは無料で安定したURLを提供します。
-
-#### セットアップ手順
+プロジェクトルートに`.env`ファイルを作成（または`.env.example`をコピー）：
 
 ```bash
-# 1. cloudflaredのインストール
-brew install cloudflare/cloudflare/cloudflared
+# Notion OAuth設定
+PLASMO_PUBLIC_NOTION_CLIENT_ID=your_client_id_here
+PLASMO_PUBLIC_NOTION_CLIENT_SECRET=your_client_secret_here
 
-# 2. トンネル作成
-cloudflared tunnel --url http://localhost:3000
+# OAuth Redirect URI（デプロイしたURL）
+PLASMO_PUBLIC_OAUTH_REDIRECT_URI=https://raku-raku-notion.pages.dev/callback.html
 ```
 
-表示されたHTTPS URLをNotionのRedirect URIに設定します。
+**セキュリティ注意**: `.env`ファイルは`.gitignore`に含まれており、Gitにコミットされません。
+
+#### 5. 拡張機能のビルド
+
+```bash
+npm run build
+```
+
+#### 6. 拡張機能での認証
+
+1. ビルドした拡張機能をChromeに読み込む（`build/chrome-mv3-prod/`）
+2. 拡張機能を開く
+3. ⚙️（設定）アイコンをクリック
+4. 「認証方法」で **「OAuth認証」** を選択
+5. 「Notionと連携」ボタンをクリック
+6. Notionの認証画面で「許可する」をクリック
+7. 自動的に拡張機能に戻り、「接続済み」と表示されれば成功！
 
 ---
 
-## 推奨アプローチまとめ
+## OAuth認証フローの仕組み
 
-| 環境 | 推奨方法 | 理由 |
-|------|---------|------|
-| **開発・テスト** | Internal Integration（手動トークン） | セットアップが簡単、すぐに使える |
-| **本番リリース前** | Public Integration + ngrok/Cloudflare | OAuth認証フローのテスト |
-| **本番環境** | Public Integration + 専用ドメイン | 安定した認証フロー |
+### 従来の実装（localhost + ngrok）
+
+❌ **問題点**:
+- ローカルHTTPサーバーが必要
+- ngrokなどのトンネリングサービスが必要
+- URLが毎回変わるため、Notion Integration設定を頻繁に更新
+
+### 現在の実装（静的サイトホスティング）
+
+✅ **改善点**:
+- 静的HTMLのみ（サーバー不要）
+- 固定URLで安定動作
+- CDN経由で高速
+- stateパラメータから拡張機能IDを自動抽出
+
+### フロー図
+
+```
+1. [拡張機能] OAuth開始
+   ↓ state = base64(extensionId:randomToken)
+
+2. [Notion] ユーザーが「許可する」をクリック
+   ↓ redirect: https://your-domain.com/callback.html?code=xxx&state=xxx
+
+3. [callback.html] stateから拡張機能IDを抽出
+   ↓ decoded = atob(state) → extensionId:randomToken
+
+4. [callback.html] 拡張機能にリダイレクト
+   ↓ chrome-extension://{extensionId}/oauth-callback.html?code=xxx&state=xxx
+
+5. [拡張機能] トークン交換 & 認証完了
+```
 
 ---
 
 ## トラブルシューティング
 
-### 「接続が拒否されました」エラー
+### OAuth認証が失敗する
 
-**原因**: OAuthサーバーが起動していない
+**原因1: Redirect URIの不一致**
+
+以下の3箇所でredirect URIが**完全一致**している必要があります：
+- ✅ Notion Integration設定
+- ✅ `.env`の`PLASMO_PUBLIC_OAUTH_REDIRECT_URI`
+- ✅ `SettingsScreen.tsx`の`oauthConfig.redirectUri`（環境変数から自動取得）
 
 **解決策**:
 ```bash
-# サーバーが起動しているか確認
-lsof -i :3000
+# .envファイルを確認
+cat .env
 
-# 起動していない場合
-npm run oauth-server
+# Notion Integration設定を確認
+# https://www.notion.so/my-integrations
 ```
 
-### 「拡張機能IDが見つかりません」エラー
+**原因2: 拡張機能IDが古い**
 
-**原因**: ローカルストレージに拡張機能IDが保存されていない
-
-**解決策**:
-1. 拡張機能の設定画面を開く
-2. 「Notionで認証」ボタンをもう一度クリック
-
-### データベースが表示されない
-
-**原因**: Integrationにデータベースへのアクセス権限がない
+開発版から本番版に切り替えた場合、拡張機能IDが変わります。
 
 **解決策**:
-- Internal Integration: データベースページで「接続」からIntegrationを追加
-- Public Integration: OAuth認証時にアクセス許可を付与
+- stateパラメータから自動抽出されるため、手動設定は不要
+- ビルドし直して再度認証
+
+**原因3: Client IDまたはClient Secretが間違っている**
+
+**解決策**:
+```bash
+# .envファイルのClient ID/Secretを確認
+# Notion Developersページで再確認
+```
+
+### callback.htmlにリダイレクトされるが拡張機能に戻らない
+
+**原因**: `chrome-extension://`スキームがブロックされている
+
+**解決策**:
+1. ブラウザのコンソールを開く（F12）
+2. エラーメッセージを確認
+3. 拡張機能が正しくインストールされているか確認
+
+### 「Invalid OAuth state parameter」エラー
+
+**原因**: stateパラメータの検証失敗（CSRF対策）
+
+**解決策**:
+- ブラウザのキャッシュをクリア
+- 拡張機能のストレージをクリア:
+  ```javascript
+  // 開発者ツールのコンソールで実行
+  chrome.storage.local.remove('raku-oauth-state')
+  ```
+- もう一度OAuth認証をやり直す
+
+---
+
+## 開発者向け情報
+
+### stateパラメータの構造
+
+```typescript
+// state生成（src/utils/oauth.ts）
+const randomToken = generateState() // 64文字のランダムHEX
+const stateData = `${extensionId}:${randomToken}`
+const state = btoa(stateData) // Base64エンコード
+
+// state解析（callback.html）
+const decoded = atob(state)
+const [extensionId, csrfToken] = decoded.split(':')
+```
+
+### redirect URIの設定場所
+
+| ファイル | 用途 |
+|---------|------|
+| `.env` | 環境変数（ビルド時に埋め込まれる） |
+| `SettingsScreen.tsx` | OAuth認証開始時のURI |
+| `background/index.ts` | トークン交換時のURI |
+
+**全て同じ値を使用**する必要があります（環境変数から自動取得）。
 
 ---
 
 ## 参考リンク
 
-- [Notion API Documentation](https://developers.notion.com/)
-- [Notion OAuth Authorization](https://developers.notion.com/docs/authorization)
-- [ngrok Documentation](https://ngrok.com/docs)
-- [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/)
+- [Notion OAuth Documentation](https://developers.notion.com/docs/authorization)
+- [Cloudflare Pages Documentation](https://developers.cloudflare.com/pages/)
+- [Chrome Extension OAuth](https://developer.chrome.com/docs/extensions/mv3/tut_oauth/)
+
+---
+
+**最終更新**: 2025-12-02
+**バージョン**: 2.0 - 静的サイトホスティング対応

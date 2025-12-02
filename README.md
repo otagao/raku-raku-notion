@@ -13,9 +13,11 @@ Notionの公式ウェブクリッパーよりもシンプルで、カスタマ�
 
 - 📎 **ワンクリックWebクリップ**: 現在のページをNotionに即座に保存
 - 📋 **クリップボード管理**: 複数のクリップボードで情報を整理
-- 🔐 **Notion OAuth認証**: 安全な認証フロー（手動トークンにも対応）
+- 🔐 **Notion OAuth認証**: 静的サイトホスティング対応の安全な認証フロー（手動トークンにも対応）
 - 🎨 **シンプルなUI**: Notionスタイルを参考にした直感的なデザイン
 - ⚡ **自動データベース作成**: クリップボード作成時に自動でNotionデータベースを生成
+- 📄 **自動コンテンツ抽出**: ページ本文、サムネイル、アイコンを自動取得
+- 📝 **メモ機能**: クリップ時にメモを追加可能（IME対応）
 
 詳細は [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) を参照してください。
 
@@ -58,28 +60,34 @@ npm run dev
 
 ## 🗓️ ロードマップ
 
-### ✅ Phase 1-3: 完了
+### ✅ Phase 1-4: 完了
 
 - [x] 基本UI構造
-- [x] Notion OAuth認証
+- [x] Notion OAuth認証（静的サイトホスティング対応）
 - [x] Webクリップ機能
 - [x] 複数クリップボード選択
+- [x] ページ本文の自動抽出（Content Script）
+- [x] サムネイル画像・アイコンの自動取得（OGP対応）
+- [x] メモ機能（IME対応）
+- [x] stateパラメータから拡張機能IDを自動抽出
 
-### 🔜 Phase 4: コンテンツ強化
-
-**目標**: より豊富な情報をクリップ
-
-- [ ] ページ本文の自動抽出（Content Script）
-- [ ] サムネイル画像の取得（OGP対応）
-- [ ] メタデータの自動抽出
-
-### 🔮 Phase 5: カスタマイズ機能
+### 🔜 Phase 5: カスタマイズ機能
 
 **目標**: ユーザーごとのニーズに対応
 
 - [ ] フォームフィールドのカスタマイズ
 - [ ] タグ・カテゴリ管理
 - [ ] ショートカットキー対応
+- [ ] クリップボードのエクスポート/インポート
+
+### 🔮 Phase 6: Chrome Web Store公開
+
+**目標**: 一般ユーザーが利用可能に
+
+- [ ] 本番環境用ビルド最適化
+- [ ] プライバシーポリシー・利用規約の準備（完了）
+- [ ] Chrome Web Storeへの申請
+- [ ] ユーザーサポート体制の構築
 
 詳細なロードマップは [docs/CHANGELOG.md](docs/CHANGELOG.md) を参照してください。
 
@@ -90,13 +98,20 @@ raku-raku-notion/
 ├── src/
 │   ├── popup.tsx              # メインエントリーポイント
 │   ├── screens/               # 画面コンポーネント
+│   ├── components/            # 再利用可能コンポーネント
+│   ├── contents/              # Content Scripts（ページコンテンツ抽出）
 │   ├── services/              # ビジネスロジック層
 │   ├── background/            # Service Worker
 │   ├── utils/                 # ユーティリティ
 │   └── types/                 # TypeScript型定義
+├── oauth-static/              # OAuth認証用静的サイト
+│   ├── callback.html          # OAuth認証コールバック
+│   ├── error.html             # エラーページ
+│   ├── privacy.html           # プライバシーポリシー
+│   ├── terms.html             # 利用規約
+│   └── README.md              # デプロイ手順
 ├── docs/                      # ドキュメント
 ├── assets/                    # アイコンなど
-├── oauth-server.js            # OAuth開発サーバー
 └── build/                     # ビルド出力
 ```
 
@@ -111,12 +126,12 @@ npm run dev
 # プロダクションビルド
 npm run build
 
-# OAuth開発サーバー起動
-npm run oauth-server
-
-# 統合開発環境（拡張機能 + OAuthサーバー）
-npm run dev:full
+# ストレージのリセット（開発者ツールのコンソールで実行）
+chrome.storage.local.clear()
 ```
+
+**注意**: OAuth認証のテストには、`oauth-static/`を静的サイトホスティング（Cloudflare Pages等）にデプロイする必要があります。
+詳細は [oauth-static/README.md](oauth-static/README.md) を参照してください。
 
 ## 🤝 貢献
 

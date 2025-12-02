@@ -282,7 +282,7 @@ https://your-domain.com/oauth-static/callback.html
 各HTMLファイルの `<style>` タグ内でCSSをカスタマイズできます。
 
 ### GitHubリポジトリリンク変更
-以下のファイルの `https://github.com/your-repo/raku-raku-notion` を実際のURLに変更：
+以下のファイルの `https://github.com/otagao/raku-raku-notion` を実際のURLに変更：
 - `error.html`
 - `privacy.html`
 - `terms.html`
