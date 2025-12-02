@@ -1,11 +1,12 @@
 {
   "name": "raku-raku-notion",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Simplified Notion web clipper browser extension",
   "displayName": "Raku Raku Notion",
   "scripts": {
     "dev": "npm run dev:prepare && plasmo dev",
     "dev:prepare": "node scripts/copy-oauth-files.js",
+    "prebuild": "node scripts/check-env.js",
     "build": "plasmo build && node scripts/copy-oauth-files.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

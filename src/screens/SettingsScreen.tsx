@@ -15,13 +15,47 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [workspaceName, setWorkspaceName] = useState('')
+  const [oauthConfig, setOauthConfig] = useState<NotionOAuthConfig>({
+    clientId: '',
+    clientSecret: '',
+    redirectUri: 'https://raku-raku-notion.pages.dev/callback.html'
+  })
 
-  // OAuth設定（環境変数から取得、未設定時はデフォルト値）
-  const oauthConfig: NotionOAuthConfig = {
-    clientId: process.env.PLASMO_PUBLIC_NOTION_CLIENT_ID || '',
-    clientSecret: process.env.PLASMO_PUBLIC_NOTION_CLIENT_SECRET || '',
-    redirectUri: process.env.PLASMO_PUBLIC_OAUTH_REDIRECT_URI || 'https://raku-raku-notion.pages.dev/callback.html'
-  }
+  // OAuth設定を初期化
+  useEffect(() => {
+    const initOAuthConfig = async () => {
+      // まず環境変数から取得
+      let config: NotionOAuthConfig = {
+        clientId: process.env.PLASMO_PUBLIC_NOTION_CLIENT_ID || '',
+        clientSecret: process.env.PLASMO_PUBLIC_NOTION_CLIENT_SECRET || '',
+        redirectUri: process.env.PLASMO_PUBLIC_OAUTH_REDIRECT_URI || 'https://raku-raku-notion.pages.dev/callback.html'
+      }
+
+      // 環境変数が空の場合、backgroundから取得を試みる
+      if (!config.clientId) {
+        console.log('[Settings] OAuth config not found in environment, requesting from background...')
+        try {
+          const response = await chrome.runtime.sendMessage({ type: 'get-oauth-config' })
+          if (response?.success && response.config) {
+            console.log('[Settings] OAuth config received from background')
+            config = response.config
+          }
+        } catch (err) {
+          console.error('[Settings] Failed to get OAuth config from background:', err)
+        }
+      }
+
+      console.log('[Settings] OAuth Config Debug:', {
+        clientId: config.clientId ? `${config.clientId.substring(0, 8)}...` : 'MISSING',
+        clientSecret: config.clientSecret ? 'present' : 'MISSING',
+        redirectUri: config.redirectUri
+      })
+
+      setOauthConfig(config)
+    }
+
+    initOAuthConfig()
+  }, [])
 
   // 初期化: 既存の設定を読み込む
   useEffect(() => {
@@ -76,6 +110,19 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
 
   const loadConfig = async () => {
     try {
+      // デバッグ: ストレージの状態を確認
+      const storage = await chrome.storage.local.get(['raku-oauth-pending', 'raku-notion-config'])
+      console.log('[Settings] Storage Debug:', {
+        oauthPending: storage['raku-oauth-pending'],
+        configExists: !!storage['raku-notion-config']
+      })
+
+      // OAuth処理中フラグが残っている場合は削除
+      if (storage['raku-oauth-pending']) {
+        console.log('[Settings] WARNING: OAuth pending flag is stuck. Clearing it...')
+        await chrome.storage.local.remove('raku-oauth-pending')
+      }
+
       const config = await StorageService.getNotionConfig()
       if (config) {
         setAuthMethod(config.authMethod || 'oauth')
@@ -281,14 +328,36 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
             クリップボード作成時に自動的にデータベースを作成します。
           </p>
           {!isConnected && (
-            <button
-              onClick={handleOAuthLogin}
-              disabled={isLoading || !oauthConfig.clientId}
-              className="primary-button"
-              style={{ width: '100%' }}
-            >
-              {isLoading ? '処理中...' : 'Notionで認証'}
-            </button>
+            <>
+              <button
+                onClick={() => {
+                  console.log('[Settings] OAuth button clicked:', {
+                    isLoading,
+                    hasClientId: !!oauthConfig.clientId,
+                    clientId: oauthConfig.clientId ? `${oauthConfig.clientId.substring(0, 8)}...` : 'MISSING'
+                  })
+                  handleOAuthLogin()
+                }}
+                disabled={isLoading || !oauthConfig.clientId}
+                className="primary-button"
+                style={{ width: '100%' }}
+              >
+                {isLoading ? '処理中...' : 'Notionで認証'}
+              </button>
+              {(!oauthConfig.clientId) && (
+                <div style={{
+                  padding: '12px',
+                  marginTop: '12px',
+                  backgroundColor: '#fff3cd',
+                  color: '#856404',
+                  borderRadius: '4px',
+                  fontSize: '14px'
+                }}>
+                  ⚠️ OAuth設定が未構成です。開発者に連絡してください。<br />
+                  <small>（CLIENT_IDが設定されていません）</small>
+                </div>
+              )}
+            </>
           )}
         </div>
       ) : (
