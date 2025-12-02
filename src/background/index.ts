@@ -82,6 +82,10 @@ async function handleMessage(
         await handleCreateDatabase(message.data, sendResponse)
         break
 
+      case "get-oauth-config":
+        await handleGetOAuthConfig(sendResponse)
+        break
+
       default:
         sendResponse({ success: false, error: "Unknown message type" })
     }
@@ -417,6 +421,36 @@ async function handleCreateDatabase(
     sendResponse({
       success: false,
       error: error instanceof Error ? error.message : "Failed to create database"
+    })
+  }
+}
+
+/**
+ * OAuth設定を取得（環境変数から）
+ */
+async function handleGetOAuthConfig(sendResponse: (response?: any) => void) {
+  try {
+    const config: NotionOAuthConfig = {
+      clientId: process.env.PLASMO_PUBLIC_NOTION_CLIENT_ID || '',
+      clientSecret: process.env.PLASMO_PUBLIC_NOTION_CLIENT_SECRET || '',
+      redirectUri: process.env.PLASMO_PUBLIC_OAUTH_REDIRECT_URI || 'https://raku-raku-notion.pages.dev/callback.html'
+    }
+
+    console.log('[Background] OAuth config requested:', {
+      clientId: config.clientId ? 'present' : 'missing',
+      clientSecret: config.clientSecret ? 'present' : 'missing',
+      redirectUri: config.redirectUri
+    })
+
+    sendResponse({
+      success: true,
+      config: config
+    })
+  } catch (error) {
+    console.error("Failed to get OAuth config:", error)
+    sendResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get OAuth config"
     })
   }
 }
