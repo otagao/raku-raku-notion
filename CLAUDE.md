@@ -10,7 +10,7 @@
 
 ## プロジェクト概要
 
-**Raku Raku Notion** は、Notionのウェブクリップ機能を簡略化したブラウザ拡張機能です。ユーザーがウェブページの情報を素早くNotionに保存できるように設計されています。
+**Raku Raku Notion** は、Notionのウェブクリップ機能を簡略化したブラウザ拡張機能です。
 
 ### 技術スタック
 
@@ -18,187 +18,46 @@
 - **UI**: React 18.3.1 + TypeScript 5.9.3
 - **ターゲット**: Chrome/Edge (Manifest V3)
 - **ストレージ**: Chrome Storage API
-- **将来実装**: Notion API連携
+- **API連携**: Notion API (OAuth 2.0 + 手動トークン対応)
 
 ### 開発状況
 
 **現在のフェーズ**: Phase 3 完了 - Webクリップ機能拡張完了
 
-#### 実装済み機能 ✅
-
-1. **基本UI構造**
-   - ホーム画面 ([HomeScreen.tsx](src/screens/HomeScreen.tsx))
-   - クリップボード作成画面 ([CreateClipboardScreen.tsx](src/screens/CreateClipboardScreen.tsx))
-   - クリップボード一覧画面 ([ClipboardListScreen.tsx](src/screens/ClipboardListScreen.tsx))
-   - クリップボード選択画面 ([SelectClipboardScreen.tsx](src/screens/SelectClipboardScreen.tsx)) 🆕
-   - 設定画面 ([SettingsScreen.tsx](src/screens/SettingsScreen.tsx)) - シンプル化（データベース選択機能削除）
-   - デモページ ([DemoScreen.tsx](src/screens/DemoScreen.tsx)) - 旧フォーム機能（後方互換）
-
-2. **データ永続化**
-   - Chrome Storage API統合 ([storage.ts](src/services/storage.ts))
-   - フォームの作成・保存・取得
-   - モックデータの初期化システム
-   - タブ情報取得ユーティリティ (`getCurrentTabInfo()`)
-
-3. **Notion OAuth認証** 🆕 (完全動作確認済み)
-   - OAuth 2.0認証フロー実装 ([oauth.ts](src/utils/oauth.ts))
-   - 認証URL生成、stateパラメータ生成（CSRF対策）
-   - 認証コードのトークン交換
-   - 静的サイトホスティング経由のOAuthコールバック（Cloudflare Pages等）
-   - 拡張機能ID管理システム (外部ページ→拡張機能通信対応)
-   - chrome.runtime.onMessageExternal リスナー実装
-   - トークン有効性チェック機能
-   - stateパラメータから拡張機能IDを自動抽出
-
-4. **静的サイトホスティング連携** 🆕
-   - Cloudflare Pages/Netlify/GitHub PagesでOAuthコールバックをホスト
-   - ローカルサーバー不要（旧実装のoauth-server.jsは削除済み）
-   - stateパラメータから拡張機能IDを自動抽出
-   - 固定URLで安定動作
-
-5. **Notion API統合** 🆕
-   - Notion API クライアント実装 ([notion.ts](src/services/notion.ts))
-   - ページ作成API (`createPage()`)
-   - 接続テスト (`testConnection()`)
-   - トークン検証 (`validateToken()`)
-   - データベース一覧取得 (`listDatabases()`)
-   - データベーススキーマ取得 (`getDatabaseSchema()`)
-   - OAuth認証と手動トークン入力の両対応
-
-6. **設定UI** 🆕
-   - OAuth/手動トークン選択
-   - Notion認証ボタン (OAuthサーバー起動確認付き)
-   - 接続状態表示
-   - 連携解除機能
-   - シンプル化（データベース選択機能を削除、クリップボード作成時に自動作成）
-   - レスポンシブデザイン (固定幅400px)
-
-7. **Background Service Worker** 🆕
-   - メッセージベースのAPI呼び出しハンドラ ([background/index.ts](src/background/index.ts))
-   - 内部メッセージリスナー (`chrome.runtime.onMessage`)
-   - 外部メッセージリスナー (`chrome.runtime.onMessageExternal`) - 静的サイトからの通信対応
-   - `send-to-notion`: Notionページ作成
-   - `test-notion-connection`: 接続テスト
-   - `list-databases`: データベース一覧取得
-   - `start-oauth`: OAuth認証開始
-   - `complete-oauth`: OAuth認証完了・トークン交換
-   - 詳細なデバッグログ実装
-
-8. **モック機能**
-   - 初回起動時に2つのデモフォームを自動配置
-   - targetURLを持つフォームは新しいタブでURLを開く
-   - DEMOバッジでモックフォームを視覚的に識別
-
-9. **開発ツール**
-   - `resetStorage()`: ストレージをクリアして再初期化
-   - `debugStorage()`: ストレージ内容をコンソールに出力
-   - 環境変数サポート (.env)
-   - 開発サーバー (`npm run dev`)
-
-10. **Webクリップ機能** 🆕 (Phase 3 - 完了)
-   - クリップボード概念の導入（フォーム → クリップボードへ移行）
-   - クリップボード作成画面 ([CreateClipboardScreen.tsx](src/screens/CreateClipboardScreen.tsx))
-   - クリップボード一覧画面 ([ClipboardListScreen.tsx](src/screens/ClipboardListScreen.tsx))
-   - クリップボード選択画面 ([SelectClipboardScreen.tsx](src/screens/SelectClipboardScreen.tsx))
-   - Notionデータベース自動作成 - ワークスペース直下にコンテナページを作成し、その下にデータベースを配置
-   - Webページクリップ機能 (`createWebClip()`)
-   - 複数クリップボード選択機能 - クリップボードが複数ある場合は選択UIを表示
-   - クリップボード管理（作成・削除・一覧表示）
-   - 作成日・最終クリップ日時の自動記録・更新
-   - Background Service Worker拡張:
-     - `clip-page`: ページをクリップ
-     - `create-database`: データベース作成
-
-11. **Content Script - 自動コンテンツ抽出** 🆕 (完了)
-   - ページ本文の自動抽出 ([extract-content.ts](src/contents/extract-content.ts))
-   - OGP画像・サムネイル自動取得
-   - Favicon（ページアイコン）自動取得
-   - メタデータ抽出（タイトル、URL）
-   - 賢いテキスト抽出（article/main要素優先、スクリプト・スタイル除外）
-   - 全URLで動作（`<all_urls>`）
-
-12. **メモ機能** 🆕 (完了)
-   - クリップ時のメモ入力ダイアログ ([MemoDialog.tsx](src/components/MemoDialog.tsx))
-   - IME対応（日本語入力時の変換確定を検知）
-   - Shift + Enter で改行、Enter で確定
-   - データベースプロパティとして「メモ」を保存
-
-#### 未実装機能 🚧
-
-1. **フォームフィールドのカスタマイズ** (優先度: 中)
-   - テキスト、テキストエリア、選択肢、チェックボックス
-   - 必須項目の設定
-   - 型定義は準備済み (FormField interface)
-
-2. **コンテンツスクリプト機能拡張** (優先度: 中)
-   - 選択テキストの取得
-   - スクリーンショット機能
-
-3. **高度な機能** (優先度: 低)
-   - タグ・カテゴリ管理
-   - ショートカットキー対応
-   - クリップボードのエクスポート/インポート
+詳細な機能一覧と使い方は [README.md](README.md) を参照してください。
 
 ## プロジェクト構造
 
 ```
 raku-raku-notion/
 ├── src/
-│   ├── popup.tsx              # メインエントリーポイント (画面ルーティング + メモダイアログ)
+│   ├── popup.tsx              # メインエントリーポイント
 │   ├── screens/               # 画面コンポーネント
-│   │   ├── HomeScreen.tsx    # ホーム画面 (クリップボタン + 導線)
-│   │   ├── CreateClipboardScreen.tsx  # クリップボード作成画面
-│   │   ├── ClipboardListScreen.tsx    # クリップボード一覧画面
-│   │   ├── SelectClipboardScreen.tsx  # クリップボード選択画面
-│   │   ├── SettingsScreen.tsx         # Notion設定画面 (OAuth/手動トークン)
-│   │   ├── CreateFormScreen.tsx       # 旧フォーム作成画面（後方互換）
-│   │   ├── FormListScreen.tsx         # 旧フォーム一覧画面（後方互換）
-│   │   └── DemoScreen.tsx             # 旧デモページ（後方互換）
 │   ├── components/            # 再利用可能コンポーネント
-│   │   └── MemoDialog.tsx    # メモ入力ダイアログ（IME対応）🆕
-│   ├── contents/              # Content Scripts
-│   │   └── extract-content.ts # ページコンテンツ抽出 🆕
-│   ├── services/              # ビジネスロジック層
-│   │   ├── storage.ts        # Chrome Storage API ラッパー + タブ情報取得
-│   │   └── notion.ts         # Notion API クライアント (OAuth + メモ対応)
-│   ├── background/            # バックグラウンドスクリプト
-│   │   └── index.ts          # Service Worker (OAuth + API + コンテンツ抽出)
-│   ├── utils/                 # ユーティリティ関数
-│   │   └── oauth.ts          # OAuth認証ヘルパー関数
+│   ├── contents/              # Content Scripts (コンテンツ抽出)
+│   ├── services/              # ビジネスロジック (storage, notion)
+│   ├── background/            # Service Worker (OAuth + API)
+│   ├── utils/                 # ユーティリティ (oauth.ts)
 │   ├── types/                 # TypeScript型定義
-│   │   └── index.ts          # Clipboard, NotionConfig, WebClipData など
 │   └── styles/                # グローバルCSS
-│       └── global.css        # Notionスタイルを参考にしたデザイン
-├── assets/
-│   ├── icon.png              # 拡張機能アイコン (512x512)
-│   └── ICON_SETUP.md         # アイコン作成ガイド
-├── oauth-static/              # 静的OAuthコールバックページ（Cloudflare Pages等にデプロイ）
-│   ├── callback.html         # OAuthコールバック（拡張機能へリダイレクト）
-│   ├── error.html            # エラーページ
-│   └── README.md             # デプロイガイド
+├── oauth-static/              # 静的OAuthコールバックページ
 ├── docs/                      # ドキュメント
-│   ├── QUICKSTART.md         # セットアップ・使い方ガイド
 │   ├── OAUTH_SETUP_GUIDE.md  # OAuth設定ガイド
 │   └── OAUTH_FIX.md          # OAuth修正履歴（アーカイブ）
-├── build/                     # ビルド出力 (gitignore)
-│   └── chrome-mv3-dev/       # 開発版拡張機能
-├── .plasmo/                   # Plasmo内部ファイル (gitignore)
-├── node_modules/              # 依存関係 (gitignore)
-├── package.json               # 依存関係とマニフェスト設定
-├── tsconfig.json              # TypeScript設定
-├── README.md                  # プロジェクト説明
-├── CHANGELOG.md               # 変更履歴
-└── CLAUDE.md                  # このファイル
+├── assets/                    # アイコン等
+├── package.json               # マニフェスト設定
+└── .env                       # 環境変数（OAuth設定）
 ```
 
 ## 重要な設計決定
 
 ### 1. ストレージ構造
 
+詳細は [src/services/storage.ts](src/services/storage.ts) を参照。
+
 ```typescript
 // Chrome Storage Local
 {
-  'raku-forms': Form[],               // 旧フォームリスト（後方互換）
   'raku-clipboards': Clipboard[],     // クリップボードリスト
   'raku-notion-config': NotionConfig, // Notion設定
   'raku-initialized': boolean         // 初期化フラグ
@@ -207,39 +66,12 @@ raku-raku-notion/
 
 ### 2. 型定義
 
-```typescript
-// クリップボード定義（メイン機能）
-interface Clipboard {
-  id: string                    // ローカルのユニークID
-  name: string                  // クリップボード名
-  createdAt: Date | string     // 作成日時（ストレージでは文字列）
-  lastClippedAt?: Date | string // 最終クリップ日時
-  notionDatabaseId: string     // NotionのデータベースID
-  notionDatabaseUrl?: string   // NotionデータベースのURL
-  createdByExtension: boolean  // この拡張機能で作成されたか
-}
+詳細は [src/types/index.ts](src/types/index.ts) を参照。
 
-// Notion設定 (OAuth/手動トークン両対応)
-interface NotionConfig {
-  authMethod: 'manual' | 'oauth'
-  apiKey?: string         // 手動入力のトークン
-  accessToken?: string    // OAuth用トークン
-  refreshToken?: string   // OAuth用リフレッシュトークン
-  tokenExpiresAt?: number // トークン有効期限
-  workspaceId?: string    // OAuth用ワークスペースID
-  workspaceName?: string  // OAuth用ワークスペース名
-  botId?: string          // OAuth用ボットID
-}
-
-// Webクリップデータ
-interface WebClipData {
-  title: string
-  url: string
-  content?: string       // ページ本文（テキスト）
-  thumbnail?: string     // サムネイル画像URL
-  databaseId: string     // 保存先データベースID
-}
-```
+主要な型:
+- `Clipboard`: クリップボード定義
+- `NotionConfig`: Notion認証設定 (OAuth/手動トークン両対応)
+- `WebClipData`: Webクリップデータ
 
 ### 3. 画面遷移フロー
 
@@ -250,42 +82,24 @@ HomeScreen
   │     ├─> (クリップボードが1個) → 自動クリップ → 完了
   │     └─> (クリップボードが複数) → SelectClipboardScreen → クリップ → 完了
   ├─> ClipboardListScreen (クリップボード一覧を見る)
-  │     ├─> Notionデータベースを新しいタブで開く
-  │     └─> CreateClipboardScreen (新規作成)
-  ├─> CreateClipboardScreen (新しいクリップボードを作成)
-  │     └─> ClipboardListScreen (作成後)
   └─> SettingsScreen (⚙️設定アイコン)
         ├─> OAuth認証フロー
-        │     └─> Notion認証画面 → OAuthコールバック
         └─> 手動トークン入力
 ```
 
 ### 4. OAuth認証フロー
 
-1. **認証開始** (SettingsScreen)
-   - `start-oauth` メッセージをbackgroundに送信
-   - backgroundがOAuth URLを生成し、新しいタブで開く
-   - stateパラメータをストレージに保存（CSRF対策）
+詳細は [docs/OAUTH_SETUP_GUIDE.md](docs/OAUTH_SETUP_GUIDE.md) を参照。
 
-2. **Notion認証**
-   - ユーザーがNotionで「許可する」をクリック
-   - `chrome-extension://<ID>/oauth-callback.html` にリダイレクト
+**重要な設計ポイント**:
+- 静的サイトホスティング（Cloudflare Pages等）を使用
+- stateパラメータに拡張機能IDを埋め込み（CSRF対策）
+- ローカルサーバー不要（旧実装のoauth-server.jsは削除済み）
 
-3. **トークン交換** (oauth-callback.html)
-   - URLからcode・stateを取得
-   - `complete-oauth` メッセージをbackgroundに送信
-   - backgroundがstate検証後、codeをトークンに交換
-   - NotionConfigを更新
-
-4. **認証完了**
-   - 設定画面に「接続済み」と表示
-   - データベース一覧を取得・表示
-
-### 5. モックデータ初期化ロジック
-
-- `initializeMockData()` は初回起動時のみ実行
-- `INITIALIZED` フラグで二重初期化を防止
-- 開発時は `resetStorage()` でリセット可能
+**認証フロー**:
+1. SettingsScreen → `start-oauth` メッセージ → backgroundがOAuth URL生成
+2. Notion認証画面 → 静的サイトの`callback.html` → 拡張機能の`oauth-callback.html`
+3. backgroundが`complete-oauth`でトークン交換 → 設定画面に「接続済み」表示
 
 ## コーディング規約
 
@@ -300,19 +114,16 @@ HomeScreen
 
 - 関数コンポーネント + Hooks
 - Props の interface を明示的に定義
-- `FC<Props>` 型を使用
 
 ### ファイル命名
 
 - コンポーネント: PascalCase (例: `HomeScreen.tsx`)
 - ユーティリティ: camelCase (例: `storage.ts`)
-- 型定義: `index.ts` または `types.ts`
 
 ### CSS
 
 - グローバルスタイル: `global.css`
-- クラス名: kebab-case (例: `.list-item`)
-- インラインスタイルは最小限に (例外: 動的スタイル)
+- クラス名: kebab-case
 
 ## よくある開発タスク
 
@@ -328,33 +139,18 @@ HomeScreen
 2. 対応する getter/setter メソッドを追加
 3. 型定義を `src/types/index.ts` に追加
 
-### モックデータを更新
-
-1. `src/services/storage.ts` の `MOCK_FORMS` を編集
-2. 開発者ツールで `chrome.storage.local.clear()` を実行
-3. 拡張機能を更新
-
 ## デバッグ方法
 
-### ストレージ内容の確認
+### ストレージ操作
 
 ```javascript
-// Consoleで実行
+// ストレージ内容の確認
 chrome.storage.local.get(null, (data) => console.log(data))
 
-// または
-import('./services/storage').then(({ StorageService }) => {
-  StorageService.debugStorage()
-})
-```
-
-### ストレージのリセット
-
-```javascript
-// 方法1: シンプル
+// ストレージのリセット
 chrome.storage.local.clear()
 
-// 方法2: リセット関数使用
+// またはリセット関数使用
 import('./services/storage').then(({ StorageService }) => {
   StorageService.resetStorage()
 })
@@ -363,21 +159,14 @@ import('./services/storage').then(({ StorageService }) => {
 ### OAuth認証のデバッグ
 
 ```bash
-# 拡張機能開発サーバー起動
-npm run dev
+npm run dev  # 拡張機能開発サーバー起動
 ```
 
 **デバッグログ確認**:
-- **静的コールバックページ**: ブラウザのコンソールで `[OAuth Callback]` プレフィックス付きログを確認
-- **背景スクリプト**: chrome://extensions/ → 拡張機能の詳細 → Service Worker → `[Background]` プレフィックス付きログを確認
-- **OAuth認証フロー**:
-  1. 拡張機能で「Notionと連携」クリック
-  2. Notionで「許可する」クリック
-  3. 静的サイト（Cloudflare Pages等）の`callback.html`にリダイレクト（一瞬）
-  4. `chrome-extension://<ID>/oauth-callback.html` にリダイレクト
-  5. 拡張機能の設定画面に戻り、「接続済み」表示
+- **静的コールバックページ**: ブラウザのコンソールで `[OAuth Callback]` プレフィックス付きログ
+- **背景スクリプト**: chrome://extensions/ → 拡張機能の詳細 → Service Worker → `[Background]` プレフィックス付きログ
 
-**注意**: 旧実装のローカルサーバー（oauth-server.js）は不要になりました。
+詳細は [docs/OAUTH_SETUP_GUIDE.md](docs/OAUTH_SETUP_GUIDE.md) のトラブルシューティングセクションを参照。
 
 ### ビルドエラー時
 
@@ -388,55 +177,16 @@ npm install
 npm run dev
 ```
 
-## 次のステップ (優先順位順)
-
-### Phase 3: フォームからのNotion送信 (次のフェーズ)
-1. フォーム入力画面の実装
-2. Notion送信ボタンとロジック
-3. 送信成功/失敗のフィードバック
-4. エラーハンドリングの強化
-
-### Phase 4: フォームカスタマイズ
-1. フィールド追加UI
-2. フィールド型選択 (text, textarea, select, checkbox)
-3. 必須項目設定
-4. フィールドの並び替え
-
-### Phase 5: コンテンツスクリプト
-1. 選択テキストの取得
-2. ページメタデータの抽出
-3. フォーム自動入力
-4. スクリーンショット機能
-
-### Phase 6: UX改善
-1. ローディング状態の表示
-2. トースト通知の実装
-3. 複数ワークスペース対応
-
 ## 既知の問題と解決履歴
 
-### 開発環境
+### 主要な解決済み問題
 
-- ✅ WebSocket エラー: `npm run dev` で解決
-- ✅ モックデータ更新: `chrome.storage.local.clear()` で解決
-- ✅ TypeScript エラー: `@types/chrome` で型定義追加済み
-- ✅ OAuth chrome-extension:// スキーム制限: 静的サイトホスティング（Cloudflare Pages）で解決
-- ✅ OAuth redirect URI不一致: SettingsScreen.tsxのredirectUriを環境変数に統一して解決
-- ✅ 拡張機能IDハードコーディング: stateパラメータから自動抽出する仕組みで解決
-- ✅ OAuth無限ローディング: シンプルなcallback.htmlリダイレクトで解決
-- ✅ ローカルサーバー依存: oauth-server.jsを削除し、静的サイトホスティングに統一して解決
-- ✅ 認証方式切り替え時のUI不具合: 認証方式変更時に自動リセット処理を追加して解決
+- ✅ OAuth chrome-extension:// スキーム制限 → 静的サイトホスティングで解決
+- ✅ OAuth redirect URI不一致 → 環境変数に統一して解決
+- ✅ ローカルサーバー依存 → oauth-server.js削除、静的サイトに統一
+- ✅ 認証方式切り替え時のUI不具合 → 自動リセット処理追加で解決
 
-### 本番環境
-
-- なし (まだ本番デプロイなし)
-
-## 参考資料
-
-- [Plasmo公式ドキュメント](https://docs.plasmo.com)
-- [Chrome拡張機能ドキュメント](https://developer.chrome.com/docs/extensions/)
-- [Notion API リファレンス](https://developers.notion.com/)
-- [React公式ドキュメント](https://react.dev/)
+詳細は [docs/OAUTH_FIX.md](docs/OAUTH_FIX.md)（アーカイブ）を参照。
 
 ## 開発者向けメモ
 
@@ -444,92 +194,73 @@ npm run dev
 
 - `~` エイリアスは `src/` ディレクトリを指す
 - マニフェスト設定は `package.json` の `manifest` フィールドに記述
-- アイコンは `assets/` に配置すると自動リサイズ
-- ビルド出力は `build/chrome-mv3-dev/` (開発) または `build/chrome-mv3-prod/` (本番)
+- ビルド出力: `build/chrome-mv3-dev/` (開発) / `build/chrome-mv3-prod/` (本番)
 
 ### Chrome Storage API
 
 - 容量制限: 5MB (local), 100KB (sync)
 - 非同期APIなので async/await を使用
-- JSON シリアライズ可能な値のみ保存可能
 - Date オブジェクトは文字列として保存される
 
-### セキュリティ考慮事項
+### Notion API統合
 
-- Notion APIキーは chrome.storage.local に保存 (暗号化なし)
-- 本番環境では chrome.storage.sync の使用を検討
-- XSS対策: React の自動エスケープに依存
-- CSRF対策: Notion API はトークンベース認証
-
-### Notion API統合について
-
-#### 認証方式
 本プロジェクトは2つの認証方式に対応:
 
 1. **OAuth認証** (本番環境推奨)
-   - Notion OAuth 2.0フローによる認証
    - `NotionConfig.authMethod = 'oauth'`
-   - `NotionConfig.accessToken` にOAuthトークンを格納
-   - 環境変数で Client ID/Secret を設定
-   - CSRF対策のためのstate検証（extension IDを含む）
-   - トークン有効性チェック機能
-   - **重要**: 静的サイトホスティング（Cloudflare Pages等）が必要
-   - stateパラメータから拡張機能IDを自動抽出
+   - 静的サイトホスティング（Cloudflare Pages等）が必要
+   - 詳細: [docs/OAUTH_SETUP_GUIDE.md](docs/OAUTH_SETUP_GUIDE.md)
 
 2. **手動トークン入力** (開発・テスト推奨)
-   - Notion Integration Tokenを手動で入力
    - `NotionConfig.authMethod = 'manual'`
-   - `NotionConfig.apiKey` にトークンを格納
-   - 開発・テスト用途に最適（簡単・高速）
    - Internal Integrationを使用
 
 #### API呼び出し方法
+
 ```typescript
 // 方法1: 直接呼び出し (popup内)
 import { createNotionClient } from '~services/notion'
 const config = await StorageService.getNotionConfig()
 const client = createNotionClient(config)
-await client.createPage({ title, url, memo })
+await client.createWebClip({ title, url, databaseId })
 
 // 方法2: Background経由 (推奨)
 chrome.runtime.sendMessage({
-  type: 'send-to-notion',
-  data: { title, url, memo }
+  type: 'clip-page',
+  data: { title, url, databaseId }
 })
 ```
 
-#### OAuth設定方法
-```bash
-# 1. oauth-static/ディレクトリを静的サイトホスティングにデプロイ
-# 推奨: Cloudflare Pages, Netlify, GitHub Pages
-# 例: https://raku-raku-notion.pages.dev/callback.html
+#### OAuth設定の概要
 
+```bash
+# 1. oauth-static/を静的サイトにデプロイ
 # 2. .envファイルを作成
 cp .env.example .env
 
-# 3. Notion Developersで作成したClient ID/Secret/Redirect URIを設定
-# .env
+# 3. 環境変数を設定
 PLASMO_PUBLIC_NOTION_CLIENT_ID=your_client_id
 PLASMO_PUBLIC_NOTION_CLIENT_SECRET=your_client_secret
-PLASMO_PUBLIC_OAUTH_REDIRECT_URI=https://raku-raku-notion.pages.dev/callback.html
+PLASMO_PUBLIC_OAUTH_REDIRECT_URI=https://your-domain.com/callback.html
 
-# 4. package.jsonのmanifest.externally_connectableを更新（必要に応じて）
-# デフォルトは https://raku-raku-notion.pages.dev/*
-
-# 5. 拡張機能をビルド
+# 4. ビルド
 npm run build
 ```
 
-**重要**: NotionのOAuth認証では`chrome-extension://`スキームが使用できないため、
-静的サイトホスティング（HTTPS）を使用します。
-
-**ローカルサーバー（oauth-server.js）は不要**: 旧実装で使用していたNode.jsサーバーは削除済みです。
-
-Notion Integrationの設定:
-- Redirect URI: `https://raku-raku-notion.pages.dev/callback.html`（デプロイしたURL）
-- **完全一致**が必要（末尾スラッシュの有無に注意）
+**重要**: redirect_uriは以下の3箇所で**完全一致**が必要:
+- Notion Integration設定
+- `.env`ファイル
+- 静的サイトのファイル名
 
 詳細は [docs/OAUTH_SETUP_GUIDE.md](docs/OAUTH_SETUP_GUIDE.md) を参照。
+
+## 参考資料
+
+- [README.md](README.md) - プロジェクト説明と使い方
+- [docs/OAUTH_SETUP_GUIDE.md](docs/OAUTH_SETUP_GUIDE.md) - OAuth設定ガイド
+- [Plasmo公式ドキュメント](https://docs.plasmo.com)
+- [Chrome拡張機能ドキュメント](https://developer.chrome.com/docs/extensions/)
+- [Notion API リファレンス](https://developers.notion.com/)
 
 ---
 
