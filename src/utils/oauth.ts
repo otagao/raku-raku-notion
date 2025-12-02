@@ -34,6 +34,39 @@ export function generateState(): string {
 }
 
 /**
+ * Extension IDを含むstate文字列を生成
+ * 形式: base64(extensionId:randomToken)
+ */
+export function generateStateWithExtensionId(extensionId: string): string {
+  const randomToken = generateState()
+  const stateData = `${extensionId}:${randomToken}`
+  return btoa(stateData)
+}
+
+/**
+ * stateからExtension IDとCSRFトークンを抽出
+ */
+export function parseState(state: string): { extensionId: string; csrfToken: string } | null {
+  try {
+    const decoded = atob(state)
+    const parts = decoded.split(':')
+
+    if (parts.length !== 2) {
+      console.error('[OAuth] Invalid state format')
+      return null
+    }
+
+    return {
+      extensionId: parts[0],
+      csrfToken: parts[1]
+    }
+  } catch (error) {
+    console.error('[OAuth] Failed to parse state:', error)
+    return null
+  }
+}
+
+/**
  * 認証コードをアクセストークンに交換
  */
 export async function exchangeCodeForToken(
