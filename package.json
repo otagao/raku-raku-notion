@@ -1,11 +1,11 @@
 {
   "name": "raku-raku-notion",
-  "version": "1.0.0",
+  "version": "1.7.0",
   "description": "Simplified Notion web clipper browser extension",
   "displayName": "Raku Raku Notion",
   "scripts": {
     "dev": "plasmo dev",
-    "build": "plasmo build",
+    "build": "plasmo build && cp assets/oauth-callback.html assets/oauth-callback.js build/chrome-mv3-dev/ && cp assets/oauth-callback.html assets/oauth-callback.js build/chrome-mv3-prod/",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

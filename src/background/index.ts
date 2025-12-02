@@ -194,7 +194,8 @@ async function handleStartOAuth(
 
     // stateを一時保存（検証用）
     await chrome.storage.local.set({
-      'raku-oauth-state': state
+      'raku-oauth-state': state,
+      'raku-oauth-pending': true  // OAuth処理中フラグ
     })
 
     console.log('[Background] OAuth started with extension ID:', extensionId)
@@ -205,13 +206,23 @@ async function handleStartOAuth(
     // 新しいタブでOAuth認証画面を開く
     chrome.tabs.create({ url: authUrl })
 
-    sendResponse({ success: true })
+    // レスポンスを送信（ポップアップがキャッシュされる前に）
+    try {
+      sendResponse({ success: true })
+    } catch (err) {
+      // ポップアップが既に閉じられている場合は無視
+      console.log('[Background] Could not send response (popup may be cached):', err)
+    }
   } catch (error) {
     console.error("Failed to start OAuth:", error)
-    sendResponse({
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to start OAuth"
-    })
+    try {
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to start OAuth"
+      })
+    } catch (err) {
+      console.error('[Background] Could not send error response:', err)
+    }
   }
 }
 
@@ -219,7 +230,7 @@ async function handleStartOAuth(
  * OAuth認証を完了（コードをトークンに交換）
  */
 async function handleCompleteOAuth(
-  data: { code: string; state: string; oauthConfig?: NotionOAuthConfig },
+  data: { code: string; state: string },
   sendResponse: (response?: any) => void
 ) {
   try {
@@ -252,8 +263,8 @@ async function handleCompleteOAuth(
       // 警告のみで続行（開発版→本番版の移行を考慮）
     }
 
-    // OAuth設定を取得（環境変数またはパラメータから）
-    const oauthConfig: NotionOAuthConfig = data.oauthConfig || {
+    // OAuth設定を環境変数から取得
+    const oauthConfig: NotionOAuthConfig = {
       clientId: process.env.PLASMO_PUBLIC_NOTION_CLIENT_ID || '',
       clientSecret: process.env.PLASMO_PUBLIC_NOTION_CLIENT_SECRET || '',
       redirectUri: process.env.PLASMO_PUBLIC_OAUTH_REDIRECT_URI || 'https://raku-raku-notion.pages.dev/callback.html'
@@ -286,15 +297,18 @@ async function handleCompleteOAuth(
     console.log('[Background] Config saved successfully');
 
     // 一時保存したstateを削除
-    await chrome.storage.local.remove('raku-oauth-state')
+    await chrome.storage.local.remove(['raku-oauth-state', 'raku-oauth-pending'])
 
-    sendResponse({
+    const response = {
       success: true,
       workspace: {
         id: tokenResponse.workspace_id,
         name: tokenResponse.workspace_name
       }
-    })
+    }
+
+    console.log('[Background] Sending success response:', response)
+    sendResponse(response)
   } catch (error) {
     console.error("[Background] Failed to complete OAuth:", error)
     sendResponse({

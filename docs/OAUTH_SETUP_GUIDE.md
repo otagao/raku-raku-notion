@@ -179,19 +179,31 @@ npm run build
 ### フロー図
 
 ```
-1. [拡張機能] OAuth開始
+1. [SettingsScreen] 「Notionで認証」をクリック
+   ↓ start-oauth メッセージ
+
+2. [Background] OAuth URL生成、raku-oauth-pending: true を保存
    ↓ state = base64(extensionId:randomToken)
 
-2. [Notion] ユーザーが「許可する」をクリック
+3. [Notion] ユーザーが「許可する」をクリック
    ↓ redirect: https://your-domain.com/callback.html?code=xxx&state=xxx
 
-3. [callback.html] stateから拡張機能IDを抽出
+4. [静的サイト callback.html] stateから拡張機能IDを抽出
    ↓ decoded = atob(state) → extensionId:randomToken
 
-4. [callback.html] 拡張機能にリダイレクト
+5. [callback.html] 拡張機能にリダイレクト
    ↓ chrome-extension://{extensionId}/oauth-callback.html?code=xxx&state=xxx
 
-5. [拡張機能] トークン交換 & 認証完了
+6. [oauth-callback.js] complete-oauth メッセージ送信（code, stateのみ）
+   ↓
+
+7. [Background] 環境変数からOAuth設定を取得
+   ↓ トークン交換、設定保存、raku-oauth-pending 削除
+
+8. [SettingsScreen] storage変更を検出
+   ↓ 設定リロード、成功メッセージ表示
+
+9. [oauth-callback.html] 2秒後に自動でタブを閉じる
 ```
 
 ---
@@ -250,9 +262,35 @@ cat .env
 - 拡張機能のストレージをクリア:
   ```javascript
   // 開発者ツールのコンソールで実行
-  chrome.storage.local.remove('raku-oauth-state')
+  chrome.storage.local.remove(['raku-oauth-state', 'raku-oauth-pending'])
   ```
 - もう一度OAuth認証をやり直す
+
+### 「Notion Client ID or Client Secret is not configured」エラー
+
+**原因**: 環境変数がビルドに埋め込まれていない、または`oauth-callback.js`が古いバージョン
+
+**解決策**:
+1. `.env`ファイルを確認（`PLASMO_PUBLIC_NOTION_CLIENT_ID`と`PLASMO_PUBLIC_NOTION_CLIENT_SECRET`が設定されているか）
+2. クリーンビルドを実行:
+   ```bash
+   rm -rf build .plasmo
+   npm run build
+   ```
+3. 拡張機能をリロード
+
+### OAuth認証後に無限ローディング
+
+**原因**: CSP違反またはメッセージ処理のエラー
+
+**解決策**:
+1. コールバックページのコンソールを確認（F12）
+2. Service Workerのログを確認（chrome://extensions/ → 詳細 → Service Worker）
+3. 以下のログが表示されるか確認:
+   - `[OAuth Callback] Starting...`
+   - `[Background] Starting OAuth completion...`
+   - `[Background] Token exchange successful`
+4. CSPエラーが出ている場合は、`oauth-callback.html`が外部スクリプト（`oauth-callback.js`）を使用しているか確認
 
 ---
 
@@ -289,7 +327,32 @@ const [extensionId, csrfToken] = decoded.split(':')
 - [Cloudflare Pages Documentation](https://developers.cloudflare.com/pages/)
 - [Chrome Extension OAuth](https://developer.chrome.com/docs/extensions/mv3/tut_oauth/)
 
+### デバッグログの確認方法
+
+**Service Workerログ**:
+1. `chrome://extensions/` を開く
+2. 拡張機能の「詳細」をクリック
+3. 「Service Worker」のリンクをクリック
+4. コンソールで以下のログを確認:
+   - `[Background] OAuth started with extension ID: xxx`
+   - `[Background] Starting OAuth completion...`
+   - `[Background] Token exchange successful`
+   - `[Background] Config saved successfully`
+
+**コールバックページログ**:
+1. OAuth認証後、`oauth-callback.html`が開いたら即座にF12を押す
+2. コンソールで以下のログを確認:
+   - `[OAuth Callback] Starting...`
+   - `[OAuth Callback] Code and state received`
+   - `[OAuth Callback] Response received: {success: true, ...}`
+   - `[OAuth Callback] Success! Closing in 2 seconds...`
+
+**設定画面ログ**:
+1. 拡張機能のポップアップでF12を押す
+2. 設定画面で以下のログを確認:
+   - `[Settings] OAuth completed, reloading config...`
+
 ---
 
 **最終更新**: 2025-12-02
-**バージョン**: 2.0 - 静的サイトホスティング対応
+**バージョン**: 2.1 - OAuth無限ローディング・CSP違反修正版
