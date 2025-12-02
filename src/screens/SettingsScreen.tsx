@@ -16,11 +16,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
   const [successMessage, setSuccessMessage] = useState('')
   const [workspaceName, setWorkspaceName] = useState('')
 
-  // OAuth設定（localhost:3000を使用）
+  // OAuth設定（環境変数から取得、未設定時はデフォルト値）
   const oauthConfig: NotionOAuthConfig = {
     clientId: process.env.PLASMO_PUBLIC_NOTION_CLIENT_ID || '',
     clientSecret: process.env.PLASMO_PUBLIC_NOTION_CLIENT_SECRET || '',
-    redirectUri: 'http://localhost:3000/oauth/callback'
+    redirectUri: process.env.PLASMO_PUBLIC_OAUTH_REDIRECT_URI || 'https://raku-raku-notion.pages.dev/callback.html'
   }
 
   // 初期化: 既存の設定を読み込む
