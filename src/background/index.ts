@@ -9,7 +9,7 @@
 
 import { createNotionClient } from "~services/notion"
 import { StorageService } from "~services/storage"
-import { generateOAuthUrl, generateState, exchangeCodeForToken } from "~utils/oauth"
+import { generateOAuthUrl, generateStateWithExtensionId, parseState, exchangeCodeForToken } from "~utils/oauth"
 import type { NotionPageData, NotionOAuthConfig, WebClipData } from "~types"
 
 // メッセージリスナー
@@ -188,14 +188,16 @@ async function handleStartOAuth(
   sendResponse: (response?: any) => void
 ) {
   try {
-    // CSRF対策用のstateを生成
-    const state = generateState()
+    // Extension IDを含むstateを生成（CSRF対策 + 拡張機能ID埋め込み）
+    const extensionId = chrome.runtime.id
+    const state = generateStateWithExtensionId(extensionId)
 
-    // stateと拡張機能IDを一時保存
+    // stateを一時保存（検証用）
     await chrome.storage.local.set({
-      'raku-oauth-state': state,
-      'raku-extension-id': oauthConfig.extensionId || chrome.runtime.id
+      'raku-oauth-state': state
     })
+
+    console.log('[Background] OAuth started with extension ID:', extensionId)
 
     // OAuth認証URLを生成
     const authUrl = generateOAuthUrl(oauthConfig, state)
@@ -233,6 +235,21 @@ async function handleCompleteOAuth(
     // state検証（CSRF対策）
     if (!savedState || savedState !== data.state) {
       throw new Error('Invalid OAuth state parameter')
+    }
+
+    // stateからextension IDとCSRFトークンを抽出
+    const parsedState = parseState(data.state)
+    if (!parsedState) {
+      throw new Error('Failed to parse OAuth state parameter')
+    }
+
+    console.log('[Background] Extracted extension ID from state:', parsedState.extensionId)
+    console.log('[Background] Current extension ID:', chrome.runtime.id)
+
+    // Extension ID検証（オプション - セキュリティ強化）
+    if (parsedState.extensionId !== chrome.runtime.id) {
+      console.warn('[Background] Extension ID mismatch - state may be from different installation')
+      // 警告のみで続行（開発版→本番版の移行を考慮）
     }
 
     // OAuth設定を取得（環境変数またはパラメータから）
