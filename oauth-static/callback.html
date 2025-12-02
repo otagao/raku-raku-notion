@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notion認証中 - Raku Raku Notion</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 48px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 16px;
+        }
+
+        .status {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 32px;
+            line-height: 1.6;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            display: none;
+            color: #d32f2f;
+            background: #ffebee;
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 24px;
+            font-size: 14px;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .retry-btn {
+            display: none;
+            margin-top: 24px;
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .retry-btn:hover {
+            background: #5568d3;
+        }
+
+        .retry-btn.show {
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">📎</div>
+        <h1>Notion認証中...</h1>
+        <p class="status">拡張機能に接続しています。しばらくお待ちください。</p>
+        <div class="spinner"></div>
+        <div class="error" id="error"></div>
+        <button class="retry-btn" id="retryBtn">拡張機能を開く</button>
+    </div>
+
+    <script>
+        (function() {
+            // URLパラメータを取得
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const state = urlParams.get('state');
+            const error = urlParams.get('error');
+
+            console.log('[OAuth Callback] Parameters:', { code: code ? 'present' : 'missing', state: state ? 'present' : 'missing', error });
+
+            // エラーチェック
+            if (error) {
+                console.error('[OAuth Callback] Notion returned error:', error);
+                showError('Notion認証でエラーが発生しました: ' + error);
+                return;
+            }
+
+            if (!code || !state) {
+                console.error('[OAuth Callback] Missing required parameters');
+                showError('認証パラメータが不足しています。もう一度お試しください。');
+                return;
+            }
+
+            // 拡張機能にリダイレクト
+            const extensionUrl = `chrome-extension://YOUR_EXTENSION_ID/oauth-callback.html?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`;
+
+            console.log('[OAuth Callback] Redirecting to extension...');
+
+            // リダイレクト試行
+            try {
+                window.location.href = extensionUrl;
+
+                // 3秒後にリダイレクトが成功したかチェック
+                setTimeout(() => {
+                    // まだこのページにいる場合は手動操作を促す
+                    console.warn('[OAuth Callback] Auto-redirect may have failed');
+                    document.querySelector('.status').textContent = '自動的に拡張機能が開かない場合は、下のボタンをクリックしてください。';
+                    document.getElementById('retryBtn').classList.add('show');
+                    document.getElementById('retryBtn').onclick = () => {
+                        window.location.href = extensionUrl;
+                    };
+                }, 3000);
+            } catch (e) {
+                console.error('[OAuth Callback] Redirect error:', e);
+                showError('拡張機能への接続に失敗しました。');
+            }
+
+            function showError(message) {
+                document.querySelector('.spinner').style.display = 'none';
+                document.querySelector('.status').style.display = 'none';
+                const errorDiv = document.getElementById('error');
+                errorDiv.textContent = message;
+                errorDiv.classList.add('show');
+
+                // エラー時はフォールバックページへのリンクを表示
+                const retryBtn = document.getElementById('retryBtn');
+                retryBtn.textContent = 'エラーページへ';
+                retryBtn.classList.add('show');
+                retryBtn.onclick = () => {
+                    window.location.href = './error.html?reason=' + encodeURIComponent(message);
+                };
+            }
+        })();
+    </script>
+</body>
+</html>

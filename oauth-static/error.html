@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>認証エラー - Raku Raku Notion</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 48px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 24px;
+            background: #ffebee;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .error-message {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 32px;
+            line-height: 1.8;
+            text-align: center;
+            background: #f5f5f5;
+            padding: 16px;
+            border-radius: 8px;
+        }
+
+        .reason {
+            font-size: 14px;
+            color: #d32f2f;
+            background: #ffebee;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 32px;
+            border-left: 4px solid #d32f2f;
+        }
+
+        .troubleshooting {
+            margin-bottom: 32px;
+        }
+
+        .troubleshooting h2 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 16px;
+        }
+
+        .troubleshooting ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .troubleshooting li {
+            padding: 12px 0;
+            padding-left: 28px;
+            position: relative;
+            color: #555;
+            line-height: 1.6;
+        }
+
+        .troubleshooting li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            flex: 1;
+            min-width: 140px;
+            padding: 14px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            text-decoration: none;
+            border: none;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #f5f7ff;
+        }
+
+        .footer {
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid #eee;
+            text-align: center;
+        }
+
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+            margin: 0 12px;
+            font-size: 14px;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">⚠️</div>
+        <h1>認証に失敗しました</h1>
+
+        <div class="error-message">
+            Notion認証プロセス中にエラーが発生しました。<br>
+            以下のトラブルシューティング手順をお試しください。
+        </div>
+
+        <div class="reason" id="reasonBox" style="display: none;">
+            <strong>エラー詳細:</strong><br>
+            <span id="reasonText"></span>
+        </div>
+
+        <div class="troubleshooting">
+            <h2>トラブルシューティング</h2>
+            <ul>
+                <li>Raku Raku Notion 拡張機能がChromeにインストールされているか確認してください</li>
+                <li>拡張機能が有効になっているか確認してください（chrome://extensions/）</li>
+                <li>ブラウザを再起動してから、もう一度お試しください</li>
+                <li>拡張機能を一度削除して、再インストールしてみてください</li>
+                <li>Notionの認証画面で「許可する」をクリックしたか確認してください</li>
+            </ul>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-primary" onclick="retry()">もう一度試す</button>
+            <button class="btn btn-secondary" onclick="openExtension()">拡張機能を開く</button>
+        </div>
+
+        <div class="footer">
+            <a href="./privacy.html">プライバシーポリシー</a>
+            <a href="./terms.html">利用規約</a>
+            <a href="https://github.com/your-repo/raku-raku-notion/issues" target="_blank">サポート</a>
+        </div>
+    </div>
+
+    <script>
+        // URLパラメータからエラー理由を取得
+        const urlParams = new URLSearchParams(window.location.search);
+        const reason = urlParams.get('reason');
+
+        if (reason) {
+            document.getElementById('reasonBox').style.display = 'block';
+            document.getElementById('reasonText').textContent = decodeURIComponent(reason);
+        }
+
+        function retry() {
+            // 設定画面を開く（拡張機能が存在する場合）
+            const extensionUrl = 'chrome-extension://YOUR_EXTENSION_ID/popup.html#settings';
+            window.location.href = extensionUrl;
+
+            // フォールバック: 拡張機能が開けない場合はメッセージ表示
+            setTimeout(() => {
+                alert('拡張機能を直接開いて、設定画面からもう一度Notion認証を行ってください。');
+            }, 1000);
+        }
+
+        function openExtension() {
+            const extensionUrl = 'chrome-extension://YOUR_EXTENSION_ID/popup.html';
+            window.location.href = extensionUrl;
+
+            // フォールバック
+            setTimeout(() => {
+                alert('拡張機能アイコンをクリックして、手動で開いてください。');
+            }, 1000);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>利用規約 - Raku Raku Notion</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.8;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 48px 24px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: -40px auto 48px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 48px;
+        }
+
+        .last-updated {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 32px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #eee;
+        }
+
+        section {
+            margin-bottom: 40px;
+        }
+
+        h2 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 16px;
+            padding-left: 12px;
+            border-left: 4px solid #667eea;
+        }
+
+        h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #444;
+            margin: 24px 0 12px;
+        }
+
+        p {
+            margin-bottom: 16px;
+            color: #555;
+        }
+
+        ul {
+            margin: 16px 0;
+            padding-left: 24px;
+        }
+
+        li {
+            margin-bottom: 8px;
+            color: #555;
+        }
+
+        .highlight {
+            background: #fff3cd;
+            padding: 16px;
+            border-radius: 8px;
+            border-left: 4px solid #ffc107;
+            margin: 24px 0;
+        }
+
+        .important {
+            background: #f5f7ff;
+            padding: 16px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            margin: 24px 0;
+        }
+
+        footer {
+            text-align: center;
+            padding: 32px 24px;
+            color: #666;
+        }
+
+        footer a {
+            color: #667eea;
+            text-decoration: none;
+            margin: 0 12px;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: -20px 16px 32px;
+                padding: 32px 24px;
+            }
+
+            header h1 {
+                font-size: 28px;
+            }
+
+            h2 {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>📎 Raku Raku Notion</h1>
+        <p>利用規約</p>
+    </header>
+
+    <div class="container">
+        <div class="last-updated">
+            最終更新日: 2025年12月2日
+        </div>
+
+        <section>
+            <h2>1. 本規約について</h2>
+            <p>
+                本利用規約（以下「本規約」）は、Raku Raku Notion（以下「本拡張機能」）の利用に関する条件を定めるものです。
+                本拡張機能をインストールまたは使用することで、本規約に同意したものとみなされます。
+            </p>
+        </section>
+
+        <section>
+            <h2>2. 本拡張機能の概要</h2>
+            <p>
+                本拡張機能は、ウェブページの情報を簡単にNotionワークスペースに保存（クリップ）するためのブラウザ拡張機能です。
+                主な機能は以下の通りです：
+            </p>
+            <ul>
+                <li>ウェブページのタイトル、URL、本文、サムネイルの自動取得</li>
+                <li>Notion OAuth認証によるワークスペース連携</li>
+                <li>クリップボード（保存先データベース）の作成と管理</li>
+                <li>ワンクリックでのページクリップ</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>3. 利用条件</h2>
+
+            <h3>3.1 アカウント</h3>
+            <p>
+                本拡張機能を使用するには、有効なNotionアカウントが必要です。
+                Notionアカウントの作成と管理は、Notionの利用規約に従ってください。
+            </p>
+
+            <h3>3.2 使用許諾</h3>
+            <p>
+                本規約に従うことを条件に、本拡張機能を個人的かつ非商用目的で使用する権利を許諾します。
+            </p>
+
+            <h3>3.3 禁止事項</h3>
+            <p>本拡張機能の使用にあたり、以下の行為を禁止します：</p>
+            <ul>
+                <li>本拡張機能のソースコードを改変、リバースエンジニアリング、逆コンパイルすること（オープンソース部分を除く）</li>
+                <li>本拡張機能を商業目的で再配布すること</li>
+                <li>他者の著作権、プライバシー、その他の権利を侵害する内容をクリップすること</li>
+                <li>本拡張機能を使用して違法行為を行うこと</li>
+                <li>本拡張機能の正常な動作を妨げる行為</li>
+                <li>大量のデータを自動的にクリップするなど、Notion APIに過度な負荷をかける行為</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>4. Notion APIとの連携</h2>
+
+            <div class="important">
+                <strong>重要:</strong> 本拡張機能は、Notion APIを使用してNotionワークスペースにアクセスします。
+                本拡張機能の使用により、Notionの利用規約およびAPIガイドラインにも同意したものとみなされます。
+            </div>
+
+            <h3>4.1 OAuth認証</h3>
+            <p>
+                本拡張機能は、OAuth 2.0プロトコルを使用してNotionワークスペースへの安全なアクセスを提供します。
+                ユーザーは、いつでも設定画面から連携を解除できます。
+            </p>
+
+            <h3>4.2 API制限</h3>
+            <p>
+                Notion APIには利用制限があります。過度な使用により、一時的にクリップ機能が制限される場合があります。
+            </p>
+        </section>
+
+        <section>
+            <h2>5. 免責事項</h2>
+
+            <div class="highlight">
+                <strong>注意:</strong> 本拡張機能は「現状有姿」で提供され、いかなる保証も行いません。
+            </div>
+
+            <h3>5.1 サービスの提供</h3>
+            <p>
+                本拡張機能は無償で提供されており、以下の点について保証しません：
+            </p>
+            <ul>
+                <li>本拡張機能の動作が中断されないこと</li>
+                <li>本拡張機能にエラーやバグが含まれないこと</li>
+                <li>本拡張機能がユーザーの特定の目的に適合すること</li>
+                <li>クリップしたデータの正確性、完全性</li>
+                <li>Notion APIの可用性や変更に対する互換性</li>
+            </ul>
+
+            <h3>5.2 データの損失</h3>
+            <p>
+                本拡張機能の使用、または使用不能により生じたデータの損失、破損について、開発者は一切の責任を負いません。
+                重要なデータは必ずバックアップを取ってください。
+            </p>
+
+            <h3>5.3 第三者サービス</h3>
+            <p>
+                本拡張機能はNotionという第三者サービスに依存しています。
+                Notionのサービス停止、仕様変更、利用規約変更により本拡張機能が正常に動作しなくなった場合でも、
+                開発者は責任を負いません。
+            </p>
+
+            <h3>5.4 損害賠償の制限</h3>
+            <p>
+                本拡張機能の使用に起因または関連して生じた、いかなる直接的、間接的、偶発的、特別、派生的損害についても、
+                開発者は一切の責任を負いません。
+            </p>
+        </section>
+
+        <section>
+            <h2>6. 知的財産権</h2>
+            <p>
+                本拡張機能に関する著作権、商標権、その他の知的財産権は、開発者またはライセンサーに帰属します。
+                ただし、オープンソースライセンスの下で提供されているコンポーネントについては、各ライセンスに従います。
+            </p>
+        </section>
+
+        <section>
+            <h2>7. プライバシー</h2>
+            <p>
+                本拡張機能は、ユーザーのプライバシーを尊重します。
+                収集する情報とその使用方法については、
+                <a href="./privacy.html">プライバシーポリシー</a>をご確認ください。
+            </p>
+        </section>
+
+        <section>
+            <h2>8. サービスの変更・中止</h2>
+            <p>
+                開発者は、事前の通知なく、本拡張機能の全部または一部を変更、中止、終了する権利を有します。
+                これにより生じた損害について、開発者は一切の責任を負いません。
+            </p>
+        </section>
+
+        <section>
+            <h2>9. 本規約の変更</h2>
+            <p>
+                開発者は、必要に応じて本規約を変更できます。
+                重要な変更がある場合は、拡張機能の更新情報でお知らせします。
+                変更後も本拡張機能を継続して使用することで、変更後の規約に同意したものとみなされます。
+            </p>
+        </section>
+
+        <section>
+            <h2>10. 準拠法と管轄</h2>
+            <p>
+                本規約は日本法に準拠し、解釈されます。
+                本規約に関する紛争については、東京地方裁判所を第一審の専属的合意管轄裁判所とします。
+            </p>
+        </section>
+
+        <section>
+            <h2>11. お問い合わせ</h2>
+            <p>
+                本規約に関するご質問やご不明点がある場合は、
+                <a href="https://github.com/your-repo/raku-raku-notion/issues" target="_blank">GitHubリポジトリ</a>
+                までお問い合わせください。
+            </p>
+        </section>
+
+        <div class="important">
+            <p><strong>本規約への同意</strong></p>
+            <p>
+                本拡張機能をインストール、ダウンロード、または使用することにより、
+                本規約の全ての条項を読み、理解し、同意したものとみなされます。
+                本規約に同意できない場合は、本拡張機能を使用しないでください。
+            </p>
+        </div>
+    </div>
+
+    <footer>
+        <a href="./callback.html">ホーム</a>
+        <a href="./privacy.html">プライバシーポリシー</a>
+        <p style="margin-top: 16px; color: #999;">© 2025 Raku Raku Notion</p>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>プライバシーポリシー - Raku Raku Notion</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.8;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 48px 24px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: -40px auto 48px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 48px;
+        }
+
+        .last-updated {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 32px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #eee;
+        }
+
+        section {
+            margin-bottom: 40px;
+        }
+
+        h2 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 16px;
+            padding-left: 12px;
+            border-left: 4px solid #667eea;
+        }
+
+        h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #444;
+            margin: 24px 0 12px;
+        }
+
+        p {
+            margin-bottom: 16px;
+            color: #555;
+        }
+
+        ul {
+            margin: 16px 0;
+            padding-left: 24px;
+        }
+
+        li {
+            margin-bottom: 8px;
+            color: #555;
+        }
+
+        .highlight {
+            background: #f5f7ff;
+            padding: 16px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            margin: 24px 0;
+        }
+
+        footer {
+            text-align: center;
+            padding: 32px 24px;
+            color: #666;
+        }
+
+        footer a {
+            color: #667eea;
+            text-decoration: none;
+            margin: 0 12px;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: -20px 16px 32px;
+                padding: 32px 24px;
+            }
+
+            header h1 {
+                font-size: 28px;
+            }
+
+            h2 {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>📎 Raku Raku Notion</h1>
+        <p>プライバシーポリシー</p>
+    </header>
+
+    <div class="container">
+        <div class="last-updated">
+            最終更新日: 2025年12月2日
+        </div>
+
+        <section>
+            <h2>1. 基本方針</h2>
+            <p>
+                Raku Raku Notion（以下「本拡張機能」）は、ユーザーのプライバシーを尊重し、個人情報の保護に最大限の注意を払います。
+                本プライバシーポリシーは、本拡張機能がどのような情報を収集し、どのように使用するかを説明するものです。
+            </p>
+        </section>
+
+        <section>
+            <h2>2. 収集する情報</h2>
+
+            <h3>2.1 保存される情報</h3>
+            <p>本拡張機能は、以下の情報をユーザーのブラウザ内にローカル保存します：</p>
+            <ul>
+                <li><strong>クリップボード情報</strong>: クリップボード名、作成日時、最終使用日時</li>
+                <li><strong>Notion認証情報</strong>: OAuthアクセストークン、ワークスペースID（設定した場合）</li>
+                <li><strong>NotionデータベースID</strong>: 作成したデータベースの識別子</li>
+                <li><strong>ウェブページ情報</strong>: クリップ時のページタイトル、URL、本文、サムネイル、メモ</li>
+            </ul>
+
+            <div class="highlight">
+                <strong>重要:</strong> これらの情報は全てユーザーのブラウザ内（Chrome Storage API）に保存され、
+                外部サーバーには一切送信されません。Notion APIへの送信は、ユーザーが明示的にクリップ操作を行った場合のみ発生します。
+            </div>
+
+            <h3>2.2 収集しない情報</h3>
+            <p>本拡張機能は以下の情報を収集しません：</p>
+            <ul>
+                <li>個人を特定できる情報（氏名、メールアドレスなど）</li>
+                <li>閲覧履歴やブラウジング行動</li>
+                <li>クリップ操作以外のウェブページ情報</li>
+                <li>利用統計やアナリティクスデータ</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>3. 情報の使用目的</h2>
+            <p>収集した情報は、以下の目的でのみ使用されます：</p>
+            <ul>
+                <li>ウェブページをNotionにクリップする機能の提供</li>
+                <li>クリップボードの管理と表示</li>
+                <li>Notion APIとの連携（OAuth認証、ページ作成、データベース操作）</li>
+                <li>拡張機能の設定保持</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>4. 第三者への情報提供</h2>
+            <p>本拡張機能は、以下のサービスと連携しますが、必要最小限の情報のみを送信します：</p>
+
+            <h3>4.1 Notion API</h3>
+            <ul>
+                <li><strong>送信する情報</strong>: ページタイトル、URL、本文、サムネイル、メモ、データベースID</li>
+                <li><strong>送信タイミング</strong>: ユーザーがクリップボタンをクリックした時のみ</li>
+                <li><strong>目的</strong>: Notionワークスペースへのページ作成</li>
+                <li><strong>プライバシーポリシー</strong>: <a href="https://www.notion.so/ja-jp/privacy" target="_blank">Notion Privacy Policy</a></li>
+            </ul>
+
+            <div class="highlight">
+                <strong>注意:</strong> Notionに送信されたデータは、Notionのプライバシーポリシーに従って管理されます。
+                本拡張機能の開発者は、Notionに保存されたデータにアクセスできません。
+            </div>
+        </section>
+
+        <section>
+            <h2>5. セキュリティ</h2>
+            <p>本拡張機能は、以下のセキュリティ対策を実施しています：</p>
+            <ul>
+                <li><strong>OAuth 2.0認証</strong>: 安全な認証フローの使用</li>
+                <li><strong>HTTPS通信</strong>: Notion APIとの通信は全て暗号化</li>
+                <li><strong>ローカルストレージ</strong>: 認証情報はChrome Storage APIで保護</li>
+                <li><strong>最小権限の原則</strong>: 必要最小限のChrome API権限のみ要求</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>6. ユーザーの権利</h2>
+            <p>ユーザーは以下の権利を有します：</p>
+            <ul>
+                <li><strong>データの確認</strong>: Chrome拡張機能の設定画面から保存データを確認可能</li>
+                <li><strong>データの削除</strong>: 設定画面から連携解除、またはクリップボードの削除が可能</li>
+                <li><strong>拡張機能のアンインストール</strong>: いつでもブラウザから拡張機能を削除可能（全データが削除されます）</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>7. クッキー（Cookie）の使用</h2>
+            <p>
+                本拡張機能は、クッキーを使用しません。Chrome Storage APIを使用してブラウザ内にデータを保存します。
+            </p>
+        </section>
+
+        <section>
+            <h2>8. 子供のプライバシー</h2>
+            <p>
+                本拡張機能は、13歳未満の子供を対象としていません。
+                13歳未満の方が本拡張機能を使用する場合は、保護者の同意を得てください。
+            </p>
+        </section>
+
+        <section>
+            <h2>9. プライバシーポリシーの変更</h2>
+            <p>
+                本プライバシーポリシーは、法令の変更や本拡張機能の機能追加に伴い、予告なく変更される場合があります。
+                重要な変更がある場合は、拡張機能の更新情報でお知らせします。
+            </p>
+        </section>
+
+        <section>
+            <h2>10. お問い合わせ</h2>
+            <p>
+                プライバシーポリシーに関するご質問やご不明点がある場合は、
+                <a href="https://github.com/your-repo/raku-raku-notion/issues" target="_blank">GitHubリポジトリ</a>
+                までお問い合わせください。
+            </p>
+        </section>
+    </div>
+
+    <footer>
+        <a href="./callback.html">ホーム</a>
+        <a href="./terms.html">利用規約</a>
+        <p style="margin-top: 16px; color: #999;">© 2025 Raku Raku Notion</p>
+    </footer>
+</body>
+</html>
