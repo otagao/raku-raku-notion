@@ -28,7 +28,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true; // 非同期レスポンスを保持
 })
 
-// External messages listener (for localhost communication)
+// External messages listener (for OAuth callback from static site)
 chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
   console.log('[Background] Received external message:', message.type, 'from:', sender.url);
 

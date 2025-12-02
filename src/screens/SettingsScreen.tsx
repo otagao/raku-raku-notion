@@ -28,6 +28,34 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
     loadConfig()
   }, [])
 
+  // 認証方式が変更された場合、接続状態をリセット
+  useEffect(() => {
+    const resetConnectionState = async () => {
+      const config = await StorageService.getNotionConfig()
+
+      // 保存されている認証方式と現在選択されている認証方式が異なる場合、リセット
+      if (config && config.authMethod !== authMethod) {
+        setIsConnected(false)
+        setApiKey('')
+        setWorkspaceName('')
+        setError('')
+        setSuccessMessage('')
+
+        // ストレージの設定もリセット（新しい認証方式に切り替え）
+        await StorageService.saveNotionConfig({
+          authMethod: authMethod,
+          apiKey: undefined,
+          accessToken: undefined,
+          workspaceId: undefined,
+          workspaceName: undefined,
+          botId: undefined
+        })
+      }
+    }
+
+    resetConnectionState()
+  }, [authMethod])
+
   const loadConfig = async () => {
     try {
       const config = await StorageService.getNotionConfig()
@@ -66,14 +94,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
       if (!oauthConfig.clientId) {
         throw new Error('Notion Client IDが設定されていません')
       }
-
-      // 拡張機能IDをOAuthサーバーに送信
-      const extensionId = chrome.runtime.id
-      await fetch(`http://localhost:3000/api/set-extension-id?id=${extensionId}`)
-        .catch(err => {
-          console.warn('Failed to set extension ID on server:', err)
-          throw new Error('OAuthサーバーが起動していません。npm run oauth-server を実行してください。')
-        })
 
       // バックグラウンドスクリプトにOAuth開始を依頼
       chrome.runtime.sendMessage(
@@ -210,7 +230,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
               value="oauth"
               checked={authMethod === 'oauth'}
               onChange={(e) => setAuthMethod(e.target.value as 'oauth')}
-              disabled={isConnected}
             />
             OAuth認証（推奨）
           </label>
@@ -220,11 +239,15 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
               value="manual"
               checked={authMethod === 'manual'}
               onChange={(e) => setAuthMethod(e.target.value as 'manual')}
-              disabled={isConnected}
             />
             手動トークン入力
           </label>
         </div>
+        {isConnected && (
+          <small style={{ color: '#666', display: 'block', marginTop: '4px' }}>
+            ※ 認証方法を変更すると、現在の接続が解除されます
+          </small>
+        )}
       </div>
 
       {authMethod === 'oauth' ? (

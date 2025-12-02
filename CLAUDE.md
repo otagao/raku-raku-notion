@@ -7,7 +7,6 @@
 - ユーザーに対しては日本語で応答し、コミットメッセージも日本語で記述してください。
 - ユーザーは慣れない開発言語を用いることが想定されるため、指示に対して技術的に実装不可能な点や矛盾した点を見つけた場合はなるべく早く指摘してください。
 - 人間の可読性を重視し、可能な限りモジュール化して開発を進めてください。
-- ユーザーが指示するまでは勝手にコミット・プッシュしないでください。
 
 ## プロジェクト概要
 
@@ -45,19 +44,17 @@
    - OAuth 2.0認証フロー実装 ([oauth.ts](src/utils/oauth.ts))
    - 認証URL生成、stateパラメータ生成（CSRF対策）
    - 認証コードのトークン交換
-   - localhostサーバー経由のOAuthコールバック ([oauth-server.js](oauth-server.js))
+   - 静的サイトホスティング経由のOAuthコールバック（Cloudflare Pages等）
    - 拡張機能ID管理システム (外部ページ→拡張機能通信対応)
    - chrome.runtime.onMessageExternal リスナー実装
    - トークン有効性チェック機能
+   - stateパラメータから拡張機能IDを自動抽出
 
-4. **OAuth開発サーバー** 🆕
-   - Node.js HTTP サーバー ([oauth-server.js](oauth-server.js))
-   - ポート: 3000
-   - エンドポイント:
-     - `/oauth/callback` - Notion OAuth リダイレクト先
-     - `/api/set-extension-id` - 拡張機能ID保存
-     - `/api/extension-id` - 拡張機能ID取得
-   - deprecation警告修正 (url.parse → URL constructor)
+4. **静的サイトホスティング連携** 🆕
+   - Cloudflare Pages/Netlify/GitHub PagesでOAuthコールバックをホスト
+   - ローカルサーバー不要（旧実装のoauth-server.jsは削除済み）
+   - stateパラメータから拡張機能IDを自動抽出
+   - 固定URLで安定動作
 
 5. **Notion API統合** 🆕
    - Notion API クライアント実装 ([notion.ts](src/services/notion.ts))
@@ -79,7 +76,7 @@
 7. **Background Service Worker** 🆕
    - メッセージベースのAPI呼び出しハンドラ ([background/index.ts](src/background/index.ts))
    - 内部メッセージリスナー (`chrome.runtime.onMessage`)
-   - 外部メッセージリスナー (`chrome.runtime.onMessageExternal`) - localhost通信対応
+   - 外部メッセージリスナー (`chrome.runtime.onMessageExternal`) - 静的サイトからの通信対応
    - `send-to-notion`: Notionページ作成
    - `test-notion-connection`: 接続テスト
    - `list-databases`: データベース一覧取得
@@ -96,8 +93,7 @@
    - `resetStorage()`: ストレージをクリアして再初期化
    - `debugStorage()`: ストレージ内容をコンソールに出力
    - 環境変数サポート (.env)
-   - OAuth開発サーバー (`npm run oauth-server`)
-   - 統合開発環境 (`npm run dev:full` - 拡張機能 + OAuthサーバー同時起動)
+   - 開発サーバー (`npm run dev`)
 
 10. **Webクリップ機能** 🆕 (Phase 3 - 完了)
    - クリップボード概念の導入（フォーム → クリップボードへ移行）
@@ -176,7 +172,14 @@ raku-raku-notion/
 ├── assets/
 │   ├── icon.png              # 拡張機能アイコン (512x512)
 │   └── ICON_SETUP.md         # アイコン作成ガイド
-├── oauth-server.js            # OAuth開発サーバー (localhost:3000)
+├── oauth-static/              # 静的OAuthコールバックページ（Cloudflare Pages等にデプロイ）
+│   ├── callback.html         # OAuthコールバック（拡張機能へリダイレクト）
+│   ├── error.html            # エラーページ
+│   └── README.md             # デプロイガイド
+├── docs/                      # ドキュメント
+│   ├── QUICKSTART.md         # セットアップ・使い方ガイド
+│   ├── OAUTH_SETUP_GUIDE.md  # OAuth設定ガイド
+│   └── OAUTH_FIX.md          # OAuth修正履歴（アーカイブ）
 ├── build/                     # ビルド出力 (gitignore)
 │   └── chrome-mv3-dev/       # 開発版拡張機能
 ├── .plasmo/                   # Plasmo内部ファイル (gitignore)
@@ -184,8 +187,6 @@ raku-raku-notion/
 ├── package.json               # 依存関係とマニフェスト設定
 ├── tsconfig.json              # TypeScript設定
 ├── README.md                  # プロジェクト説明
-├── QUICKSTART.md              # セットアップ・使い方ガイド
-├── OAUTH_SETUP_GUIDE.md       # OAuth設定ガイド
 ├── CHANGELOG.md               # 変更履歴
 └── CLAUDE.md                  # このファイル
 ```
@@ -362,19 +363,21 @@ import('./services/storage').then(({ StorageService }) => {
 ### OAuth認証のデバッグ
 
 ```bash
-# ターミナル1: 拡張機能開発サーバー
+# 拡張機能開発サーバー起動
 npm run dev
-
-# ターミナル2: OAuthコールバックサーバー
-npm run oauth-server
-
-# または一括起動
-npm run dev:full
 ```
 
 **デバッグログ確認**:
-- **コールバックページ**: コンソールで `[OAuth]` プレフィックス付きログを確認
+- **静的コールバックページ**: ブラウザのコンソールで `[OAuth Callback]` プレフィックス付きログを確認
 - **背景スクリプト**: chrome://extensions/ → 拡張機能の詳細 → Service Worker → `[Background]` プレフィックス付きログを確認
+- **OAuth認証フロー**:
+  1. 拡張機能で「Notionと連携」クリック
+  2. Notionで「許可する」クリック
+  3. 静的サイト（Cloudflare Pages等）の`callback.html`にリダイレクト（一瞬）
+  4. `chrome-extension://<ID>/oauth-callback.html` にリダイレクト
+  5. 拡張機能の設定画面に戻り、「接続済み」表示
+
+**注意**: 旧実装のローカルサーバー（oauth-server.js）は不要になりました。
 
 ### ビルドエラー時
 
@@ -417,10 +420,12 @@ npm run dev
 - ✅ WebSocket エラー: `npm run dev` で解決
 - ✅ モックデータ更新: `chrome.storage.local.clear()` で解決
 - ✅ TypeScript エラー: `@types/chrome` で型定義追加済み
-- ✅ OAuth chrome-extension:// スキーム制限: localhost HTTPサーバー経由で解決
-- ✅ 外部ページ→拡張機能通信: `chrome.runtime.onMessageExternal`リスナー追加で解決
-- ✅ Node.js url.parse() deprecation警告: URL constructorに変更して解決
-- ✅ OAuth無限ローディング: 拡張機能ID管理システム実装で解決
+- ✅ OAuth chrome-extension:// スキーム制限: 静的サイトホスティング（Cloudflare Pages）で解決
+- ✅ OAuth redirect URI不一致: SettingsScreen.tsxのredirectUriを環境変数に統一して解決
+- ✅ 拡張機能IDハードコーディング: stateパラメータから自動抽出する仕組みで解決
+- ✅ OAuth無限ローディング: シンプルなcallback.htmlリダイレクトで解決
+- ✅ ローカルサーバー依存: oauth-server.jsを削除し、静的サイトホスティングに統一して解決
+- ✅ 認証方式切り替え時のUI不具合: 認証方式変更時に自動リセット処理を追加して解決
 
 ### 本番環境
 
@@ -461,15 +466,15 @@ npm run dev
 #### 認証方式
 本プロジェクトは2つの認証方式に対応:
 
-1. **OAuth認証** (本番環境推奨) 🆕
+1. **OAuth認証** (本番環境推奨)
    - Notion OAuth 2.0フローによる認証
    - `NotionConfig.authMethod = 'oauth'`
    - `NotionConfig.accessToken` にOAuthトークンを格納
    - 環境変数で Client ID/Secret を設定
-   - CSRF対策のためのstate検証
+   - CSRF対策のためのstate検証（extension IDを含む）
    - トークン有効性チェック機能
-   - **重要**: 開発環境では localhost HTTPサーバー (port 3000) が必要
-   - 外部ページ→拡張機能通信に `chrome.runtime.onMessageExternal` を使用
+   - **重要**: 静的サイトホスティング（Cloudflare Pages等）が必要
+   - stateパラメータから拡張機能IDを自動抽出
 
 2. **手動トークン入力** (開発・テスト推奨)
    - Notion Integration Tokenを手動で入力
@@ -495,32 +500,39 @@ chrome.runtime.sendMessage({
 
 #### OAuth設定方法
 ```bash
-# 1. .envファイルを作成
+# 1. oauth-static/ディレクトリを静的サイトホスティングにデプロイ
+# 推奨: Cloudflare Pages, Netlify, GitHub Pages
+# 例: https://raku-raku-notion.pages.dev/callback.html
+
+# 2. .envファイルを作成
 cp .env.example .env
 
-# 2. Notion Developersで作成したClient ID/Secretを設定
+# 3. Notion Developersで作成したClient ID/Secret/Redirect URIを設定
 # .env
 PLASMO_PUBLIC_NOTION_CLIENT_ID=your_client_id
 PLASMO_PUBLIC_NOTION_CLIENT_SECRET=your_client_secret
+PLASMO_PUBLIC_OAUTH_REDIRECT_URI=https://raku-raku-notion.pages.dev/callback.html
 
-# 3. OAuthサーバーと開発サーバーを起動
-npm run dev:full
+# 4. package.jsonのmanifest.externally_connectableを更新（必要に応じて）
+# デフォルトは https://raku-raku-notion.pages.dev/*
 
-# または個別に起動
-npm run dev        # ターミナル1
-npm run oauth-server  # ターミナル2
+# 5. 拡張機能をビルド
+npm run build
 ```
 
 **重要**: NotionのOAuth認証では`chrome-extension://`スキームが使用できないため、
-ローカルHTTPサーバー(`http://localhost:3000`)を使用します。
+静的サイトホスティング（HTTPS）を使用します。
+
+**ローカルサーバー（oauth-server.js）は不要**: 旧実装で使用していたNode.jsサーバーは削除済みです。
 
 Notion Integrationの設定:
-- Redirect URI: `http://localhost:3000/oauth/callback`
+- Redirect URI: `https://raku-raku-notion.pages.dev/callback.html`（デプロイしたURL）
+- **完全一致**が必要（末尾スラッシュの有無に注意）
 
-詳細は [README.md](README.md#notion-oauth認証の設定) を参照。
+詳細は [docs/OAUTH_SETUP_GUIDE.md](docs/OAUTH_SETUP_GUIDE.md) を参照。
 
 ---
 
-**最終更新**: 2025-12-01
-**バージョン**: 1.4.0 (コンテンツ自動抽出＆メモ機能追加)
+**最終更新**: 2025-12-02
+**バージョン**: 1.6.0 (OAuth認証のローカルサーバー実装を削除、認証方式切り替えバグ修正)
 **メンテナー**: Claude Code
