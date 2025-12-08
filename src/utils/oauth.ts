@@ -7,7 +7,6 @@ import type { NotionOAuthConfig, NotionOAuthResponse } from "~types"
 
 // Notion OAuth エンドポイント
 const NOTION_OAUTH_URL = "https://api.notion.com/v1/oauth/authorize"
-const NOTION_TOKEN_URL = "https://api.notion.com/v1/oauth/token"
 
 /**
  * OAuth認証URLを生成
@@ -64,36 +63,6 @@ export function parseState(state: string): { extensionId: string; csrfToken: str
     console.error('[OAuth] Failed to parse state:', error)
     return null
   }
-}
-
-/**
- * 認証コードをアクセストークンに交換
- */
-export async function exchangeCodeForToken(
-  code: string,
-  config: NotionOAuthConfig
-): Promise<NotionOAuthResponse> {
-  const encoded = btoa(`${config.clientId}:${config.clientSecret}`)
-
-  const response = await fetch(NOTION_TOKEN_URL, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Basic ${encoded}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      grant_type: 'authorization_code',
-      code: code,
-      redirect_uri: config.redirectUri,
-    })
-  })
-
-  if (!response.ok) {
-    const errorData = await response.json()
-    throw new Error(`OAuth token exchange failed: ${errorData.error || response.statusText}`)
-  }
-
-  return await response.json()
 }
 
 /**

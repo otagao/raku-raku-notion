@@ -48,10 +48,9 @@ export interface NotionConfig {
   botId?: string
 }
 
-// Notion OAuth設定
+// Notion OAuth設定（クライアントサイド用 - CLIENT_SECRET削除）
 export interface NotionOAuthConfig {
   clientId: string
-  clientSecret: string
   redirectUri: string
 }
 

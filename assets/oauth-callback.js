@@ -22,13 +22,48 @@
 
     console.log('[OAuth Callback] Code and state received')
 
-    // バックグラウンドスクリプトにOAuth完了を通知
-    // oauthConfigは送信せず、backgroundで環境変数から取得
+    // Cloudflare Workersでトークン交換
+    const workerUrl = 'https://raku-raku-notion-oauth.smelt02.workers.dev'
+    const extensionId = chrome.runtime.id
+
+    console.log('[OAuth Callback] Exchanging token via Workers...')
+
+    const exchangeResponse = await fetch(`${workerUrl}/api/oauth/exchange`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        code: code,
+        state: state,
+        extensionId: extensionId
+      })
+    })
+
+    if (!exchangeResponse.ok) {
+      const errorData = await exchangeResponse.json()
+      throw new Error(errorData.error || 'トークン交換に失敗しました')
+    }
+
+    const tokenData = await exchangeResponse.json()
+
+    if (!tokenData.success) {
+      throw new Error(tokenData.error || 'トークン交換に失敗しました')
+    }
+
+    console.log('[OAuth Callback] Token exchange successful')
+
+    // バックグラウンドスクリプトに完了通知（トークン交換済みデータ）
     const response = await chrome.runtime.sendMessage({
       type: 'complete-oauth',
       data: {
-        code,
-        state
+        tokenResponse: {
+          access_token: tokenData.access_token,
+          bot_id: tokenData.bot_id,
+          workspace_id: tokenData.workspace_id,
+          workspace_name: tokenData.workspace_name,
+          workspace_icon: tokenData.workspace_icon
+        }
       }
     })
 

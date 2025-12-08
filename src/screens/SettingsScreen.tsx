@@ -17,37 +17,20 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
   const [workspaceName, setWorkspaceName] = useState('')
   const [oauthConfig, setOauthConfig] = useState<NotionOAuthConfig>({
     clientId: '',
-    clientSecret: '',
     redirectUri: 'https://raku-raku-notion.pages.dev/callback.html'
   })
 
   // OAuth設定を初期化
   useEffect(() => {
     const initOAuthConfig = async () => {
-      // まず環境変数から取得
-      let config: NotionOAuthConfig = {
+      // 環境変数から取得
+      const config: NotionOAuthConfig = {
         clientId: process.env.PLASMO_PUBLIC_NOTION_CLIENT_ID || '',
-        clientSecret: process.env.PLASMO_PUBLIC_NOTION_CLIENT_SECRET || '',
         redirectUri: process.env.PLASMO_PUBLIC_OAUTH_REDIRECT_URI || 'https://raku-raku-notion.pages.dev/callback.html'
-      }
-
-      // 環境変数が空の場合、backgroundから取得を試みる
-      if (!config.clientId) {
-        console.log('[Settings] OAuth config not found in environment, requesting from background...')
-        try {
-          const response = await chrome.runtime.sendMessage({ type: 'get-oauth-config' })
-          if (response?.success && response.config) {
-            console.log('[Settings] OAuth config received from background')
-            config = response.config
-          }
-        } catch (err) {
-          console.error('[Settings] Failed to get OAuth config from background:', err)
-        }
       }
 
       console.log('[Settings] OAuth Config Debug:', {
         clientId: config.clientId ? `${config.clientId.substring(0, 8)}...` : 'MISSING',
-        clientSecret: config.clientSecret ? 'present' : 'MISSING',
         redirectUri: config.redirectUri
       })
 
