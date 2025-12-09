@@ -10,10 +10,7 @@ compatibility_date = "2024-01-01"
 
 # ローカル開発用の環境変数
 [env.dev]
-vars = {
-  ALLOWED_EXTENSION_IDS = "development-extension-id",
-  ALLOWED_ORIGINS = "chrome-extension://development-extension-id"
-}
+vars = { ALLOWED_EXTENSION_IDS = "development-extension-id", ALLOWED_ORIGINS = "chrome-extension://development-extension-id" }
 
 # 本番環境用（secretsで上書き）
 [env.production]
