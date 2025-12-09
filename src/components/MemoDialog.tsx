@@ -3,9 +3,10 @@ import { type FC, useState, useRef, useEffect, type KeyboardEvent } from "react"
 interface MemoDialogProps {
   onConfirm: (memo: string) => void
   onCancel: () => void
+  clipboardName?: string
 }
 
-const MemoDialog: FC<MemoDialogProps> = ({ onConfirm, onCancel }) => {
+const MemoDialog: FC<MemoDialogProps> = ({ onConfirm, onCancel, clipboardName }) => {
   const [memo, setMemo] = useState("")
   const [isComposing, setIsComposing] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -69,6 +70,22 @@ const MemoDialog: FC<MemoDialogProps> = ({ onConfirm, onCancel }) => {
         }}>
           メモを追加（任意）
         </h3>
+
+        {clipboardName && (
+          <div style={{
+            marginBottom: '12px',
+            padding: '8px 12px',
+            backgroundColor: '#f5f5f5',
+            borderRadius: '4px',
+            fontSize: '14px',
+            color: '#333'
+          }}>
+            <span style={{ color: '#666', fontSize: '12px' }}>クリップ先:</span>
+            <span style={{ marginLeft: '8px', fontWeight: '500' }}>
+              📋 {clipboardName}
+            </span>
+          </div>
+        )}
 
         <textarea
           ref={textareaRef}

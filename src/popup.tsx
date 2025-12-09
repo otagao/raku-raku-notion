@@ -21,6 +21,7 @@ function IndexPopup() {
   const [selectedClipboardId, setSelectedClipboardId] = useState<string | undefined>()
   const [showMemoDialog, setShowMemoDialog] = useState(false)
   const [pendingClipDatabaseId, setPendingClipDatabaseId] = useState<string | undefined>()
+  const [pendingClipboardName, setPendingClipboardName] = useState<string | undefined>()
 
   useEffect(() => {
     initializeAndLoadData()
@@ -101,6 +102,7 @@ function IndexPopup() {
     // クリップボードが1つだけの場合は自動選択してメモダイアログを表示
     if (clipboards.length === 1) {
       setPendingClipDatabaseId(clipboards[0].notionDatabaseId)
+      setPendingClipboardName(clipboards[0].name)
       setShowMemoDialog(true)
       return
     }
@@ -110,8 +112,12 @@ function IndexPopup() {
   }
 
   const handleSelectClipboard = async (databaseId: string) => {
+    // 選択されたクリップボードの名前を取得
+    const selectedClipboard = clipboards.find(cb => cb.notionDatabaseId === databaseId)
+
     // メモダイアログを表示
     setPendingClipDatabaseId(databaseId)
+    setPendingClipboardName(selectedClipboard?.name)
     setShowMemoDialog(true)
   }
 
@@ -120,12 +126,14 @@ function IndexPopup() {
     if (pendingClipDatabaseId) {
       await performClip(pendingClipDatabaseId, memo)
       setPendingClipDatabaseId(undefined)
+      setPendingClipboardName(undefined)
     }
   }
 
   const handleMemoCancel = () => {
     setShowMemoDialog(false)
     setPendingClipDatabaseId(undefined)
+    setPendingClipboardName(undefined)
   }
 
   const performClip = async (databaseId: string, memo?: string) => {
@@ -218,6 +226,7 @@ function IndexPopup() {
         <MemoDialog
           onConfirm={handleMemoConfirm}
           onCancel={handleMemoCancel}
+          clipboardName={pendingClipboardName}
         />
       )}
     </>
