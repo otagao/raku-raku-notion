@@ -45,13 +45,23 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
     loadConfig()
 
     // OAuth完了を監視（storage変更イベント）
-    const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }) => {
-      // OAuth完了フラグがfalseになった（OAuth処理完了）場合、設定をリロード
-      if (changes['raku-oauth-pending'] && !changes['raku-oauth-pending'].newValue) {
-        console.log('[Settings] OAuth completed, reloading config...')
-        setTimeout(() => {
-          loadConfig()
-          setSuccessMessage('Notion認証が完了しました！')
+    const handleStorageChange = async (changes: { [key: string]: chrome.storage.StorageChange }) => {
+      // OAuth完了フラグが削除された場合、認証が完了した可能性がある
+      if (changes['raku-oauth-pending'] && changes['raku-oauth-pending'].oldValue && !changes['raku-oauth-pending'].newValue) {
+        console.log('[Settings] OAuth pending flag removed, checking if successful...')
+
+        // 設定を再読み込みして、accessTokenが設定されているか確認
+        setTimeout(async () => {
+          const config = await StorageService.getNotionConfig()
+
+          if (config.authMethod === 'oauth' && config.accessToken) {
+            console.log('[Settings] OAuth completed successfully!')
+            loadConfig()
+            setSuccessMessage('Notion認証が完了しました！')
+          } else {
+            console.log('[Settings] OAuth pending removed but no token found (may have failed)')
+            loadConfig()
+          }
         }, 500)
       }
     }

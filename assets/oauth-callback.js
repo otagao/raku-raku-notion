@@ -33,9 +33,11 @@
     console.log('[OAuth Callback] State verification passed')
 
     // Cloudflare Workersでトークン交換
-    const workerUrl = 'https://raku-raku-notion-oauth.smelt02.workers.dev'
+    // 開発中: http://localhost:8787
+    // 本番: https://raku-raku-notion-oauth.smprmailer.workers.dev
+    const workerUrl = 'https://raku-raku-notion-oauth.smprmailer.workers.dev'
 
-    console.log('[OAuth Callback] Exchanging token via Workers...')
+    console.log('[OAuth Callback] Exchanging token via Workers...', workerUrl)
 
     const exchangeResponse = await fetch(`${workerUrl}/api/oauth/exchange`, {
       method: 'POST',
