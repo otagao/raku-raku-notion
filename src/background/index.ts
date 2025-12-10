@@ -9,7 +9,7 @@
 
 import { createNotionClient } from "~services/notion"
 import { StorageService } from "~services/storage"
-import { generateOAuthUrl, generateStateWithExtensionId } from "~utils/oauth"
+import { generateOAuthUrl, generateState } from "~utils/oauth"
 import type { NotionPageData, NotionOAuthConfig, WebClipData } from "~types"
 
 // メッセージリスナー
@@ -188,9 +188,8 @@ async function handleStartOAuth(
   sendResponse: (response?: any) => void
 ) {
   try {
-    // Extension IDを含むstateを生成（CSRF対策 + 拡張機能ID埋め込み）
-    const extensionId = chrome.runtime.id
-    const state = generateStateWithExtensionId(extensionId)
+    // ランダムなstateを生成（CSRF対策）
+    const state = generateState()
 
     // stateを一時保存（検証用）
     await chrome.storage.local.set({
@@ -198,7 +197,7 @@ async function handleStartOAuth(
       'raku-oauth-pending': true  // OAuth処理中フラグ
     })
 
-    console.log('[Background] OAuth started with extension ID:', extensionId)
+    console.log('[Background] OAuth started with state')
 
     // OAuth認証URLを生成
     const authUrl = generateOAuthUrl(oauthConfig, state)

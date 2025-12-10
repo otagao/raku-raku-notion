@@ -22,9 +22,18 @@
 
     console.log('[OAuth Callback] Code and state received')
 
+    // State検証（CSRF対策）
+    const storage = await chrome.storage.local.get(['raku-oauth-state'])
+    const savedState = storage['raku-oauth-state']
+
+    if (!savedState || savedState !== state) {
+      throw new Error('State parameter mismatch. Possible CSRF attack.')
+    }
+
+    console.log('[OAuth Callback] State verification passed')
+
     // Cloudflare Workersでトークン交換
     const workerUrl = 'https://raku-raku-notion-oauth.smelt02.workers.dev'
-    const extensionId = chrome.runtime.id
 
     console.log('[OAuth Callback] Exchanging token via Workers...')
 
@@ -35,8 +44,7 @@
       },
       body: JSON.stringify({
         code: code,
-        state: state,
-        extensionId: extensionId
+        state: state
       })
     })
 

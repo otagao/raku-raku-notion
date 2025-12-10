@@ -14,16 +14,15 @@ export async function handleExchange(
   try {
     // リクエストボディを解析
     const body: ExchangeRequest = await request.json()
-    const { code, state, extensionId } = body
+    const { code, state } = body
 
     console.log('[Exchange] Request received:', {
       hasCode: !!code,
-      hasState: !!state,
-      extensionId: extensionId
+      hasState: !!state
     })
 
     // 1. 入力検証
-    if (!code || !state || !extensionId) {
+    if (!code || !state) {
       console.warn('[Exchange] Missing required parameters')
       return new Response(
         JSON.stringify({
@@ -40,37 +39,13 @@ export async function handleExchange(
       )
     }
 
-    // 2. Extension ID検証 (allow-list)
-    const allowedIds = env.ALLOWED_EXTENSION_IDS?.split(',').map(id => id.trim()) || []
-    if (!allowedIds.includes(extensionId)) {
-      console.warn('[Exchange] Unauthorized extension ID:', extensionId)
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Unauthorized extension'
-        }),
-        {
-          status: 403,
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders(env)
-          }
-        }
-      )
-    }
-
-    // 3. State検証 (extension ID抽出)
-    let stateExtensionId: string
+    // 2. State検証（Chrome storageに保存されたstateと一致するかは拡張機能側で検証済み）
+    // ここではstateの形式のみ検証
     try {
-      // state形式: base64(extensionId:randomToken)
       const decoded = atob(state)
-      const parts = decoded.split(':')
-
-      if (parts.length !== 2) {
+      if (!decoded || decoded.length < 10) {
         throw new Error('Invalid state format')
       }
-
-      stateExtensionId = parts[0]
     } catch (error) {
       console.error('[Exchange] Failed to parse state:', error)
       return new Response(
@@ -80,27 +55,6 @@ export async function handleExchange(
         }),
         {
           status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders(env)
-          }
-        }
-      )
-    }
-
-    // 4. State内のExtension IDとリクエストのExtension IDが一致するか確認
-    if (stateExtensionId !== extensionId) {
-      console.warn('[Exchange] Extension ID mismatch:', {
-        stateExtensionId,
-        extensionId
-      })
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Extension ID verification failed'
-        }),
-        {
-          status: 403,
           headers: {
             'Content-Type': 'application/json',
             ...corsHeaders(env)

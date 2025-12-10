@@ -33,7 +33,7 @@ npm install
 
 ### ステップ4: 環境変数（Secrets）の設定
 
-#### 4.1 Notion Client ID
+#### 4.1 Notion Client ID（必須）
 
 ```bash
 wrangler secret put NOTION_CLIENT_ID
@@ -41,7 +41,7 @@ wrangler secret put NOTION_CLIENT_ID
 
 プロンプトが表示されたら、Notion IntegrationのClient IDを入力してください。
 
-#### 4.2 Notion Client Secret
+#### 4.2 Notion Client Secret（必須）
 
 ```bash
 wrangler secret put NOTION_CLIENT_SECRET
@@ -51,25 +51,7 @@ wrangler secret put NOTION_CLIENT_SECRET
 
 ⚠️ **重要**: このSecretは暗号化されて保存され、コードやログに表示されません。
 
-#### 4.3 許可する拡張機能ID
-
-```bash
-wrangler secret put ALLOWED_EXTENSION_IDS
-```
-
-プロンプトが表示されたら、許可する拡張機能IDをカンマ区切りで入力してください。
-
-**例:**
-```
-development-ext-id,production-ext-id
-```
-
-**拡張機能IDの確認方法:**
-1. Chrome拡張機能管理画面（`chrome://extensions/`）を開く
-2. 開発者モードをONにする
-3. 拡張機能のIDをコピー
-
-#### 4.4 許可するOrigin（CORS用）
+#### 4.3 許可するOrigin（本番環境のみ推奨）
 
 ```bash
 wrangler secret put ALLOWED_ORIGINS
@@ -77,7 +59,12 @@ wrangler secret put ALLOWED_ORIGINS
 
 プロンプトが表示されたら、許可するOriginを入力してください。
 
-**例:**
+**開発中の注意:**
+- 開発中は拡張機能IDが頻繁に変わるため、`ALLOWED_ORIGINS`を**未設定**にすることを推奨します
+- 未設定の場合、全てのOriginからのリクエストを許可します（CORS: `*`）
+- 本番環境では必ず設定してください
+
+**本番環境の例:**
 ```
 chrome-extension://your-extension-id
 ```
@@ -127,19 +114,14 @@ const workerUrl = 'https://raku-raku-notion-oauth.YOUR-ACCOUNT.workers.dev'
 
 ## トラブルシューティング
 
-### Extension ID検証エラー
+### State検証エラー
 
-**症状:** `Unauthorized extension`エラー
+**症状:** `State parameter mismatch. Possible CSRF attack.`エラー
 
 **解決策:**
-```bash
-# 現在の拡張機能IDを確認
-# chrome://extensions/ で確認
-
-# Secretsを更新
-wrangler secret put ALLOWED_EXTENSION_IDS
-# 正しいIDを入力（カンマ区切りで複数可）
-```
+1. OAuth認証開始から完了までブラウザを閉じない
+2. Chrome Storageをリセット: chrome://extensions/ → 拡張機能の詳細 → ストレージをクリア
+3. 再度OAuth認証を試行
 
 ### トークン交換失敗
 
@@ -155,10 +137,12 @@ wrangler secret put ALLOWED_EXTENSION_IDS
 **症状:** ブラウザコンソールでCORSエラー
 
 **解決策:**
-```bash
-wrangler secret put ALLOWED_ORIGINS
-# chrome-extension://your-extension-id を入力
-```
+- **開発中**: `ALLOWED_ORIGINS`を未設定のままにする（自動的に`*`が設定される）
+- **本番環境**: 以下を実行
+  ```bash
+  wrangler secret put ALLOWED_ORIGINS
+  # chrome-extension://your-extension-id を入力
+  ```
 
 ## セキュリティのベストプラクティス
 
@@ -166,11 +150,16 @@ wrangler secret put ALLOWED_ORIGINS
    - 絶対にコードにハードコードしない
    - Wrangler Secretsのみで管理
 
-2. **Extension IDの厳格な管理**
-   - 本番環境では本番IDのみを許可
-   - 開発環境と本番環境で異なるWorkers環境を使用することを推奨
+2. **State パラメータによるCSRF対策**
+   - 拡張機能側でランダムなstateトークンを生成
+   - Chrome Storageに保存して検証
+   - リクエストごとに新しいstateを生成
 
-3. **定期的なログ確認**
+3. **本番環境でのCORS制限**
+   - 開発中は`ALLOWED_ORIGINS`未設定でOK
+   - 本番デプロイ時は必ず設定して特定のOriginのみ許可
+
+4. **定期的なログ確認**
    ```bash
    npm run tail
    ```

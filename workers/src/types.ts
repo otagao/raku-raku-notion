@@ -5,14 +5,12 @@
 export interface Env {
   NOTION_CLIENT_ID: string
   NOTION_CLIENT_SECRET: string
-  ALLOWED_EXTENSION_IDS: string  // カンマ区切り
-  ALLOWED_ORIGINS: string        // カンマ区切り (CORS用)
+  ALLOWED_ORIGINS?: string        // カンマ区切り (CORS用、開発時は未設定可)
 }
 
 export interface ExchangeRequest {
   code: string
   state: string
-  extensionId: string
 }
 
 export interface NotionTokenResponse {

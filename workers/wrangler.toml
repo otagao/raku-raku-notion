@@ -5,12 +5,7 @@ compatibility_date = "2024-01-01"
 # Workers環境変数はwrangler secret putで設定:
 # wrangler secret put NOTION_CLIENT_ID
 # wrangler secret put NOTION_CLIENT_SECRET
-# wrangler secret put ALLOWED_EXTENSION_IDS
+#
+# 開発中はALLOWED_ORIGINSを未設定にすることでCORS制限を緩和できます
+# 本番デプロイ時のみ以下を設定:
 # wrangler secret put ALLOWED_ORIGINS
-
-# ローカル開発用の環境変数
-[env.dev]
-vars = { ALLOWED_EXTENSION_IDS = "development-extension-id", ALLOWED_ORIGINS = "chrome-extension://development-extension-id" }
-
-# 本番環境用（secretsで上書き）
-[env.production]

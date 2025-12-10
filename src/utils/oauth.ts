@@ -25,44 +25,14 @@ export function generateOAuthUrl(config: NotionOAuthConfig, state: string): stri
 
 /**
  * ランダムなstate文字列を生成（CSRF対策）
+ * base64エンコードして一定の長さを保証
  */
 export function generateState(): string {
   const array = new Uint8Array(32)
   crypto.getRandomValues(array)
-  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('')
-}
-
-/**
- * Extension IDを含むstate文字列を生成
- * 形式: base64(extensionId:randomToken)
- */
-export function generateStateWithExtensionId(extensionId: string): string {
-  const randomToken = generateState()
-  const stateData = `${extensionId}:${randomToken}`
-  return btoa(stateData)
-}
-
-/**
- * stateからExtension IDとCSRFトークンを抽出
- */
-export function parseState(state: string): { extensionId: string; csrfToken: string } | null {
-  try {
-    const decoded = atob(state)
-    const parts = decoded.split(':')
-
-    if (parts.length !== 2) {
-      console.error('[OAuth] Invalid state format')
-      return null
-    }
-
-    return {
-      extensionId: parts[0],
-      csrfToken: parts[1]
-    }
-  } catch (error) {
-    console.error('[OAuth] Failed to parse state:', error)
-    return null
-  }
+  const randomHex = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('')
+  // base64エンコードして形式を統一
+  return btoa(randomHex)
 }
 
 /**
