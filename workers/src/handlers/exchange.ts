@@ -40,12 +40,17 @@ export async function handleExchange(
     }
 
     // 2. State検証（Chrome storageに保存されたstateと一致するかは拡張機能側で検証済み）
-    // ここではstateの形式のみ検証
+    // State形式: base64(extensionId:randomToken)
+    // Workers側ではextensionIdは検証せず、形式のみ確認
     try {
       const decoded = atob(state)
-      if (!decoded || decoded.length < 10) {
+      const parts = decoded.split(':')
+
+      if (parts.length !== 2 || !parts[0] || !parts[1]) {
         throw new Error('Invalid state format')
       }
+
+      console.log('[Exchange] State format valid (extension ID not verified)')
     } catch (error) {
       console.error('[Exchange] Failed to parse state:', error)
       return new Response(

@@ -188,8 +188,10 @@ async function handleStartOAuth(
   sendResponse: (response?: any) => void
 ) {
   try {
-    // ランダムなstateを生成（CSRF対策）
-    const state = generateState()
+    // Extension IDを含むstateを生成（CSRF対策 + 静的サイトでのリダイレクト用）
+    const extensionId = chrome.runtime.id
+    const randomToken = generateState()
+    const state = btoa(`${extensionId}:${randomToken}`)
 
     // stateを一時保存（検証用）
     await chrome.storage.local.set({
@@ -197,7 +199,7 @@ async function handleStartOAuth(
       'raku-oauth-pending': true  // OAuth処理中フラグ
     })
 
-    console.log('[Background] OAuth started with state')
+    console.log('[Background] OAuth started with extension ID in state')
 
     // OAuth認証URLを生成
     const authUrl = generateOAuthUrl(oauthConfig, state)

@@ -29,6 +29,23 @@ export default {
 
     try {
       // ルーティング
+      if (url.pathname === '/' && request.method === 'GET') {
+        return new Response(
+          JSON.stringify({
+            service: 'Raku Raku Notion OAuth Worker',
+            version: '1.0.0',
+            endpoints: {
+              health: 'GET /health',
+              exchange: 'POST /api/oauth/exchange'
+            }
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          }
+        )
+      }
+
       if (url.pathname === '/health' && request.method === 'GET') {
         return handleHealth()
       }
