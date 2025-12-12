@@ -31,6 +31,8 @@ export class NotionService {
   /**
    * Notion APIへの接続をテストする
    */
+
+  // テストコメント
   async testConnection(): Promise<boolean> {
     try {
       const response = await fetch(`${NOTION_API_BASE}/users/me`, {
