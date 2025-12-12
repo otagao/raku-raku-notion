@@ -24,7 +24,7 @@ const CreateClipboardScreen: FC<CreateClipboardScreenProps> = ({
       await onCreateClipboard(clipboardName)
       onNavigate('clipboard-list')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'クリップボードの作成に失敗しました')
+      setError(err instanceof Error ? err.message : '保存先データベースの作成に失敗しました')
       setIsCreating(false)
     }
   }
@@ -35,12 +35,12 @@ const CreateClipboardScreen: FC<CreateClipboardScreenProps> = ({
         <button className="back-button" onClick={() => onNavigate('home')}>
           ← 戻る
         </button>
-        <h1>新規クリップボード作成</h1>
+        <h1>新規保存先データベース作成</h1>
       </div>
 
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label htmlFor="clipboard-name">クリップボード名</label>
+          <label htmlFor="clipboard-name">保存先データベース名</label>
           <input
             id="clipboard-name"
             type="text"
@@ -67,7 +67,7 @@ const CreateClipboardScreen: FC<CreateClipboardScreenProps> = ({
           className="button"
           disabled={!clipboardName.trim() || isCreating}
         >
-          {isCreating ? '作成中...' : 'クリップボードを作成'}
+          {isCreating ? '作成中...' : '保存先データベースを作成'}
         </button>
       </form>
     </div>

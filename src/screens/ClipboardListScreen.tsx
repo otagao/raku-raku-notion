@@ -22,7 +22,7 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
 
   const handleDelete = (e: React.MouseEvent, clipboardId: string) => {
     e.stopPropagation()
-    if (confirm('このクリップボードを削除しますか？')) {
+    if (confirm('この保存先データベースを削除しますか？')) {
       onDeleteClipboard?.(clipboardId)
     }
   }
@@ -33,14 +33,14 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
         <button className="back-button" onClick={() => onNavigate('home')}>
           ← 戻る
         </button>
-        <h1>クリップボード一覧</h1>
+        <h1>保存先データベース一覧</h1>
       </div>
 
       {clipboards.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">📋</div>
           <div className="empty-state-text">
-            クリップボードがまだありません
+            保存先データベースがまだありません
           </div>
           <button
             className="button"
@@ -112,7 +112,7 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
             onClick={() => onNavigate('create-clipboard')}
             style={{ marginTop: '16px' }}
           >
-            + 新しいクリップボードを追加
+            + 新しい保存先データベースを追加
           </button>
         </div>
       )}

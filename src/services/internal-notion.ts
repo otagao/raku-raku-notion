@@ -1,6 +1,5 @@
 import type { LoadUserContentResponse, NotionUser, NotionSpace } from "~types/internal-notion"
 
-
 // 型定義は types/internal-notion.ts にあるが、uuidが必要
 // 拡張機能内で 'uuid' パッケージが使えるか確認が必要だが、なければ簡易実装する
 // ここでは簡易的なUUID生成関数を使用（依存関係を増やさないため）
@@ -25,66 +24,110 @@ const NOTION_API_V3_BASE = "https://www.notion.so/api/v3"
  */
 export class InternalNotionService {
     /**
-     * データベースにギャラリービューを追加する
+     * データベースにギャラリービューを追加し、既存のデフォルトビュー（テーブル）を削除する
      */
-    static async addGalleryView(rawDatabaseId: string): Promise<void> {
+    static async addGalleryView(rawDatabaseId: string, visibleProperties: string[] = []): Promise<void> {
         const databaseId = formatUUID(rawDatabaseId)
         const viewId = generateUUID()
 
-        // ギャラリービュー作成のトランザクション
-        // reverse engineering of Notion's saveTransactions request when creating a gallery view
-        const transaction: any = {
+        // 既存のビューを取得するためにブロック情報を取得
+        console.log("[InternalNotionService] Fetching database block info to find default views...")
+        const dbBlock = await this.getBlock(databaseId)
+        const existingViewIds: string[] = dbBlock?.value?.view_ids || []
+
+        console.log("[InternalNotionService] Existing views to remove:", existingViewIds)
+
+        // ギャラリーのプロパティ設定を構築
+        const galleryProperties = visibleProperties.map(propId => ({
+            property: propId,
+            visible: true
+        }))
+
+        // デフォルトでカバー画像を表示しない設定がある場合、それを維持しつつ新しいプロパティを追加
+        // ここでは、指定されたプロパティを表示し、カバー画像は「ページコンテンツ」にする設定
+
+        // ギャラリービュー作成の操作
+        const operations: any[] = [
+            {
+                id: viewId,
+                table: "collection_view",
+                path: [],
+                command: "set",
+                args: {
+                    id: viewId,
+                    version: 0,
+                    type: "gallery",
+                    name: "Gallery View (Extension)",
+                    format: {
+                        gallery_properties: [
+                            {
+                                property: "cover",
+                                visible: false
+                            },
+                            ...galleryProperties
+                        ],
+                        gallery_cover: {
+                            type: "page_content"
+                        },
+                        gallery_cover_aspect: "contain" // 画像全体を表示
+                    },
+                    parent_id: databaseId,
+                    parent_table: "block",
+                    alive: true
+                }
+            },
+            // 親ブロック（データベース）のview_idsリストに新しいビューを追加
+            {
+                id: databaseId,
+                table: "block",
+                path: ["view_ids"],
+                command: "listAfter",
+                args: {
+                    id: viewId
+                }
+            }
+        ]
+
+        // 既存のビューを削除する操作を追加
+        existingViewIds.forEach(oldViewId => {
+            // view_idsリストから削除
+            operations.push({
+                id: databaseId,
+                table: "block",
+                path: ["view_ids"],
+                command: "listRemove",
+                args: {
+                    id: oldViewId
+                }
+            })
+            // ビュー自体のaliveフラグをfalseにする（完全に削除）
+            operations.push({
+                id: oldViewId,
+                table: "collection_view",
+                path: [],
+                command: "set",
+                args: {
+                    alive: false
+                }
+            })
+        })
+
+        const transaction = {
             id: generateUUID(),
             spaceId: "",
-            operations: [
-                {
-                    id: viewId,
-                    table: "collection_view",
-                    path: [],
-                    command: "set",
-                    args: {
-                        id: viewId,
-                        version: 0,
-                        type: "gallery",
-                        name: "Gallery View (Extension)",
-                        format: {
-                            gallery_properties: [
-                                {
-                                    property: "cover",
-                                    visible: false
-                                }
-                            ],
-                            gallery_cover: {
-                                type: "page_content"
-                            },
-                            gallery_cover_aspect: "contain" // 画像全体を表示
-                        },
-                        parent_id: databaseId,
-                        parent_table: "block",
-                        alive: true
-                    }
-                },
-                // 親ブロック（データベース）のview_idsリストに新しいビューを追加
-                {
-                    id: databaseId,
-                    table: "block",
-                    path: ["view_ids"],
-                    command: "listAfter",
-                    args: {
-                        id: viewId
-                    }
-                }
-            ]
+            operations: operations
         }
 
         try {
             // spaceIdを取得するために一度loadUserContentを呼ぶ
-            console.log("[InternalNotionService] Fetching user content to get spaceId...")
-            const { spaces } = await this.loadUserContent()
-            if (spaces.length > 0) {
-                transaction.spaceId = spaces[0].id
+            // (getBlockでspaceIdが取れている可能性もあるが、確実なloadUserContentを使う)
+            if (!transaction.spaceId) {
+                const { spaces } = await this.loadUserContent()
+                if (spaces.length > 0) {
+                    transaction.spaceId = spaces[0].id
+                }
             }
-            console.log("[InternalNotionService] Using spaceId:", transaction.spaceId)
+
             console.log("[InternalNotionService] Transaction payload:", JSON.stringify(transaction, null, 2))
 
             const response = await fetch(`${NOTION_API_V3_BASE}/saveTransactions`, {
@@ -105,8 +148,44 @@ export class InternalNotionService {
                 throw new Error(`API returned ${response.status}: ${response.statusText || 'Bad Request'} - ${errorText.slice(0, 100)}`)
             }
         } catch (error) {
-            console.error("[InternalNotionService] addGalleryView error:", error)
             throw error
+        }
+    }
+
+    /**
+     * ブロック（データベースなど）の情報を取得する
+     */
+    static async getBlock(blockId: string): Promise<any> {
+        try {
+            const response = await fetch(`${NOTION_API_V3_BASE}/getRecordValues`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                credentials: "include",
+                body: JSON.stringify({
+                    requests: [
+                        {
+                            table: "block",
+                            id: formatUUID(blockId)
+                        }
+                    ]
+                })
+            })
+
+            if (!response.ok) {
+                console.warn("[InternalNotionService] getBlock failed:", response.statusText)
+                return null
+            }
+
+            const data = await response.json()
+            if (data.results && data.results.length > 0) {
+                return data.results[0]
+            }
+            return null
+        } catch (error) {
+            console.error("[InternalNotionService] getBlock error:", error)
+            return null
         }
     }
 

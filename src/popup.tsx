@@ -66,6 +66,7 @@ function IndexPopup() {
   const initializeAndLoadData = async () => {
     await StorageService.initializeMockData()
     await loadForms()
+    // 保存済み保存先データベースをロード
     await loadClipboards()
   }
 
@@ -106,12 +107,29 @@ function IndexPopup() {
       throw new Error('Notion連携が必要です')
     }
 
-    // Notionにデータベースを作成
+    // Notionに保存先データベースを作成
     console.log('[handleCreateClipboard] Creating Notion client with databaseId:', config.databaseId)
     const notionClient = createNotionClient(config)
-    const { id: databaseId, url: databaseUrl } = await notionClient.createDatabase(clipboardName)
+    const { id: databaseId, url: databaseUrl, properties } = await notionClient.createDatabase(clipboardName)
 
-    // クリップボードを保存
+    // Internal APIを使用してギャラリービューを追加（自動実行）
+    try {
+      // データベース作成直後はInternal APIへの反映に時間がかかる場合があるため、少し待機
+      // await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // 表示したいプロパティ（URLとメモ）のIDを取得
+      const visiblePropIds: string[] = []
+      if (properties["URL"]) visiblePropIds.push(properties["URL"])
+      if (properties["メモ"]) visiblePropIds.push(properties["メモ"])
+
+      console.log('[handleCreateClipboard] Adding gallery view with properties:', visiblePropIds)
+      await InternalNotionService.addGalleryView(databaseId, visiblePropIds)
+    } catch (error) {
+      console.warn('Failed to add gallery view via internal API:', error)
+      // 内部APIは失敗しても保存先データベース作成は成功とする（警告のみ）
+    }
+
+    // 保存先データベースを保存
     await StorageService.addClipboard({
       name: clipboardName,
       notionDatabaseId: databaseId,
@@ -120,6 +138,7 @@ function IndexPopup() {
     })
 
     await loadClipboards()
+    console.log('[handleCreateClipboard] 保存先データベース created:', clipboardName)
   }
 
   const handleDeleteClipboard = async (clipboardId: string) => {
@@ -161,14 +180,14 @@ function IndexPopup() {
   }
 
   const handleClipPage = async () => {
-    // クリップボードがない場合
+    // 保存先データベースがない場合
     if (clipboards.length === 0) {
-      alert('クリップボードを先に作成してください')
+      alert('保存先データベースを先に作成してください')
       handleNavigate('create-clipboard')
       return
     }
 
-    // クリップボードが1つだけの場合は自動選択してメモダイアログを表示
+    // 保存先データベースが1つだけの場合は自動選択してメモダイアログを表示
     if (clipboards.length === 1) {
       setPendingClipDatabaseId(clipboards[0].notionDatabaseId)
       setPendingClipboardName(clipboards[0].name)
@@ -181,7 +200,7 @@ function IndexPopup() {
   }
 
   const handleSelectClipboard = async (databaseId: string) => {
-    // 選択されたクリップボードの名前を取得
+    // 選択された保存先データベースの名前を取得
     const selectedClipboard = clipboards.find(cb => cb.notionDatabaseId === databaseId)
 
     // メモダイアログを表示

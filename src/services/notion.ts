@@ -119,14 +119,14 @@ export class NotionService {
           // メモがある場合、ページコンテンツとして追加
           children: memo
             ? [
-                {
-                  object: "block",
-                  type: "paragraph",
-                  paragraph: {
-                    rich_text: [{ text: { content: memo } }]
-                  }
+              {
+                object: "block",
+                type: "paragraph",
+                paragraph: {
+                  rich_text: [{ text: { content: memo } }]
                 }
-              ]
+              }
+            ]
             : []
         })
       })
@@ -273,7 +273,7 @@ export class NotionService {
    * 新しいフルページデータベースを作成する（クリップボード用）
    * 常にワークスペース直下にコンテナページを作成し、その下にデータベースを配置
    */
-  async createDatabase(name: string): Promise<{ id: string; url: string }> {
+  async createDatabase(name: string): Promise<{ id: string; url: string; properties: Record<string, string> }> {
     try {
       console.log('[NotionService.createDatabase] Creating database:', name)
 
@@ -330,9 +330,20 @@ export class NotionService {
       const result = await response.json()
       console.log('[NotionService.createDatabase] Database created successfully:', result)
 
+      // プロパティIDを抽出
+      const propertyIds: Record<string, string> = {}
+      if (result.properties) {
+        Object.keys(result.properties).forEach(key => {
+          if (result.properties[key] && result.properties[key].id) {
+            propertyIds[key] = result.properties[key].id
+          }
+        })
+      }
+
       return {
         id: result.id,
-        url: result.url
+        url: result.url,
+        properties: propertyIds
       }
     } catch (error) {
       console.error('[NotionService.createDatabase] Error creating database:', error)
