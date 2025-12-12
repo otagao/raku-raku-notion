@@ -75,7 +75,7 @@ async function handleMessage(
         break
 
       case "clip-page":
-        await handleClipPage(message.data, sendResponse)
+        await handleClipPage(message.data, sender, sendResponse)
         break
 
       case "create-database":
@@ -327,12 +327,33 @@ async function handleCompleteOAuth(
  */
 async function handleClipPage(
   data: { title: string; url: string; databaseId: string; tabId?: number; content?: string; thumbnail?: string; memo?: string },
+  sender: chrome.runtime.MessageSender,
   sendResponse: (response?: any) => void
 ) {
+  const sendProgress = (status: string) => {
+    if (sender.tab?.id) {
+      chrome.tabs.sendMessage(sender.tab.id, {
+        type: 'CLIP_PROGRESS',
+        status,
+      });
+    }
+  };
+
+  const sendCompletion = (success: boolean) => {
+    if (sender.tab?.id) {
+      chrome.tabs.sendMessage(sender.tab.id, {
+        type: 'CLIP_COMPLETE',
+        success,
+        databaseId: data.databaseId,
+      });
+    }
+  };
+
   try {
     const config = await StorageService.getNotionConfig()
 
     if (!config.apiKey && !config.accessToken) {
+      sendCompletion(false);
       sendResponse({
         success: false,
         error: "Notion API key or access token is not configured"
@@ -345,6 +366,7 @@ async function handleClipPage(
     if (data.tabId) {
       try {
         console.log('[Background] Extracting content from tab:', data.tabId)
+        sendProgress('ページの情報を取得中...');
         const response = await chrome.tabs.sendMessage(data.tabId, { type: 'extract-content' })
 
         if (response?.success && response.content) {
@@ -376,14 +398,17 @@ async function handleClipPage(
       memo: data.memo
     }
 
+    sendProgress('Notionにクリップ中...');
     const pageId = await notionClient.createWebClip(webClipData)
 
+    sendCompletion(true);
     sendResponse({
       success: true,
       pageId
     })
   } catch (error) {
     console.error("Failed to clip page:", error)
+    sendCompletion(false);
     sendResponse({
       success: false,
       error: error instanceof Error ? error.message : "Failed to clip page"

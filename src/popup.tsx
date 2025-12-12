@@ -7,9 +7,11 @@ import ClipboardListScreen from "~screens/ClipboardListScreen"
 import SelectClipboardScreen from "~screens/SelectClipboardScreen"
 import DemoScreen from "~screens/DemoScreen"
 import { SettingsScreen } from "~screens/SettingsScreen"
+import ClippingProgressScreen from "~screens/ClippingProgressScreen"
 import MemoDialog from "~components/MemoDialog"
 import { StorageService } from "~services/storage"
 import { createNotionClient } from "~services/notion"
+import { InternalNotionService } from "~services/internal-notion"
 import type { Screen, Form, Clipboard } from "~types"
 import "~styles/global.css"
 
@@ -22,9 +24,43 @@ function IndexPopup() {
   const [showMemoDialog, setShowMemoDialog] = useState(false)
   const [pendingClipDatabaseId, setPendingClipDatabaseId] = useState<string | undefined>()
   const [pendingClipboardName, setPendingClipboardName] = useState<string | undefined>()
+  const [isClipping, setIsClipping] = useState(false)
+  const [clipProgress, setClipProgress] = useState("")
+  const [internalTestResult, setInternalTestResult] = useState<string>("")
+  const [testDatabaseId, setTestDatabaseId] = useState<string>("")
 
   useEffect(() => {
     initializeAndLoadData()
+
+    const messageListener = (message, sender, sendResponse) => {
+      if (message.type === 'CLIP_PROGRESS') {
+        setClipProgress(message.status);
+      } else if (message.type === 'CLIP_COMPLETE') {
+        if (message.success) {
+          if (message.databaseId) {
+            StorageService.getClipboardByDatabaseId(message.databaseId).then(clipboard => {
+              if (clipboard) {
+                StorageService.updateClipboardLastClipped(clipboard.id);
+              }
+            });
+          }
+          setClipProgress('完了');
+        } else {
+          setClipProgress('失敗');
+        }
+
+        setTimeout(() => {
+          setIsClipping(false);
+          window.close();
+        }, 2000); // 2秒後に画面を閉じる
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(messageListener);
+
+    return () => {
+      chrome.runtime.onMessage.removeListener(messageListener);
+    };
   }, [])
 
   const initializeAndLoadData = async () => {
@@ -91,6 +127,39 @@ function IndexPopup() {
     await loadClipboards()
   }
 
+
+  const handleTestInternalApi = async () => {
+    setInternalTestResult("接続テスト中...")
+    try {
+      const { user, spaces } = await InternalNotionService.loadUserContent()
+      const spaceNames = spaces.map(s => s.name).join(", ")
+      const resultMsg = user
+        ? `成功: ${user.email} (${user.given_name || ''})\nスペース: ${spaceNames}`
+        : "成功: ユーザー情報なし"
+      setInternalTestResult(resultMsg)
+      console.log('Internal API Test Success:', { user, spaces })
+    } catch (error) {
+      setInternalTestResult(`エラー: ${error instanceof Error ? error.message : '不明なエラー'}`)
+      console.error('Internal API Test Failed:', error)
+    }
+  }
+
+
+  const handleAddGalleryView = async () => {
+    if (!testDatabaseId) {
+      setInternalTestResult("エラー: データベースIDを入力してください")
+      return
+    }
+    setInternalTestResult("ギャラリービュー追加中...")
+    try {
+      await InternalNotionService.addGalleryView(testDatabaseId)
+      setInternalTestResult(`成功: ギャラリービューを追加しました。\nDatabase ID: ${testDatabaseId}\nNotionで確認してください。`)
+    } catch (error) {
+      setInternalTestResult(`エラー: ${error instanceof Error ? error.message : '不明なエラー'}`)
+      console.error('Add Gallery View Failed:', error)
+    }
+  }
+
   const handleClipPage = async () => {
     // クリップボードがない場合
     if (clipboards.length === 0) {
@@ -136,16 +205,19 @@ function IndexPopup() {
     setPendingClipboardName(undefined)
   }
 
-  const performClip = async (databaseId: string, memo?: string) => {
-    try {
-      const tabInfo = await StorageService.getCurrentTabInfo()
+  const performClip = (databaseId: string, memo?: string) => {
+    setIsClipping(true);
+    setClipProgress('クリップの準備をしています...');
+
+    StorageService.getCurrentTabInfo().then(tabInfo => {
       if (!tabInfo) {
-        alert('ページ情報を取得できませんでした')
-        return
+        alert('ページ情報を取得できませんでした');
+        setIsClipping(false);
+        return;
       }
 
       // Backgroundにメッセージを送信してクリップを実行（tabIdとmemoを含む）
-      const response = await chrome.runtime.sendMessage({
+      chrome.runtime.sendMessage({
         type: 'clip-page',
         data: {
           title: tabInfo.title,
@@ -154,24 +226,12 @@ function IndexPopup() {
           tabId: tabInfo.tabId, // Content Scriptからコンテンツを抽出するためのタブID
           memo: memo || undefined // メモがあれば含める
         }
-      })
-
-      if (response.success) {
-        // 最終クリップ日時を更新
-        const clipboard = await StorageService.getClipboardByDatabaseId(databaseId)
-        if (clipboard) {
-          await StorageService.updateClipboardLastClipped(clipboard.id)
-        }
-
-        alert('クリップしました！')
-        window.close()
-      } else {
-        alert(`クリップに失敗しました: ${response.error}`)
-      }
-    } catch (error) {
-      console.error('Clip error:', error)
-      alert(`エラーが発生しました: ${error instanceof Error ? error.message : '不明なエラー'}`)
-    }
+      });
+    }).catch(error => {
+      console.error('Clip error:', error);
+      alert(`エラーが発生しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
+      setIsClipping(false);
+    });
   }
 
   const renderScreen = () => {
@@ -213,7 +273,67 @@ function IndexPopup() {
       case 'demo':
         return <DemoScreen formId={selectedFormId} onNavigate={handleNavigate} />
       case 'settings':
-        return <SettingsScreen onBack={() => handleNavigate('home')} />
+        return (
+          <>
+            <SettingsScreen onBack={() => handleNavigate('home')} />
+            <div style={{ padding: '20px', borderTop: '1px solid #eee' }}>
+              <h3>内部APIテスト</h3>
+              <button
+                onClick={handleTestInternalApi}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#444',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                接続テスト実行 (Read-Only)
+              </button>
+
+              <div style={{ marginTop: '15px', borderTop: '1px dashed #ccc', paddingTop: '10px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px' }}>
+                  Target Database ID (Test):
+                </label>
+                <input
+                  type="text"
+                  value={testDatabaseId}
+                  onChange={(e) => setTestDatabaseId(e.target.value)}
+                  placeholder="xxxxxxxx-xxxx-..."
+                  style={{ width: '100%', padding: '5px', marginBottom: '5px' }}
+                />
+                <button
+                  onClick={handleAddGalleryView}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#d9534f', // Danger color for write action
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    width: '100%'
+                  }}
+                >
+                  ギャラリービュー追加 (Write)
+                </button>
+              </div>
+
+              {internalTestResult && (
+                <pre style={{
+                  marginTop: '10px',
+                  padding: '10px',
+                  backgroundColor: '#f5f5f5',
+                  fontSize: '12px',
+                  overflow: 'auto',
+                  border: '1px solid #ddd'
+                }}>
+                  {internalTestResult}
+                </pre>
+              )}
+            </div>
+          </>
+        )
       default:
         return <HomeScreen onNavigate={handleNavigate} onClipPage={handleClipPage} />
     }
@@ -221,13 +341,19 @@ function IndexPopup() {
 
   return (
     <>
-      {renderScreen()}
-      {showMemoDialog && (
-        <MemoDialog
-          onConfirm={handleMemoConfirm}
-          onCancel={handleMemoCancel}
-          clipboardName={pendingClipboardName}
-        />
+      {isClipping ? (
+        <ClippingProgressScreen progressMessage={clipProgress} />
+      ) : (
+        <>
+          {renderScreen()}
+          {showMemoDialog && (
+            <MemoDialog
+              onConfirm={handleMemoConfirm}
+              onCancel={handleMemoCancel}
+              clipboardName={pendingClipboardName}
+            />
+          )}
+        </>
       )}
     </>
   )
