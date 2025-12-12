@@ -9,7 +9,7 @@
 
 import { createNotionClient } from "~services/notion"
 import { StorageService } from "~services/storage"
-import { generateOAuthUrl, generateStateWithExtensionId, parseState, exchangeCodeForToken } from "~utils/oauth"
+import { generateOAuthUrl, generateState } from "~utils/oauth"
 import type { NotionPageData, NotionOAuthConfig, WebClipData } from "~types"
 
 // メッセージリスナー
@@ -80,10 +80,6 @@ async function handleMessage(
 
       case "create-database":
         await handleCreateDatabase(message.data, sendResponse)
-        break
-
-      case "get-oauth-config":
-        await handleGetOAuthConfig(sendResponse)
         break
 
       default:
@@ -192,9 +188,10 @@ async function handleStartOAuth(
   sendResponse: (response?: any) => void
 ) {
   try {
-    // Extension IDを含むstateを生成（CSRF対策 + 拡張機能ID埋め込み）
+    // Extension IDを含むstateを生成（CSRF対策 + 静的サイトでのリダイレクト用）
     const extensionId = chrome.runtime.id
-    const state = generateStateWithExtensionId(extensionId)
+    const randomToken = generateState()
+    const state = btoa(`${extensionId}:${randomToken}`)
 
     // stateを一時保存（検証用）
     await chrome.storage.local.set({
@@ -202,7 +199,7 @@ async function handleStartOAuth(
       'raku-oauth-pending': true  // OAuth処理中フラグ
     })
 
-    console.log('[Background] OAuth started with extension ID:', extensionId)
+    console.log('[Background] OAuth started with extension ID in state')
 
     // OAuth認証URLを生成
     const authUrl = generateOAuthUrl(oauthConfig, state)
@@ -231,60 +228,30 @@ async function handleStartOAuth(
 }
 
 /**
- * OAuth認証を完了（コードをトークンに交換）
+ * OAuth認証を完了（トークン交換済みデータを保存）
  */
 async function handleCompleteOAuth(
-  data: { code: string; state: string },
+  data: {
+    tokenResponse: {
+      access_token: string
+      bot_id: string
+      workspace_id: string
+      workspace_name?: string
+      workspace_icon?: string
+    }
+  },
   sendResponse: (response?: any) => void
 ) {
   try {
     console.log('[Background] Starting OAuth completion...');
-    console.log('[Background] Received code:', data.code?.substring(0, 10) + '...');
-    console.log('[Background] Received state:', data.state?.substring(0, 10) + '...');
 
-    // 保存されたstateを取得
-    const storage = await chrome.storage.local.get('raku-oauth-state')
-    const savedState = storage['raku-oauth-state'] as string | undefined
-    console.log('[Background] Saved state:', savedState ? savedState.substring(0, 10) + '...' : 'none');
+    const { tokenResponse } = data
 
-    // state検証（CSRF対策）
-    if (!savedState || savedState !== data.state) {
-      throw new Error('Invalid OAuth state parameter')
+    if (!tokenResponse || !tokenResponse.access_token) {
+      throw new Error('Invalid token response')
     }
 
-    // stateからextension IDとCSRFトークンを抽出
-    const parsedState = parseState(data.state)
-    if (!parsedState) {
-      throw new Error('Failed to parse OAuth state parameter')
-    }
-
-    console.log('[Background] Extracted extension ID from state:', parsedState.extensionId)
-    console.log('[Background] Current extension ID:', chrome.runtime.id)
-
-    // Extension ID検証（オプション - セキュリティ強化）
-    if (parsedState.extensionId !== chrome.runtime.id) {
-      console.warn('[Background] Extension ID mismatch - state may be from different installation')
-      // 警告のみで続行（開発版→本番版の移行を考慮）
-    }
-
-    // OAuth設定を環境変数から取得
-    const oauthConfig: NotionOAuthConfig = {
-      clientId: process.env.PLASMO_PUBLIC_NOTION_CLIENT_ID || '',
-      clientSecret: process.env.PLASMO_PUBLIC_NOTION_CLIENT_SECRET || '',
-      redirectUri: process.env.PLASMO_PUBLIC_OAUTH_REDIRECT_URI || 'https://raku-raku-notion.pages.dev/callback.html'
-    }
-
-    console.log('[Background] OAuth config - Client ID:', oauthConfig.clientId ? 'present' : 'missing');
-    console.log('[Background] OAuth config - Client Secret:', oauthConfig.clientSecret ? 'present' : 'missing');
-
-    if (!oauthConfig.clientId || !oauthConfig.clientSecret) {
-      throw new Error('Notion Client ID or Client Secret is not configured')
-    }
-
-    // 認証コードをアクセストークンに交換
-    console.log('[Background] Exchanging code for token...');
-    const tokenResponse = await exchangeCodeForToken(data.code, oauthConfig)
-    console.log('[Background] Token exchange successful');
+    console.log('[Background] Token response received');
 
     // Notion設定を更新
     const config = await StorageService.getNotionConfig()
@@ -300,7 +267,7 @@ async function handleCompleteOAuth(
     await StorageService.saveNotionConfig(updatedConfig)
     console.log('[Background] Config saved successfully');
 
-    // 一時保存したstateを削除
+    // OAuth完了フラグを削除
     await chrome.storage.local.remove(['raku-oauth-state', 'raku-oauth-pending'])
 
     const response = {
@@ -446,36 +413,6 @@ async function handleCreateDatabase(
     sendResponse({
       success: false,
       error: error instanceof Error ? error.message : "Failed to create database"
-    })
-  }
-}
-
-/**
- * OAuth設定を取得（環境変数から）
- */
-async function handleGetOAuthConfig(sendResponse: (response?: any) => void) {
-  try {
-    const config: NotionOAuthConfig = {
-      clientId: process.env.PLASMO_PUBLIC_NOTION_CLIENT_ID || '',
-      clientSecret: process.env.PLASMO_PUBLIC_NOTION_CLIENT_SECRET || '',
-      redirectUri: process.env.PLASMO_PUBLIC_OAUTH_REDIRECT_URI || 'https://raku-raku-notion.pages.dev/callback.html'
-    }
-
-    console.log('[Background] OAuth config requested:', {
-      clientId: config.clientId ? 'present' : 'missing',
-      clientSecret: config.clientSecret ? 'present' : 'missing',
-      redirectUri: config.redirectUri
-    })
-
-    sendResponse({
-      success: true,
-      config: config
-    })
-  } catch (error) {
-    console.error("Failed to get OAuth config:", error)
-    sendResponse({
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to get OAuth config"
     })
   }
 }

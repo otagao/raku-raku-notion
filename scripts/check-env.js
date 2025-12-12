@@ -9,9 +9,9 @@ const fs = require('fs');
 const path = require('path');
 
 // 必須の環境変数
+// 注: CLIENT_SECRETは削除（Cloudflare Workersで管理）
 const REQUIRED_ENV_VARS = [
   'PLASMO_PUBLIC_NOTION_CLIENT_ID',
-  'PLASMO_PUBLIC_NOTION_CLIENT_SECRET',
   'PLASMO_PUBLIC_OAUTH_REDIRECT_URI'
 ];
 

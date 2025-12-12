@@ -34,5 +34,8 @@ coverage/
 # Misc
 .cache/
 
+# Cloudflare Workers
+.wrangler/
+
 # Claude Code
 .claude/
