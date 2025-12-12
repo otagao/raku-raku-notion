@@ -17,37 +17,20 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
   const [workspaceName, setWorkspaceName] = useState('')
   const [oauthConfig, setOauthConfig] = useState<NotionOAuthConfig>({
     clientId: '',
-    clientSecret: '',
     redirectUri: 'https://raku-raku-notion.pages.dev/callback.html'
   })
 
   // OAuth設定を初期化
   useEffect(() => {
     const initOAuthConfig = async () => {
-      // まず環境変数から取得
-      let config: NotionOAuthConfig = {
+      // 環境変数から取得
+      const config: NotionOAuthConfig = {
         clientId: process.env.PLASMO_PUBLIC_NOTION_CLIENT_ID || '',
-        clientSecret: process.env.PLASMO_PUBLIC_NOTION_CLIENT_SECRET || '',
         redirectUri: process.env.PLASMO_PUBLIC_OAUTH_REDIRECT_URI || 'https://raku-raku-notion.pages.dev/callback.html'
-      }
-
-      // 環境変数が空の場合、backgroundから取得を試みる
-      if (!config.clientId) {
-        console.log('[Settings] OAuth config not found in environment, requesting from background...')
-        try {
-          const response = await chrome.runtime.sendMessage({ type: 'get-oauth-config' })
-          if (response?.success && response.config) {
-            console.log('[Settings] OAuth config received from background')
-            config = response.config
-          }
-        } catch (err) {
-          console.error('[Settings] Failed to get OAuth config from background:', err)
-        }
       }
 
       console.log('[Settings] OAuth Config Debug:', {
         clientId: config.clientId ? `${config.clientId.substring(0, 8)}...` : 'MISSING',
-        clientSecret: config.clientSecret ? 'present' : 'MISSING',
         redirectUri: config.redirectUri
       })
 
@@ -62,13 +45,23 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
     loadConfig()
 
     // OAuth完了を監視（storage変更イベント）
-    const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }) => {
-      // OAuth完了フラグがfalseになった（OAuth処理完了）場合、設定をリロード
-      if (changes['raku-oauth-pending'] && !changes['raku-oauth-pending'].newValue) {
-        console.log('[Settings] OAuth completed, reloading config...')
-        setTimeout(() => {
-          loadConfig()
-          setSuccessMessage('Notion認証が完了しました！')
+    const handleStorageChange = async (changes: { [key: string]: chrome.storage.StorageChange }) => {
+      // OAuth完了フラグが削除された場合、認証が完了した可能性がある
+      if (changes['raku-oauth-pending'] && changes['raku-oauth-pending'].oldValue && !changes['raku-oauth-pending'].newValue) {
+        console.log('[Settings] OAuth pending flag removed, checking if successful...')
+
+        // 設定を再読み込みして、accessTokenが設定されているか確認
+        setTimeout(async () => {
+          const config = await StorageService.getNotionConfig()
+
+          if (config.authMethod === 'oauth' && config.accessToken) {
+            console.log('[Settings] OAuth completed successfully!')
+            loadConfig()
+            setSuccessMessage('Notion認証が完了しました！')
+          } else {
+            console.log('[Settings] OAuth pending removed but no token found (may have failed)')
+            loadConfig()
+          }
         }, 500)
       }
     }
