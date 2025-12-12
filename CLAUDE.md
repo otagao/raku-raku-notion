@@ -1,4 +1,6 @@
-# CLAUDE.md - AI開発コンテキスト
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 このドキュメントは、Claude CodeやGitHub Copilotなどの AI開発アシスタントがプロジェクトのコンテキストを理解するためのものです。
 
@@ -22,36 +24,63 @@
 - **ストレージ**: Chrome Storage API
 - **API連携**: Notion API (OAuth 2.0 + 手動トークン対応)
 
-### 開発状況
+詳細は [README.md](README.md) および [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) を参照してください。
 
-**現在のフェーズ**: Phase 3 完了 - Webクリップ機能拡張完了
+## 開発コマンド
 
-詳細な機能一覧と使い方は [README.md](README.md) を参照してください。
+```bash
+# 開発サーバー起動（OAuth関連ファイルを自動コピー）
+npm run dev
+
+# 本番ビルド（環境変数チェック + ビルド + ファイルコピー）
+npm run build
+
+# OAuth関連ファイルのコピーのみ（通常は不要）
+npm run dev:prepare
+
+# クリーンビルド（ビルドエラー時）
+rm -rf node_modules .plasmo build
+npm install
+npm run build
+```
+
+**ビルド出力**:
+- 開発: `build/chrome-mv3-dev/`
+- 本番: `build/chrome-mv3-prod/`
+
+**デバッグ**:
+```javascript
+// ストレージ内容の確認（開発者ツールのコンソールで実行）
+chrome.storage.local.get(null, (data) => console.log(data))
+
+// ストレージのリセット
+chrome.storage.local.clear()
+```
 
 ## プロジェクト構造
 
+詳細は [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) を参照してください。
+
 ```
-raku-raku-notion/
-├── src/
-│   ├── popup.tsx              # メインエントリーポイント
-│   ├── screens/               # 画面コンポーネント
-│   ├── components/            # 再利用可能コンポーネント
-│   ├── contents/              # Content Scripts (コンテンツ抽出)
-│   ├── services/              # ビジネスロジック (storage, notion)
-│   ├── background/            # Service Worker (OAuth + API)
-│   ├── utils/                 # ユーティリティ (oauth.ts)
-│   ├── types/                 # TypeScript型定義
-│   └── styles/                # グローバルCSS
-├── assets/
-│   ├── oauth-callback.html    # 拡張機能内OAuthコールバックページ
-│   ├── oauth-callback.js      # コールバックページのスクリプト
-│   └── icon*.png              # 拡張機能アイコン
-├── oauth-static/              # 静的サイト用OAuthコールバックページ
-├── docs/                      # ドキュメント
-│   ├── OAUTH_SETUP_GUIDE.md  # OAuth設定ガイド
-│   └── OAUTH_FIX.md          # OAuth修正履歴（アーカイブ）
-├── package.json               # マニフェスト設定
-└── .env                       # 環境変数（OAuth設定）
+src/
+├── popup.tsx              # メインエントリーポイント
+├── screens/               # 画面コンポーネント（HomeScreen, SettingsScreenなど）
+├── components/            # 再利用可能コンポーネント
+├── contents/              # Content Scripts（ページコンテンツ抽出）
+├── services/              # ビジネスロジック層
+│   ├── storage.ts         # Chrome Storage API ラッパー
+│   └── notion.ts          # Notion API クライアント
+├── background/            # Service Worker（OAuth + API呼び出し）
+├── utils/                 # ユーティリティ（oauth.ts）
+└── types/                 # TypeScript型定義
+
+assets/
+├── oauth-callback.html    # 拡張機能内OAuthコールバックページ
+├── oauth-callback.js      # コールバック処理スクリプト
+└── icon*.png              # 拡張機能アイコン
+
+oauth-static/              # 静的サイト用OAuthコールバックページ
+                          # （Cloudflare Pages等にデプロイ）
 ```
 
 ## 重要な設計決定
@@ -98,13 +127,17 @@ HomeScreen
 
 **重要な設計ポイント**:
 - 静的サイトホスティング（Cloudflare Pages等）を使用
-- stateパラメータに拡張機能IDを埋め込み（CSRF対策）
-- ローカルサーバー不要（旧実装のoauth-server.jsは削除済み）
+- stateパラメータに拡張機能IDを埋め込み（Base64: `extensionId:randomToken`）
+- CSRF対策: stateパラメータ検証
+- CSP対応: インラインスクリプトを外部ファイル（`oauth-callback.js`）に分離
+- 環境変数の扱い: OAuth設定はbackgroundで環境変数から直接取得
 
 **認証フロー**:
-1. SettingsScreen → `start-oauth` メッセージ → backgroundがOAuth URL生成
-2. Notion認証画面 → 静的サイトの`callback.html` → 拡張機能の`oauth-callback.html`
-3. backgroundが`complete-oauth`でトークン交換 → 設定画面に「接続済み」表示
+1. SettingsScreen → `start-oauth` メッセージ → backgroundがOAuth URL生成、`raku-oauth-pending: true`を保存
+2. Notion認証画面 → 静的サイトの`callback.html`（stateから拡張機能IDを抽出）
+3. 拡張機能の`oauth-callback.html`にリダイレクト → `complete-oauth`メッセージ（codeとstateのみ）
+4. backgroundがトークン交換、設定保存、`raku-oauth-pending`削除
+5. SettingsScreenが`chrome.storage.onChanged`で完了を検出、成功メッセージ表示
 
 ## コーディング規約
 
@@ -132,6 +165,8 @@ HomeScreen
 
 ## よくある開発タスク
 
+詳細は [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) を参照してください。
+
 ### 新しい画面を追加
 
 1. `src/screens/NewScreen.tsx` を作成
@@ -144,61 +179,14 @@ HomeScreen
 2. 対応する getter/setter メソッドを追加
 3. 型定義を `src/types/index.ts` に追加
 
-## デバッグ方法
-
-### ストレージ操作
-
-```javascript
-// ストレージ内容の確認
-chrome.storage.local.get(null, (data) => console.log(data))
-
-// ストレージのリセット
-chrome.storage.local.clear()
-
-// またはリセット関数使用
-import('./services/storage').then(({ StorageService }) => {
-  StorageService.resetStorage()
-})
-```
-
 ### OAuth認証のデバッグ
 
-```bash
-npm run dev  # 拡張機能開発サーバー起動
-```
-
-**デバッグログ確認**:
-- **静的コールバックページ**: ブラウザのコンソールで `[OAuth Callback]` プレフィックス付きログ
-- **背景スクリプト**: chrome://extensions/ → 拡張機能の詳細 → Service Worker → `[Background]` プレフィックス付きログ
+**デバッグログ確認箇所**:
+- **Service Worker**: chrome://extensions/ → 拡張機能の詳細 → Service Worker → `[Background]` プレフィックス付きログ
+- **コールバックページ**: OAuth認証後の`oauth-callback.html`でF12 → `[OAuth Callback]` プレフィックス付きログ
+- **設定画面**: 拡張機能ポップアップでF12 → `[Settings]` プレフィックス付きログ
 
 詳細は [docs/OAUTH_SETUP_GUIDE.md](docs/OAUTH_SETUP_GUIDE.md) のトラブルシューティングセクションを参照。
-
-### ビルドエラー時
-
-```bash
-# クリーンビルド
-rm -rf node_modules .plasmo build
-npm install
-npm run build  # 本番ビルド
-# または
-npm run dev  # 開発モード（自動的にOAuthファイルをコピー）
-```
-
-## 既知の問題と解決履歴
-
-### 主要な解決済み問題
-
-- ✅ OAuth chrome-extension:// スキーム制限 → 静的サイトホスティングで解決
-- ✅ OAuth redirect URI不一致 → 環境変数に統一して解決
-- ✅ ローカルサーバー依存 → oauth-server.js削除、静的サイトに統一
-- ✅ 認証方式切り替え時のUI不具合 → 自動リセット処理追加で解決
-- ✅ OAuth認証時の無限ローディング（初回） → CSP違反解消で解決
-- ✅ 環境変数未読み込みエラー → 環境変数から直接取得に変更
-- ✅ 本番ビルドコールバック404エラー → web_accessible_resourcesにJS追加で解決
-- ✅ OAuth認証開始時の無限ローディング（再発） → ローディング状態管理改善で解決
-- ✅ Windowsビルドでのファイルコピー失敗 → クロスプラットフォーム対応スクリプトで解決
-
-詳細は [docs/OAUTH_FIX.md](docs/OAUTH_FIX.md)（アーカイブ）を参照。
 
 ## 開発者向けメモ
 
@@ -219,93 +207,43 @@ npm run dev  # 開発モード（自動的にOAuthファイルをコピー）
 本プロジェクトは2つの認証方式に対応:
 
 1. **OAuth認証** (本番環境推奨)
-   - `NotionConfig.authMethod = 'oauth'`
    - 静的サイトホスティング（Cloudflare Pages等）が必要
+   - 環境変数設定: `.env`ファイルにClient ID/Secret/Redirect URIを記述
+   - redirect_uriは**完全一致**が必須（Notion Integration設定、`.env`ファイル、静的サイトのファイル名）
    - 詳細: [docs/OAUTH_SETUP_GUIDE.md](docs/OAUTH_SETUP_GUIDE.md)
 
 2. **手動トークン入力** (開発・テスト推奨)
-   - `NotionConfig.authMethod = 'manual'`
    - Internal Integrationを使用
+   - セットアップが簡単（5分で完了）
+   - 詳細: [docs/OAUTH_SETUP_GUIDE.md](docs/OAUTH_SETUP_GUIDE.md)
 
 #### API呼び出し方法
 
 ```typescript
-// 方法1: 直接呼び出し (popup内)
-import { createNotionClient } from '~services/notion'
-const config = await StorageService.getNotionConfig()
-const client = createNotionClient(config)
-await client.createWebClip({ title, url, databaseId })
-
-// 方法2: Background経由 (推奨)
+// Background経由（推奨）
 chrome.runtime.sendMessage({
   type: 'clip-page',
   data: { title, url, databaseId }
 })
+
+// 直接呼び出し（popup内、必要な場合のみ）
+import { createNotionClient } from '~services/notion'
+const config = await StorageService.getNotionConfig()
+const client = createNotionClient(config)
+await client.createWebClip({ title, url, databaseId })
 ```
-
-#### OAuth設定の概要
-
-```bash
-# 1. oauth-static/を静的サイトにデプロイ
-# 2. .envファイルを作成
-cp .env.example .env
-
-# 3. 環境変数を設定
-PLASMO_PUBLIC_NOTION_CLIENT_ID=your_client_id
-PLASMO_PUBLIC_NOTION_CLIENT_SECRET=your_client_secret
-PLASMO_PUBLIC_OAUTH_REDIRECT_URI=https://your-domain.com/callback.html
-
-# 4. ビルド
-npm run build
-```
-
-**重要**: redirect_uriは以下の3箇所で**完全一致**が必要:
-- Notion Integration設定
-- `.env`ファイル
-- 静的サイトのファイル名
-
-詳細は [docs/OAUTH_SETUP_GUIDE.md](docs/OAUTH_SETUP_GUIDE.md) を参照。
 
 ## 参考資料
 
 - [README.md](README.md) - プロジェクト説明と使い方
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - アーキテクチャの詳細
 - [docs/OAUTH_SETUP_GUIDE.md](docs/OAUTH_SETUP_GUIDE.md) - OAuth設定ガイド
+- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) - 開発ガイド
 - [Plasmo公式ドキュメント](https://docs.plasmo.com)
 - [Chrome拡張機能ドキュメント](https://developer.chrome.com/docs/extensions/)
 - [Notion API リファレンス](https://developers.notion.com/)
 
-## OAuth認証の実装詳細
-
-### コールバックフロー
-
-1. **ユーザーが認証開始**
-   - SettingsScreen → `start-oauth` メッセージ
-   - Background: OAuth URLを生成し、Notion認証ページを開く
-   - `raku-oauth-pending: true` をストレージに保存
-
-2. **Notion認証完了**
-   - Notion → 静的サイトの `callback.html`
-   - `callback.html`: stateからextension IDを抽出
-   - リダイレクト: `chrome-extension://{extensionId}/oauth-callback.html`
-
-3. **拡張機能でトークン交換**
-   - `oauth-callback.js`: `complete-oauth` メッセージを送信（codeとstateのみ）
-   - Background: 環境変数からOAuth設定を取得
-   - Background: トークン交換、設定保存、`raku-oauth-pending` 削除
-
-4. **設定画面で完了検出**
-   - SettingsScreen: `chrome.storage.onChanged` で `raku-oauth-pending` 削除を検出
-   - 自動的に設定をリロード
-   - 成功メッセージを表示
-
-### 重要な設計判断
-
-- **CSP対応**: インラインスクリプトを外部ファイル（`oauth-callback.js`）に分離
-- **環境変数の扱い**: oauthConfigはbackgroundで環境変数から直接取得（コールバックから送信しない）
-- **ビルドプロセス**: `assets/oauth-callback.*` を `build/` に手動コピー（Plasmoの制限回避）
-
 ---
 
-**最終更新**: 2025-12-02
 **バージョン**: 1.0.3
-**メンテナー**: Claude Code
+**最終更新**: 2025-12-12
