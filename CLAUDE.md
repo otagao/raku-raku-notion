@@ -28,6 +28,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 開発コマンド
 
+### 拡張機能
+
 ```bash
 # 開発サーバー起動（OAuth関連ファイルを自動コピー）
 npm run dev
@@ -42,6 +44,20 @@ npm run dev:prepare
 rm -rf node_modules .plasmo build
 npm install
 npm run build
+```
+
+### Cloudflare Workers（OAuth バックエンド）
+
+```bash
+# Workers開発サーバー起動
+cd workers
+npm run dev
+
+# Workersデプロイ
+npm run deploy
+
+# Workersログ確認
+npm run tail
 ```
 
 **ビルド出力**:
@@ -81,6 +97,16 @@ assets/
 
 oauth-static/              # 静的サイト用OAuthコールバックページ
                           # （Cloudflare Pages等にデプロイ）
+
+workers/                   # Cloudflare Workers OAuth バックエンド
+├── src/
+│   ├── index.ts           # メインエントリーポイント
+│   ├── handlers/          # リクエストハンドラ
+│   │   ├── exchange.ts    # トークン交換処理
+│   │   └── health.ts      # ヘルスチェック
+│   ├── middleware/        # ミドルウェア
+│   └── types.ts           # 型定義
+└── wrangler.toml          # Workers設定
 ```
 
 ## 重要な設計決定
@@ -123,10 +149,10 @@ HomeScreen
 
 ### 4. OAuth認証フロー
 
-詳細は [docs/OAUTH_SETUP_GUIDE.md](docs/OAUTH_SETUP_GUIDE.md) を参照。
+詳細は [docs/OAUTH_SETUP_GUIDE.md](docs/OAUTH_SETUP_GUIDE.md) および [docs/WORKERS_SETUP_GUIDE.md](docs/WORKERS_SETUP_GUIDE.md) を参照。
 
 **重要な設計ポイント**:
-- 静的サイトホスティング（Cloudflare Pages等）を使用
+- **Cloudflare Workers**を使用したセキュアなトークン交換（CLIENT_SECRETをサーバーサイドで管理）
 - stateパラメータに拡張機能IDを埋め込み（Base64: `extensionId:randomToken`）
 - CSRF対策: stateパラメータ検証
 - CSP対応: インラインスクリプトを外部ファイル（`oauth-callback.js`）に分離
@@ -134,10 +160,12 @@ HomeScreen
 
 **認証フロー**:
 1. SettingsScreen → `start-oauth` メッセージ → backgroundがOAuth URL生成、`raku-oauth-pending: true`を保存
-2. Notion認証画面 → 静的サイトの`callback.html`（stateから拡張機能IDを抽出）
-3. 拡張機能の`oauth-callback.html`にリダイレクト → `complete-oauth`メッセージ（codeとstateのみ）
-4. backgroundがトークン交換、設定保存、`raku-oauth-pending`削除
-5. SettingsScreenが`chrome.storage.onChanged`で完了を検出、成功メッセージ表示
+2. Notion認証画面 → 拡張機能の`oauth-callback.html`にリダイレクト
+3. `oauth-callback.js` → Cloudflare Workersにトークン交換リクエスト（code, state, extensionId）
+4. Workers → Notionにトークン交換リクエスト（CLIENT_SECRETを使用）、アクセストークンを返却
+5. `oauth-callback.js` → backgroundに`complete-oauth`メッセージ（tokenResponseのみ）
+6. backgroundが設定保存、`raku-oauth-pending`削除
+7. SettingsScreenが`chrome.storage.onChanged`で完了を検出、成功メッセージ表示
 
 ## コーディング規約
 
@@ -185,8 +213,26 @@ HomeScreen
 - **Service Worker**: chrome://extensions/ → 拡張機能の詳細 → Service Worker → `[Background]` プレフィックス付きログ
 - **コールバックページ**: OAuth認証後の`oauth-callback.html`でF12 → `[OAuth Callback]` プレフィックス付きログ
 - **設定画面**: 拡張機能ポップアップでF12 → `[Settings]` プレフィックス付きログ
+- **Cloudflare Workers**: `cd workers && npm run tail` → リアルタイムログ確認
 
-詳細は [docs/OAUTH_SETUP_GUIDE.md](docs/OAUTH_SETUP_GUIDE.md) のトラブルシューティングセクションを参照。
+詳細は [docs/OAUTH_SETUP_GUIDE.md](docs/OAUTH_SETUP_GUIDE.md) および [docs/WORKERS_SETUP_GUIDE.md](docs/WORKERS_SETUP_GUIDE.md) のトラブルシューティングセクションを参照。
+
+### Cloudflare Workersのデプロイ
+
+OAuth認証を本番環境で使用する場合は、Cloudflare Workersのデプロイが必要です。
+
+1. `cd workers && npm install`
+2. `wrangler login` （Cloudflareアカウントでログイン）
+3. Secretsの設定:
+   ```bash
+   wrangler secret put NOTION_CLIENT_ID
+   wrangler secret put NOTION_CLIENT_SECRET
+   # 本番環境のみ: wrangler secret put ALLOWED_ORIGINS
+   ```
+4. デプロイ: `npm run deploy`
+5. 表示されたWorkers URLを[assets/oauth-callback.js](assets/oauth-callback.js)に設定
+
+詳細は [docs/WORKERS_SETUP_GUIDE.md](docs/WORKERS_SETUP_GUIDE.md) を参照。
 
 ## 開発者向けメモ
 
@@ -207,10 +253,11 @@ HomeScreen
 本プロジェクトは2つの認証方式に対応:
 
 1. **OAuth認証** (本番環境推奨)
-   - 静的サイトホスティング（Cloudflare Pages等）が必要
-   - 環境変数設定: `.env`ファイルにClient ID/Secret/Redirect URIを記述
-   - redirect_uriは**完全一致**が必須（Notion Integration設定、`.env`ファイル、静的サイトのファイル名）
-   - 詳細: [docs/OAUTH_SETUP_GUIDE.md](docs/OAUTH_SETUP_GUIDE.md)
+   - **Cloudflare Workers**を使用したセキュアなトークン交換
+   - CLIENT_SECRETはWorkers Secretsで暗号化保存（クライアントサイドへの露出なし）
+   - 環境変数設定: `.env`ファイルにClient ID/Redirect URIを記述
+   - redirect_uriは**完全一致**が必須（Notion Integration設定、`.env`ファイル）
+   - 詳細: [docs/OAUTH_SETUP_GUIDE.md](docs/OAUTH_SETUP_GUIDE.md)、[docs/WORKERS_SETUP_GUIDE.md](docs/WORKERS_SETUP_GUIDE.md)
 
 2. **手動トークン入力** (開発・テスト推奨)
    - Internal Integrationを使用
@@ -238,10 +285,13 @@ await client.createWebClip({ title, url, databaseId })
 - [README.md](README.md) - プロジェクト説明と使い方
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - アーキテクチャの詳細
 - [docs/OAUTH_SETUP_GUIDE.md](docs/OAUTH_SETUP_GUIDE.md) - OAuth設定ガイド
+- [docs/WORKERS_SETUP_GUIDE.md](docs/WORKERS_SETUP_GUIDE.md) - Cloudflare Workersセットアップガイド
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) - 開発ガイド
+- [workers/README.md](workers/README.md) - Workers API仕様
 - [Plasmo公式ドキュメント](https://docs.plasmo.com)
 - [Chrome拡張機能ドキュメント](https://developer.chrome.com/docs/extensions/)
 - [Notion API リファレンス](https://developers.notion.com/)
+- [Cloudflare Workers ドキュメント](https://developers.cloudflare.com/workers/)
 
 ---
 
