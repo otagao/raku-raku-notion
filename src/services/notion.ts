@@ -1,4 +1,4 @@
-import type { NotionConfig, NotionPageData, WebClipData } from "~types"
+import type { NotionConfig, NotionDatabaseSummary, NotionPageData, WebClipData } from "~types"
 
 const NOTION_VERSION = "2022-06-28"
 const NOTION_API_BASE = "https://api.notion.com/v1"
@@ -198,7 +198,7 @@ export class NotionService {
   /**
    * 利用可能なデータベース一覧を取得する（OAuth時に有用）
    */
-  async listDatabases(): Promise<any[]> {
+  async listDatabases(): Promise<NotionDatabaseSummary[]> {
     try {
       const response = await fetch(`${NOTION_API_BASE}/search`, {
         method: "POST",
@@ -220,11 +220,33 @@ export class NotionService {
       }
 
       const result = await response.json()
-      return result.results || []
+      const databases = result.results || []
+
+      return databases
+        .filter((item: any) => item.object === "database")
+        .map((db: any): NotionDatabaseSummary => ({
+          id: db.id,
+          title: this.getPlainText(db.title) || '無題のデータベース',
+          url: db.url,
+          description: this.getPlainText(db.description),
+          iconEmoji: db.icon?.type === "emoji" ? db.icon.emoji : undefined,
+          lastEditedTime: db.last_edited_time,
+          createdTime: db.created_time
+        }))
     } catch (error) {
       console.error('Error listing databases:', error)
       throw error
     }
+  }
+
+  private getPlainText(richText?: Array<{ plain_text?: string; text?: { content?: string } }>): string {
+    if (!richText || richText.length === 0) {
+      return ""
+    }
+    return richText
+      .map(block => block?.plain_text || block?.text?.content || "")
+      .join("")
+      .trim()
   }
 
   /**

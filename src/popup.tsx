@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import HomeScreen from "~screens/HomeScreen"
 import CreateFormScreen from "~screens/CreateFormScreen"
 import FormListScreen from "~screens/FormListScreen"
@@ -12,7 +12,7 @@ import MemoDialog from "~components/MemoDialog"
 import { StorageService } from "~services/storage"
 import { createNotionClient } from "~services/notion"
 import { InternalNotionService } from "~services/internal-notion"
-import type { Screen, Form, Clipboard } from "~types"
+import type { Screen, Form, Clipboard, NotionDatabaseSummary } from "~types"
 import "~styles/global.css"
 
 function IndexPopup() {
@@ -28,6 +28,9 @@ function IndexPopup() {
   const [clipProgress, setClipProgress] = useState("")
   const [internalTestResult, setInternalTestResult] = useState<string>("")
   const [testDatabaseId, setTestDatabaseId] = useState<string>("")
+  const [availableDatabases, setAvailableDatabases] = useState<NotionDatabaseSummary[]>([])
+  const [isLoadingDatabases, setIsLoadingDatabases] = useState(false)
+  const [databaseError, setDatabaseError] = useState<string | null>(null)
 
   useEffect(() => {
     initializeAndLoadData()
@@ -67,6 +70,7 @@ function IndexPopup() {
     await StorageService.initializeMockData()
     await loadForms()
     await loadClipboards()
+    await refreshAvailableDatabases({ silent: true })
   }
 
   const loadForms = async () => {
@@ -78,6 +82,40 @@ function IndexPopup() {
     const loadedClipboards = await StorageService.getClipboards()
     setClipboards(loadedClipboards)
   }
+
+  const refreshAvailableDatabases = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (!silent) {
+      setDatabaseError(null)
+    }
+    setIsLoadingDatabases(true)
+    try {
+      const config = await StorageService.getNotionConfig()
+
+      if (!config.accessToken && !config.apiKey) {
+        setAvailableDatabases([])
+        if (!silent) {
+          setDatabaseError('Notionアカウントとの連携が必要です')
+        }
+        return
+      }
+
+      const notionClient = createNotionClient(config)
+      const [databases, storedClipboards] = await Promise.all([
+        notionClient.listDatabases(),
+        StorageService.getClipboards()
+      ])
+      const existingIds = new Set(storedClipboards.map(cb => cb.notionDatabaseId))
+      const filtered = databases.filter(db => !existingIds.has(db.id))
+      setAvailableDatabases(filtered)
+    } catch (error) {
+      console.error('Failed to refresh available databases:', error)
+      if (!silent) {
+        setDatabaseError(error instanceof Error ? error.message : 'データベースの取得に失敗しました')
+      }
+    } finally {
+      setIsLoadingDatabases(false)
+    }
+  }, [])
 
   const handleNavigate = (screen: string, idParam?: string) => {
     setCurrentScreen(screen as Screen)
@@ -120,11 +158,24 @@ function IndexPopup() {
     })
 
     await loadClipboards()
+    await refreshAvailableDatabases({ silent: true })
   }
 
   const handleDeleteClipboard = async (clipboardId: string) => {
     await StorageService.deleteClipboard(clipboardId)
     await loadClipboards()
+    await refreshAvailableDatabases({ silent: true })
+  }
+
+  const handleRegisterExistingDatabase = async (database: NotionDatabaseSummary) => {
+    await StorageService.addClipboard({
+      name: database.title || '無題のデータベース',
+      notionDatabaseId: database.id,
+      notionDatabaseUrl: database.url,
+      createdByExtension: false
+    })
+    await loadClipboards()
+    await refreshAvailableDatabases({ silent: true })
   }
 
 
@@ -260,6 +311,11 @@ function IndexPopup() {
             clipboards={clipboards}
             onNavigate={handleNavigate}
             onDeleteClipboard={handleDeleteClipboard}
+            availableDatabases={availableDatabases}
+            onImportDatabase={handleRegisterExistingDatabase}
+            onRefreshDatabases={refreshAvailableDatabases}
+            isLoadingDatabases={isLoadingDatabases}
+            databaseError={databaseError}
           />
         )
       case 'select-clipboard':
