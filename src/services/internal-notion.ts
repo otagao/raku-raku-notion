@@ -25,17 +25,24 @@ const NOTION_API_V3_BASE = "https://www.notion.so/api/v3"
 export class InternalNotionService {
     /**
      * データベースにギャラリービューを追加し、既存のデフォルトビュー（テーブル）を削除する
+     * @param rawDatabaseId - データベースID
+     * @param visibleProperties - ギャラリービューで表示するプロパティIDのリスト
+     * @param existingViewId - 削除する既存のビューID（オプション）
      */
-    static async addGalleryView(rawDatabaseId: string, visibleProperties: string[] = []): Promise<void> {
+    static async addGalleryView(
+        rawDatabaseId: string,
+        visibleProperties: string[] = [],
+        existingViewId?: string
+    ): Promise<void> {
         const databaseId = formatUUID(rawDatabaseId)
         const viewId = generateUUID()
 
-        // 既存のビューを取得するためにブロック情報を取得
-        console.log("[InternalNotionService] Fetching database block info to find default views...")
-        const dbBlock = await this.getBlock(databaseId)
-        const existingViewIds: string[] = dbBlock?.value?.view_ids || []
-
-        console.log("[InternalNotionService] Existing views to remove:", existingViewIds)
+        console.log("[InternalNotionService] Adding gallery view to database:", databaseId)
+        if (existingViewId) {
+            console.log("[InternalNotionService] Will remove existing view:", existingViewId)
+        } else {
+            console.log("[InternalNotionService] No existing view ID provided, will only add gallery view")
+        }
 
         // ギャラリーのプロパティ設定を構築
         const galleryProperties = visibleProperties.map(propId => ({
@@ -46,8 +53,37 @@ export class InternalNotionService {
         // デフォルトでカバー画像を表示しない設定がある場合、それを維持しつつ新しいプロパティを追加
         // ここでは、指定されたプロパティを表示し、カバー画像は「ページコンテンツ」にする設定
 
+        const operations: any[] = []
+
+        // 既存のビューを削除する操作を先に追加（existingViewIdが提供されている場合のみ）
+        if (existingViewId) {
+            console.log(`[InternalNotionService] Preparing to remove existing view: ${existingViewId}`)
+
+            // view_idsリストから削除
+            operations.push({
+                id: databaseId,
+                table: "block",
+                path: ["view_ids"],
+                command: "listRemove",
+                args: {
+                    id: existingViewId
+                }
+            })
+
+            // ビュー自体を削除（aliveフラグをfalseにする）
+            operations.push({
+                id: existingViewId,
+                table: "collection_view",
+                path: [],
+                command: "update",
+                args: {
+                    alive: false
+                }
+            })
+        }
+
         // ギャラリービュー作成の操作
-        const operations: any[] = [
+        operations.push(
             {
                 id: viewId,
                 table: "collection_view",
@@ -86,31 +122,7 @@ export class InternalNotionService {
                     id: viewId
                 }
             }
-        ]
-
-        // 既存のビューを削除する操作を追加
-        existingViewIds.forEach(oldViewId => {
-            // view_idsリストから削除
-            operations.push({
-                id: databaseId,
-                table: "block",
-                path: ["view_ids"],
-                command: "listRemove",
-                args: {
-                    id: oldViewId
-                }
-            })
-            // ビュー自体のaliveフラグをfalseにする（完全に削除）
-            operations.push({
-                id: oldViewId,
-                table: "collection_view",
-                path: [],
-                command: "set",
-                args: {
-                    alive: false
-                }
-            })
-        })
+        )
 
         const transaction = {
             id: generateUUID(),
@@ -186,6 +198,61 @@ export class InternalNotionService {
         } catch (error) {
             console.error("[InternalNotionService] getBlock error:", error)
             return null
+        }
+    }
+
+    /**
+     * データベースのビュー情報を取得する（loadPageChunkを使用）
+     */
+    static async getDatabaseViews(databaseId: string): Promise<string[]> {
+        try {
+            const formattedId = formatUUID(databaseId)
+
+            // loadPageChunkを使ってデータベースページ全体の情報を取得
+            const response = await fetch(`${NOTION_API_V3_BASE}/loadPageChunk`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                credentials: "include",
+                body: JSON.stringify({
+                    pageId: formattedId,
+                    limit: 10,
+                    cursor: { stack: [] },
+                    chunkNumber: 0,
+                    verticalColumns: false
+                })
+            })
+
+            if (!response.ok) {
+                console.warn("[InternalNotionService] getDatabaseViews (loadPageChunk) failed:", response.statusText)
+                return []
+            }
+
+            const data = await response.json()
+            console.log("[InternalNotionService] loadPageChunk response:", JSON.stringify(data, null, 2))
+
+            // recordMap.collection から view_ids を取得
+            if (data.recordMap?.collection?.[formattedId]?.value?.view_ids) {
+                const viewIds = data.recordMap.collection[formattedId].value.view_ids
+                console.log("[InternalNotionService] Found view IDs from loadPageChunk:", viewIds)
+                return viewIds
+            }
+
+            // recordMap.collection_view からビューIDを直接取得
+            if (data.recordMap?.collection_view) {
+                const viewIds = Object.keys(data.recordMap.collection_view)
+                if (viewIds.length > 0) {
+                    console.log("[InternalNotionService] Found view IDs from collection_view:", viewIds)
+                    return viewIds
+                }
+            }
+
+            console.warn("[InternalNotionService] No view_ids found in loadPageChunk response")
+            return []
+        } catch (error) {
+            console.error("[InternalNotionService] getDatabaseViews error:", error)
+            return []
         }
     }
 

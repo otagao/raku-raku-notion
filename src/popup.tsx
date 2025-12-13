@@ -110,12 +110,32 @@ function IndexPopup() {
     // Notionに保存先データベースを作成
     console.log('[handleCreateClipboard] Creating Notion client with databaseId:', config.databaseId)
     const notionClient = createNotionClient(config)
-    const { id: databaseId, url: databaseUrl, properties } = await notionClient.createDatabase(clipboardName)
+    const { id: databaseId, url: databaseUrl, properties, defaultViewId } = await notionClient.createDatabase(clipboardName)
 
     // Internal APIを使用してギャラリービューを追加（自動実行）
     try {
-      // データベース作成直後はInternal APIへの反映に時間がかかる場合があるため、少し待機
-      // await new Promise(resolve => setTimeout(resolve, 2000));
+      console.log('[handleCreateClipboard] Default view ID from URL:', defaultViewId)
+
+      let viewIdToRemove = defaultViewId
+
+      // URLからビューIDが取得できなかった場合、内部APIで取得を試みる
+      if (!viewIdToRemove) {
+        console.log('[handleCreateClipboard] No view ID in URL. Fetching from internal API...')
+        // データベース作成直後は内部APIへの反映に時間がかかるため待機（10秒）
+        console.log('[handleCreateClipboard] Waiting 10 seconds for database to sync to internal API...')
+        await new Promise(resolve => setTimeout(resolve, 10000))
+
+        const existingViews = await InternalNotionService.getDatabaseViews(databaseId)
+        console.log('[handleCreateClipboard] Existing views from internal API:', existingViews)
+
+        if (existingViews.length > 0) {
+          // 最初のビューがデフォルトビュー
+          viewIdToRemove = existingViews[0]
+          console.log('[handleCreateClipboard] Using first view as default view:', viewIdToRemove)
+        } else {
+          console.warn('[handleCreateClipboard] Could not find any views via internal API')
+        }
+      }
 
       // 表示したいプロパティ（URLとメモ）のIDを取得
       const visiblePropIds: string[] = []
@@ -123,7 +143,9 @@ function IndexPopup() {
       if (properties["メモ"]) visiblePropIds.push(properties["メモ"])
 
       console.log('[handleCreateClipboard] Adding gallery view with properties:', visiblePropIds)
-      await InternalNotionService.addGalleryView(databaseId, visiblePropIds)
+      console.log('[handleCreateClipboard] View to remove:', viewIdToRemove)
+      await InternalNotionService.addGalleryView(databaseId, visiblePropIds, viewIdToRemove)
+      console.log('[handleCreateClipboard] Gallery view added and default view removed successfully')
     } catch (error) {
       console.warn('Failed to add gallery view via internal API:', error)
       // 内部APIは失敗しても保存先データベース作成は成功とする（警告のみ）

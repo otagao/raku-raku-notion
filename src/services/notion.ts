@@ -4,6 +4,20 @@ const NOTION_VERSION = "2022-06-28"
 const NOTION_API_BASE = "https://api.notion.com/v1"
 
 /**
+ * NotionのデータベースURLからビューIDを抽出する
+ * @param url - https://www.notion.so/xxx?v={view_id} 形式のURL
+ * @returns view_id または undefined
+ */
+function extractViewIdFromUrl(url: string): string | undefined {
+  try {
+    const urlObj = new URL(url)
+    return urlObj.searchParams.get('v') || undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
  * Notion API service
  * Notion APIとの連携を実装するサービス層
  * OAuth認証と手動トークン入力の両方に対応
@@ -273,7 +287,7 @@ export class NotionService {
    * 新しいフルページデータベースを作成する（クリップボード用）
    * 常にワークスペース直下にコンテナページを作成し、その下にデータベースを配置
    */
-  async createDatabase(name: string): Promise<{ id: string; url: string; properties: Record<string, string> }> {
+  async createDatabase(name: string): Promise<{ id: string; url: string; properties: Record<string, string>; defaultViewId?: string }> {
     try {
       console.log('[NotionService.createDatabase] Creating database:', name)
 
@@ -329,6 +343,7 @@ export class NotionService {
 
       const result = await response.json()
       console.log('[NotionService.createDatabase] Database created successfully:', result)
+      console.log('[NotionService.createDatabase] Database URL:', result.url)
 
       // プロパティIDを抽出
       const propertyIds: Record<string, string> = {}
@@ -340,10 +355,20 @@ export class NotionService {
         })
       }
 
+      // URLからデフォルトビューIDを抽出
+      const defaultViewId = extractViewIdFromUrl(result.url)
+      console.log('[NotionService.createDatabase] Extracted default view ID from URL:', defaultViewId)
+
+      // URLにビューIDが含まれていない場合、データベース作成後に内部APIで取得する必要がある
+      if (!defaultViewId) {
+        console.warn('[NotionService.createDatabase] No view ID found in URL. Will need to fetch from internal API.')
+      }
+
       return {
         id: result.id,
         url: result.url,
-        properties: propertyIds
+        properties: propertyIds,
+        defaultViewId
       }
     } catch (error) {
       console.error('[NotionService.createDatabase] Error creating database:', error)
