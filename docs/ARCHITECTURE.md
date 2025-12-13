@@ -60,9 +60,11 @@ raku-raku-notion/
 
 - **HomeScreen**: エントリーポイント、クリップボタンと導線
 - **CreateClipboardScreen**: クリップボード作成フォーム
-- **ClipboardListScreen**: クリップボード一覧表示
+- **ClipboardListScreen**: クリップボード一覧表示＋既存データベース取り込み
 - **SelectClipboardScreen**: クリップ先選択
 - **SettingsScreen**: Notion認証設定
+- **ClippingProgressScreen**: クリップ実行中の進行状況表示
+- **MemoDialog**: クリップ時のメモ入力ダイアログ
 
 画面間の遷移は `popup.tsx` のルーティングロジックで管理されます。
 
@@ -106,7 +108,7 @@ class NotionService {
 
   // データベース操作
   createDatabase(name: string): Promise<{id: string; url: string; properties: Record<string, string>; defaultViewId?: string}>
-  listDatabases(): Promise<any[]>
+  listDatabases(): Promise<NotionDatabaseSummary[]>
   getDatabaseSchema(databaseId: string): Promise<any>
 
   // ページ操作
@@ -154,7 +156,9 @@ class InternalNotionService {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.type) {
     case 'clip-page':
-      // ページをクリップ
+      // ページをクリップ（進行状況メッセージを送信）
+      // CLIP_PROGRESS: 進行状況更新
+      // CLIP_COMPLETE: 完了通知
     case 'create-database':
       // データベース作成
     case 'start-oauth':
@@ -184,7 +188,13 @@ popup.tsx (handleCreateClipboard)
   ↓
 NotionService.createDatabase() ← Notion API
   ↓
+InternalNotionService.addGalleryView() ← Notion Internal API (v3)
+  - ギャラリービュー追加
+  - デフォルトビュー削除
+  ↓
 StorageService.addClipboard() ← Chrome Storage
+  ↓
+refreshAvailableDatabases() (既存DB一覧を更新)
   ↓
 ClipboardListScreen (画面遷移)
 ```
@@ -198,15 +208,59 @@ popup.tsx (handleClipPage)
   ↓
 SelectClipboardScreen (複数の場合)
   ↓
+MemoDialog (メモ入力)
+  ↓
 popup.tsx (performClip)
   ↓
+ClippingProgressScreen (進行状況表示開始)
+  ↓
 Background Service Worker (clip-page message)
+  - CLIP_PROGRESS: "クリップの準備をしています..."
+  - CLIP_PROGRESS: "ページの情報を取得中..."
+  ↓
+Content Script (extract-content message) ← タブから本文・画像抽出
+  ↓
+Background Service Worker
+  - CLIP_PROGRESS: "Notionにクリップ中..."
   ↓
 NotionService.createWebClip() ← Notion API
   ↓
+Background Service Worker
+  - CLIP_COMPLETE: { success: true }
+  ↓
+popup.tsx (メッセージ受信)
+  ↓
 StorageService.updateClipboardLastClipped()
   ↓
-Success Message
+ClippingProgressScreen: "✓ クリップ完了！"
+  ↓
+1.5秒後に自動的に閉じる
+```
+
+### 既存データベース取り込みフロー
+
+```
+ClipboardListScreen表示時
+  ↓
+popup.tsx (refreshAvailableDatabases)
+  ↓
+NotionService.listDatabases() ← Notion API
+  - ワークスペース内の全データベースを取得
+  ↓
+既存クリップボードIDと照合してフィルタリング
+  ↓
+未登録のデータベースのみ表示
+  ↓
+User Click ("クリップボードに追加" ボタン)
+  ↓
+popup.tsx (handleRegisterExistingDatabase)
+  ↓
+StorageService.addClipboard()
+  - createdByExtension: false (手動登録)
+  ↓
+refreshAvailableDatabases() (一覧を更新)
+  ↓
+ClipboardListScreen (登録済みとして表示)
 ```
 
 ### OAuth認証フロー
@@ -268,6 +322,16 @@ interface NotionConfig {
   workspaceId?: string
   workspaceName?: string
   botId?: string
+}
+
+interface NotionDatabaseSummary {
+  id: string                   // データベースID
+  title: string                // データベース名
+  url?: string                 // データベースURL
+  description?: string         // 説明
+  iconEmoji?: string           // アイコン絵文字
+  lastEditedTime?: string      // 最終更新日時
+  createdTime?: string         // 作成日時
 }
 ```
 

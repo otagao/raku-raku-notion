@@ -133,6 +133,7 @@ workers/                   # Cloudflare Workers OAuth バックエンド
 - `Clipboard`: クリップボード定義
 - `NotionConfig`: Notion認証設定 (OAuth/手動トークン両対応)
 - `WebClipData`: Webクリップデータ
+- `NotionDatabaseSummary`: 既存データベースの要約情報（タイトル、URL、アイコンなど）
 
 ### 3. 画面遷移フロー
 
@@ -140,13 +141,26 @@ workers/                   # Cloudflare Workers OAuth バックエンド
 HomeScreen
   ├─> 📎 このページをクリップ
   │     ├─> (クリップボードが0個) → CreateClipboardScreen
-  │     ├─> (クリップボードが1個) → 自動クリップ → 完了
-  │     └─> (クリップボードが複数) → SelectClipboardScreen → クリップ → 完了
+  │     ├─> (クリップボードが1個) → MemoDialog → ClippingProgressScreen → 完了
+  │     └─> (クリップボードが複数) → SelectClipboardScreen → MemoDialog → ClippingProgressScreen → 完了
   ├─> ClipboardListScreen (クリップボード一覧を見る)
+  │     ├─> 登録済みクリップボード一覧表示
+  │     └─> Notionの既存データベース一覧表示（未登録のもののみ）
+  │           └─> クリップボードに追加可能
   └─> SettingsScreen (⚙️設定アイコン)
         ├─> OAuth認証フロー
         └─> 手動トークン入力
 ```
+
+**クリップ実行フロー**:
+1. ユーザーがクリップボードを選択（または自動選択）
+2. MemoDialogでメモを入力（省略可能）
+3. ClippingProgressScreenで進行状況を表示
+   - 「クリップの準備をしています...」
+   - 「ページの情報を取得中...」
+   - 「Notionにクリップ中...」
+   - 「✓ クリップ完了！」または「✗ クリップ失敗: エラーメッセージ」
+4. 成功時は1.5秒後に自動的に閉じる、失敗時は3秒後にホーム画面に戻る
 
 ### 4. OAuth認証フロー
 
@@ -167,6 +181,31 @@ HomeScreen
 5. `oauth-callback.js` → backgroundに`complete-oauth`メッセージ（tokenResponseのみ）
 6. backgroundが設定保存、`raku-oauth-pending`削除
 7. SettingsScreenが`chrome.storage.onChanged`で完了を検出、成功メッセージ表示
+
+### 5. 既存データベース取り込み機能
+
+**機能概要**:
+- Notion APIを使用して、ワークスペース内の既存データベース一覧を取得
+- まだクリップボードとして登録されていないデータベースのみを表示
+- ワンクリックでクリップボードに追加可能
+
+**実装詳細**:
+- `NotionService.listDatabases()`: 既存データベース一覧を`NotionDatabaseSummary`型で取得
+- `ClipboardListScreen`: 登録済みクリップボードと未登録の既存データベースを分けて表示
+- 自動更新: データベース作成/削除時に既存データベースリストを自動更新（`refreshAvailableDatabases`）
+
+### 6. ギャラリービュー自動設定機能
+
+**機能概要**:
+- クリップボード（データベース）作成時に、Notion内部API (v3) を使用してギャラリービューを自動追加
+- デフォルトのテーブルビューを自動削除し、ギャラリービューのみを表示
+
+**実装詳細**:
+- `InternalNotionService.addGalleryView()`: ギャラリービュー追加とデフォルトビュー削除を実行
+- URLから取得したビューIDを使用してデフォルトビューを特定
+- URLにビューIDがない場合は、内部APIで取得（10秒待機後）
+- 表示プロパティ: URL、メモ
+- 内部API失敗時も警告のみで、クリップボード作成は成功とする
 
 ## コーディング規約
 
