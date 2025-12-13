@@ -85,7 +85,8 @@ src/
 ├── contents/              # Content Scripts（ページコンテンツ抽出）
 ├── services/              # ビジネスロジック層
 │   ├── storage.ts         # Chrome Storage API ラッパー
-│   └── notion.ts          # Notion API クライアント
+│   ├── notion.ts          # Notion 公式API (v1) クライアント
+│   └── internal-notion.ts # Notion 内部API (v3) クライアント（ギャラリービュー操作）
 ├── background/            # Service Worker（OAuth + API呼び出し）
 ├── utils/                 # ユーティリティ（oauth.ts）
 └── types/                 # TypeScript型定義

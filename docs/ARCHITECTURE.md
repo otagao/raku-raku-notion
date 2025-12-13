@@ -16,8 +16,9 @@ raku-raku-notion/
 │   │   ├── SettingsScreen.tsx
 │   │   └── DemoScreen.tsx
 │   ├── services/              # ビジネスロジック層
-│   │   ├── storage.ts
-│   │   └── notion.ts
+│   │   ├── storage.ts         # Chrome Storage API ラッパー
+│   │   ├── notion.ts          # Notion 公式API (v1) クライアント
+│   │   └── internal-notion.ts # Notion 内部API (v3) クライアント
 │   ├── background/            # バックグラウンドスクリプト
 │   │   └── index.ts
 │   ├── utils/                 # ユーティリティ関数
@@ -95,7 +96,7 @@ export const StorageService = {
 
 #### NotionService (`notion.ts`)
 
-Notion API クライアント：
+Notion 公式API (v1) クライアント：
 
 ```typescript
 class NotionService {
@@ -104,7 +105,7 @@ class NotionService {
   validateToken(): Promise<{valid: boolean; error?: string}>
 
   // データベース操作
-  createDatabase(name: string): Promise<{id: string; url: string}>
+  createDatabase(name: string): Promise<{id: string; url: string; properties: Record<string, string>; defaultViewId?: string}>
   listDatabases(): Promise<any[]>
   getDatabaseSchema(databaseId: string): Promise<any>
 
@@ -113,6 +114,33 @@ class NotionService {
   createPage(data: NotionPageData): Promise<string>
 }
 ```
+
+#### InternalNotionService (`internal-notion.ts`)
+
+Notion 内部API (v3) クライアント - ギャラリービュー操作用：
+
+```typescript
+class InternalNotionService {
+  // ビュー操作
+  static addGalleryView(
+    databaseId: string,
+    visibleProperties: string[],
+    existingViewId?: string
+  ): Promise<void>
+
+  static getDatabaseViews(databaseId: string): Promise<string[]>
+
+  // 認証
+  static loadUserContent(): Promise<{user?: NotionUser; spaces: NotionSpace[]}>
+  static checkConnection(): Promise<boolean>
+}
+```
+
+**重要**: 内部APIはNotionのブラウザセッション（Cookie）を利用するため、拡張機能内でのみ動作します。主な用途：
+
+- 新規データベースにギャラリービューを追加
+- デフォルトビューの削除
+- ビュー情報の取得（`loadPageChunk`エンドポイント使用）
 
 ### 3. バックグラウンド層 (Background)
 
