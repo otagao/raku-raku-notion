@@ -124,7 +124,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
 
         // 接続状態を確認
         if ((config.authMethod === 'oauth' && config.accessToken) ||
-            (config.authMethod === 'manual' && config.apiKey)) {
+          (config.authMethod === 'manual' && config.apiKey)) {
           await checkConnection(config)
         }
       }
@@ -318,7 +318,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
         <div>
           <p style={{ marginBottom: '16px', color: '#666' }}>
             NotionのOAuth認証を使用してアクセス許可を付与します。<br />
-            クリップボード作成時に自動的にデータベースを作成します。
+            保存先データベース作成時に自動的にデータベースを作成します。
           </p>
           {!isConnected && (
             <>
@@ -380,7 +380,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
               >
                 Notion Integration
               </a>
-              から作成できます。クリップボード作成時に自動的にデータベースを作成します。
+              から作成できます。保存先データベース作成時に自動的にデータベースを作成します。
             </small>
           </div>
 

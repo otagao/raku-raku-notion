@@ -25,7 +25,7 @@ const SelectClipboardScreen: FC<SelectClipboardScreenProps> = ({
         <div className="empty-state">
           <div className="empty-state-icon">📋</div>
           <div className="empty-state-text">
-            クリップボードがまだありません
+            保存先データベースがまだありません
           </div>
           <button
             className="button"
@@ -41,7 +41,7 @@ const SelectClipboardScreen: FC<SelectClipboardScreenProps> = ({
             color: '#666',
             fontSize: '14px'
           }}>
-            このページを保存するクリップボードを選択してください
+            このページを保存する保存先データベースを選択してください
           </p>
 
           {clipboards.map((clipboard) => (
@@ -89,7 +89,7 @@ const SelectClipboardScreen: FC<SelectClipboardScreenProps> = ({
             onClick={() => onNavigate('create-clipboard')}
             style={{ marginTop: '16px' }}
           >
-            + 新しいクリップボードを追加
+            + 新しい保存先データベースを追加
           </button>
         </div>
       )}

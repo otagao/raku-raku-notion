@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import HomeScreen from "~screens/HomeScreen"
 import CreateFormScreen from "~screens/CreateFormScreen"
 import FormListScreen from "~screens/FormListScreen"
@@ -7,10 +7,12 @@ import ClipboardListScreen from "~screens/ClipboardListScreen"
 import SelectClipboardScreen from "~screens/SelectClipboardScreen"
 import DemoScreen from "~screens/DemoScreen"
 import { SettingsScreen } from "~screens/SettingsScreen"
+import ClippingProgressScreen from "~screens/ClippingProgressScreen"
 import MemoDialog from "~components/MemoDialog"
 import { StorageService } from "~services/storage"
 import { createNotionClient } from "~services/notion"
-import type { Screen, Form, Clipboard } from "~types"
+import { InternalNotionService } from "~services/internal-notion"
+import type { Screen, Form, Clipboard, NotionDatabaseSummary } from "~types"
 import "~styles/global.css"
 
 function IndexPopup() {
@@ -22,15 +24,60 @@ function IndexPopup() {
   const [showMemoDialog, setShowMemoDialog] = useState(false)
   const [pendingClipDatabaseId, setPendingClipDatabaseId] = useState<string | undefined>()
   const [pendingClipboardName, setPendingClipboardName] = useState<string | undefined>()
+  const [isClipping, setIsClipping] = useState(false)
+  const [clipProgress, setClipProgress] = useState("")
+  const [internalTestResult, setInternalTestResult] = useState<string>("")
+  const [testDatabaseId, setTestDatabaseId] = useState<string>("")
+  const [availableDatabases, setAvailableDatabases] = useState<NotionDatabaseSummary[]>([])
+  const [isLoadingDatabases, setIsLoadingDatabases] = useState(false)
+  const [databaseError, setDatabaseError] = useState<string | null>(null)
 
   useEffect(() => {
     initializeAndLoadData()
+
+    const messageListener = (message, sender, sendResponse) => {
+      if (message.type === 'CLIP_PROGRESS') {
+        setClipProgress(message.status);
+      } else if (message.type === 'CLIP_COMPLETE') {
+        if (message.success) {
+          if (message.databaseId) {
+            StorageService.getClipboardByDatabaseId(message.databaseId).then(clipboard => {
+              if (clipboard) {
+                StorageService.updateClipboardLastClipped(clipboard.id);
+              }
+            });
+          }
+          setClipProgress('✓ クリップ完了！');
+
+          // 成功時は1.5秒後に自動的に閉じる
+          setTimeout(() => {
+            window.close();
+          }, 1500);
+        } else {
+          setClipProgress(`✗ クリップ失敗: ${message.error || '不明なエラー'}`);
+
+          // 失敗時は3秒後に閉じる（エラーメッセージを読む時間を確保）
+          setTimeout(() => {
+            setIsClipping(false);
+            setCurrentScreen('home');
+          }, 3000);
+        }
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(messageListener);
+
+    return () => {
+      chrome.runtime.onMessage.removeListener(messageListener);
+    };
   }, [])
 
   const initializeAndLoadData = async () => {
     await StorageService.initializeMockData()
     await loadForms()
+    // 保存済み保存先データベースをロード
     await loadClipboards()
+    await refreshAvailableDatabases({ silent: true })
   }
 
   const loadForms = async () => {
@@ -42,6 +89,40 @@ function IndexPopup() {
     const loadedClipboards = await StorageService.getClipboards()
     setClipboards(loadedClipboards)
   }
+
+  const refreshAvailableDatabases = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (!silent) {
+      setDatabaseError(null)
+    }
+    setIsLoadingDatabases(true)
+    try {
+      const config = await StorageService.getNotionConfig()
+
+      if (!config.accessToken && !config.apiKey) {
+        setAvailableDatabases([])
+        if (!silent) {
+          setDatabaseError('Notionアカウントとの連携が必要です')
+        }
+        return
+      }
+
+      const notionClient = createNotionClient(config)
+      const [databases, storedClipboards] = await Promise.all([
+        notionClient.listDatabases(),
+        StorageService.getClipboards()
+      ])
+      const existingIds = new Set(storedClipboards.map(cb => cb.notionDatabaseId))
+      const filtered = databases.filter(db => !existingIds.has(db.id))
+      setAvailableDatabases(filtered)
+    } catch (error) {
+      console.error('Failed to refresh available databases:', error)
+      if (!silent) {
+        setDatabaseError(error instanceof Error ? error.message : 'データベースの取得に失敗しました')
+      }
+    } finally {
+      setIsLoadingDatabases(false)
+    }
+  }, [])
 
   const handleNavigate = (screen: string, idParam?: string) => {
     setCurrentScreen(screen as Screen)
@@ -70,12 +151,51 @@ function IndexPopup() {
       throw new Error('Notion連携が必要です')
     }
 
-    // Notionにデータベースを作成
+    // Notionに保存先データベースを作成
     console.log('[handleCreateClipboard] Creating Notion client with databaseId:', config.databaseId)
     const notionClient = createNotionClient(config)
-    const { id: databaseId, url: databaseUrl } = await notionClient.createDatabase(clipboardName)
+    const { id: databaseId, url: databaseUrl, properties, defaultViewId } = await notionClient.createDatabase(clipboardName)
 
-    // クリップボードを保存
+    // Internal APIを使用してギャラリービューを追加（自動実行）
+    try {
+      console.log('[handleCreateClipboard] Default view ID from URL:', defaultViewId)
+
+      let viewIdToRemove = defaultViewId
+
+      // URLからビューIDが取得できなかった場合、内部APIで取得を試みる
+      if (!viewIdToRemove) {
+        console.log('[handleCreateClipboard] No view ID in URL. Fetching from internal API...')
+        // データベース作成直後は内部APIへの反映に時間がかかるため待機（10秒）
+        console.log('[handleCreateClipboard] Waiting 10 seconds for database to sync to internal API...')
+        await new Promise(resolve => setTimeout(resolve, 10000))
+
+        const existingViews = await InternalNotionService.getDatabaseViews(databaseId)
+        console.log('[handleCreateClipboard] Existing views from internal API:', existingViews)
+
+        if (existingViews.length > 0) {
+          // 最初のビューがデフォルトビュー
+          viewIdToRemove = existingViews[0]
+          console.log('[handleCreateClipboard] Using first view as default view:', viewIdToRemove)
+        } else {
+          console.warn('[handleCreateClipboard] Could not find any views via internal API')
+        }
+      }
+
+      // 表示したいプロパティ（URLとメモ）のIDを取得
+      const visiblePropIds: string[] = []
+      if (properties["URL"]) visiblePropIds.push(properties["URL"])
+      if (properties["メモ"]) visiblePropIds.push(properties["メモ"])
+
+      console.log('[handleCreateClipboard] Adding gallery view with properties:', visiblePropIds)
+      console.log('[handleCreateClipboard] View to remove:', viewIdToRemove)
+      await InternalNotionService.addGalleryView(databaseId, visiblePropIds, viewIdToRemove)
+      console.log('[handleCreateClipboard] Gallery view added and default view removed successfully')
+    } catch (error) {
+      console.warn('Failed to add gallery view via internal API:', error)
+      // 内部APIは失敗しても保存先データベース作成は成功とする（警告のみ）
+    }
+
+    // 保存先データベースを保存
     await StorageService.addClipboard({
       name: clipboardName,
       notionDatabaseId: databaseId,
@@ -84,22 +204,69 @@ function IndexPopup() {
     })
 
     await loadClipboards()
+    await refreshAvailableDatabases({ silent: true })
+    console.log('[handleCreateClipboard] 保存先データベース created:', clipboardName)
   }
 
   const handleDeleteClipboard = async (clipboardId: string) => {
     await StorageService.deleteClipboard(clipboardId)
     await loadClipboards()
+    await refreshAvailableDatabases({ silent: true })
+  }
+
+  const handleRegisterExistingDatabase = async (database: NotionDatabaseSummary) => {
+    await StorageService.addClipboard({
+      name: database.title || '無題のデータベース',
+      notionDatabaseId: database.id,
+      notionDatabaseUrl: database.url,
+      createdByExtension: false
+    })
+    await loadClipboards()
+    await refreshAvailableDatabases({ silent: true })
+  }
+
+
+  const handleTestInternalApi = async () => {
+    setInternalTestResult("接続テスト中...")
+    try {
+      const { user, spaces } = await InternalNotionService.loadUserContent()
+      const spaceNames = spaces.map(s => s.name).join(", ")
+      const resultMsg = user
+        ? `成功: ${user.email} (${user.given_name || ''})\nスペース: ${spaceNames}`
+        : "成功: ユーザー情報なし"
+      setInternalTestResult(resultMsg)
+      console.log('Internal API Test Success:', { user, spaces })
+    } catch (error) {
+      setInternalTestResult(`エラー: ${error instanceof Error ? error.message : '不明なエラー'}`)
+      console.error('Internal API Test Failed:', error)
+    }
+  }
+
+
+  const handleAddGalleryView = async () => {
+    if (!testDatabaseId) {
+      setInternalTestResult("エラー: データベースIDを入力してください")
+      return
+    }
+    setInternalTestResult("ギャラリービュー追加中...")
+    try {
+      await InternalNotionService.addGalleryView(testDatabaseId)
+      setInternalTestResult(`成功: ギャラリービューを追加しました。\nDatabase ID: ${testDatabaseId}\nNotionで確認してください。`)
+    } catch (error) {
+      setInternalTestResult(`エラー: ${error instanceof Error ? error.message : '不明なエラー'}`)
+      console.error('Add Gallery View Failed:', error)
+    }
   }
 
   const handleClipPage = async () => {
-    // クリップボードがない場合
+    // 保存先データベースがない場合
     if (clipboards.length === 0) {
-      alert('クリップボードを先に作成してください')
+      alert('保存先データベースを先に作成してください')
       handleNavigate('create-clipboard')
       return
     }
 
-    // クリップボードが1つだけの場合は自動選択してメモダイアログを表示
+    // 保存先データベースが1つだけの場合は自動選択してメモダイアログを表示
     if (clipboards.length === 1) {
       setPendingClipDatabaseId(clipboards[0].notionDatabaseId)
       setPendingClipboardName(clipboards[0].name)
@@ -112,7 +279,7 @@ function IndexPopup() {
   }
 
   const handleSelectClipboard = async (databaseId: string) => {
-    // 選択されたクリップボードの名前を取得
+    // 選択された保存先データベースの名前を取得
     const selectedClipboard = clipboards.find(cb => cb.notionDatabaseId === databaseId)
 
     // メモダイアログを表示
@@ -136,16 +303,19 @@ function IndexPopup() {
     setPendingClipboardName(undefined)
   }
 
-  const performClip = async (databaseId: string, memo?: string) => {
-    try {
-      const tabInfo = await StorageService.getCurrentTabInfo()
+  const performClip = (databaseId: string, memo?: string) => {
+    setIsClipping(true);
+    setClipProgress('クリップの準備をしています...');
+
+    StorageService.getCurrentTabInfo().then(tabInfo => {
       if (!tabInfo) {
-        alert('ページ情報を取得できませんでした')
-        return
+        alert('ページ情報を取得できませんでした');
+        setIsClipping(false);
+        return;
       }
 
       // Backgroundにメッセージを送信してクリップを実行（tabIdとmemoを含む）
-      const response = await chrome.runtime.sendMessage({
+      chrome.runtime.sendMessage({
         type: 'clip-page',
         data: {
           title: tabInfo.title,
@@ -154,24 +324,12 @@ function IndexPopup() {
           tabId: tabInfo.tabId, // Content Scriptからコンテンツを抽出するためのタブID
           memo: memo || undefined // メモがあれば含める
         }
-      })
-
-      if (response.success) {
-        // 最終クリップ日時を更新
-        const clipboard = await StorageService.getClipboardByDatabaseId(databaseId)
-        if (clipboard) {
-          await StorageService.updateClipboardLastClipped(clipboard.id)
-        }
-
-        alert('クリップしました！')
-        window.close()
-      } else {
-        alert(`クリップに失敗しました: ${response.error}`)
-      }
-    } catch (error) {
-      console.error('Clip error:', error)
-      alert(`エラーが発生しました: ${error instanceof Error ? error.message : '不明なエラー'}`)
-    }
+      });
+    }).catch(error => {
+      console.error('Clip error:', error);
+      alert(`エラーが発生しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
+      setIsClipping(false);
+    });
   }
 
   const renderScreen = () => {
@@ -200,6 +358,11 @@ function IndexPopup() {
             clipboards={clipboards}
             onNavigate={handleNavigate}
             onDeleteClipboard={handleDeleteClipboard}
+            availableDatabases={availableDatabases}
+            onImportDatabase={handleRegisterExistingDatabase}
+            onRefreshDatabases={refreshAvailableDatabases}
+            isLoadingDatabases={isLoadingDatabases}
+            databaseError={databaseError}
           />
         )
       case 'select-clipboard':
@@ -213,7 +376,67 @@ function IndexPopup() {
       case 'demo':
         return <DemoScreen formId={selectedFormId} onNavigate={handleNavigate} />
       case 'settings':
-        return <SettingsScreen onBack={() => handleNavigate('home')} />
+        return (
+          <>
+            <SettingsScreen onBack={() => handleNavigate('home')} />
+            <div style={{ padding: '20px', borderTop: '1px solid #eee' }}>
+              <h3>内部APIテスト</h3>
+              <button
+                onClick={handleTestInternalApi}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#444',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                接続テスト実行 (Read-Only)
+              </button>
+
+              <div style={{ marginTop: '15px', borderTop: '1px dashed #ccc', paddingTop: '10px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px' }}>
+                  Target Database ID (Test):
+                </label>
+                <input
+                  type="text"
+                  value={testDatabaseId}
+                  onChange={(e) => setTestDatabaseId(e.target.value)}
+                  placeholder="xxxxxxxx-xxxx-..."
+                  style={{ width: '100%', padding: '5px', marginBottom: '5px' }}
+                />
+                <button
+                  onClick={handleAddGalleryView}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#d9534f', // Danger color for write action
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    width: '100%'
+                  }}
+                >
+                  ギャラリービュー追加 (Write)
+                </button>
+              </div>
+
+              {internalTestResult && (
+                <pre style={{
+                  marginTop: '10px',
+                  padding: '10px',
+                  backgroundColor: '#f5f5f5',
+                  fontSize: '12px',
+                  overflow: 'auto',
+                  border: '1px solid #ddd'
+                }}>
+                  {internalTestResult}
+                </pre>
+              )}
+            </div>
+          </>
+        )
       default:
         return <HomeScreen onNavigate={handleNavigate} onClipPage={handleClipPage} />
     }
@@ -221,13 +444,19 @@ function IndexPopup() {
 
   return (
     <>
-      {renderScreen()}
-      {showMemoDialog && (
-        <MemoDialog
-          onConfirm={handleMemoConfirm}
-          onCancel={handleMemoCancel}
-          clipboardName={pendingClipboardName}
-        />
+      {isClipping ? (
+        <ClippingProgressScreen progressMessage={clipProgress} />
+      ) : (
+        <>
+          {renderScreen()}
+          {showMemoDialog && (
+            <MemoDialog
+              onConfirm={handleMemoConfirm}
+              onCancel={handleMemoCancel}
+              clipboardName={pendingClipboardName}
+            />
+          )}
+        </>
       )}
     </>
   )

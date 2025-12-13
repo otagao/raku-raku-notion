@@ -51,14 +51,14 @@ const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage }) => {
             className="button button-secondary"
             onClick={() => onNavigate('clipboard-list')}
           >
-            クリップボード一覧を見る
+            保存先データベース一覧を見る
           </button>
           <button
             className="button button-secondary"
             onClick={() => onNavigate('create-clipboard')}
             style={{ marginTop: '12px' }}
           >
-            + 新しいクリップボードを作成
+            + 新しい保存先データベースを作成
           </button>
         </div>
       </div>

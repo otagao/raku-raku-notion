@@ -75,7 +75,7 @@ async function handleMessage(
         break
 
       case "clip-page":
-        await handleClipPage(message.data, sendResponse)
+        await handleClipPage(message.data, sender, sendResponse)
         break
 
       case "create-database":
@@ -294,15 +294,40 @@ async function handleCompleteOAuth(
  */
 async function handleClipPage(
   data: { title: string; url: string; databaseId: string; tabId?: number; content?: string; thumbnail?: string; memo?: string },
+  sender: chrome.runtime.MessageSender,
   sendResponse: (response?: any) => void
 ) {
+  const sendProgress = (status: string) => {
+    // Popupウィンドウに進行状況を送信
+    chrome.runtime.sendMessage({
+      type: 'CLIP_PROGRESS',
+      status,
+    }).catch(() => {
+      // Popupが閉じられている場合は無視
+    });
+  };
+
+  const sendCompletion = (success: boolean, error?: string) => {
+    // Popupウィンドウに完了通知を送信
+    chrome.runtime.sendMessage({
+      type: 'CLIP_COMPLETE',
+      success,
+      databaseId: data.databaseId,
+      error
+    }).catch(() => {
+      // Popupが閉じられている場合は無視
+    });
+  };
+
   try {
     const config = await StorageService.getNotionConfig()
 
     if (!config.apiKey && !config.accessToken) {
+      const errorMsg = "Notion API key or access token is not configured"
+      sendCompletion(false, errorMsg);
       sendResponse({
         success: false,
-        error: "Notion API key or access token is not configured"
+        error: errorMsg
       })
       return
     }
@@ -312,6 +337,7 @@ async function handleClipPage(
     if (data.tabId) {
       try {
         console.log('[Background] Extracting content from tab:', data.tabId)
+        sendProgress('ページの情報を取得中...');
         const response = await chrome.tabs.sendMessage(data.tabId, { type: 'extract-content' })
 
         if (response?.success && response.content) {
@@ -343,17 +369,21 @@ async function handleClipPage(
       memo: data.memo
     }
 
+    sendProgress('Notionにクリップ中...');
     const pageId = await notionClient.createWebClip(webClipData)
 
+    sendCompletion(true);
     sendResponse({
       success: true,
       pageId
     })
   } catch (error) {
     console.error("Failed to clip page:", error)
+    const errorMsg = error instanceof Error ? error.message : "Failed to clip page"
+    sendCompletion(false, errorMsg);
     sendResponse({
       success: false,
-      error: error instanceof Error ? error.message : "Failed to clip page"
+      error: errorMsg
     })
   }
 }

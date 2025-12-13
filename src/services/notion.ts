@@ -1,7 +1,21 @@
-import type { NotionConfig, NotionPageData, WebClipData } from "~types"
+import type { NotionConfig, NotionDatabaseSummary, NotionPageData, WebClipData } from "~types"
 
 const NOTION_VERSION = "2022-06-28"
 const NOTION_API_BASE = "https://api.notion.com/v1"
+
+/**
+ * NotionのデータベースURLからビューIDを抽出する
+ * @param url - https://www.notion.so/xxx?v={view_id} 形式のURL
+ * @returns view_id または undefined
+ */
+function extractViewIdFromUrl(url: string): string | undefined {
+  try {
+    const urlObj = new URL(url)
+    return urlObj.searchParams.get('v') || undefined
+  } catch {
+    return undefined
+  }
+}
 
 /**
  * Notion API service
@@ -121,14 +135,14 @@ export class NotionService {
           // メモがある場合、ページコンテンツとして追加
           children: memo
             ? [
-                {
-                  object: "block",
-                  type: "paragraph",
-                  paragraph: {
-                    rich_text: [{ text: { content: memo } }]
-                  }
+              {
+                object: "block",
+                type: "paragraph",
+                paragraph: {
+                  rich_text: [{ text: { content: memo } }]
                 }
-              ]
+              }
+            ]
             : []
         })
       })
@@ -200,7 +214,7 @@ export class NotionService {
   /**
    * 利用可能なデータベース一覧を取得する（OAuth時に有用）
    */
-  async listDatabases(): Promise<any[]> {
+  async listDatabases(): Promise<NotionDatabaseSummary[]> {
     try {
       const response = await fetch(`${NOTION_API_BASE}/search`, {
         method: "POST",
@@ -222,11 +236,33 @@ export class NotionService {
       }
 
       const result = await response.json()
-      return result.results || []
+      const databases = result.results || []
+
+      return databases
+        .filter((item: any) => item.object === "database")
+        .map((db: any): NotionDatabaseSummary => ({
+          id: db.id,
+          title: this.getPlainText(db.title) || '無題のデータベース',
+          url: db.url,
+          description: this.getPlainText(db.description),
+          iconEmoji: db.icon?.type === "emoji" ? db.icon.emoji : undefined,
+          lastEditedTime: db.last_edited_time,
+          createdTime: db.created_time
+        }))
     } catch (error) {
       console.error('Error listing databases:', error)
       throw error
     }
+  }
+
+  private getPlainText(richText?: Array<{ plain_text?: string; text?: { content?: string } }>): string {
+    if (!richText || richText.length === 0) {
+      return ""
+    }
+    return richText
+      .map(block => block?.plain_text || block?.text?.content || "")
+      .join("")
+      .trim()
   }
 
   /**
@@ -275,7 +311,7 @@ export class NotionService {
    * 新しいフルページデータベースを作成する（クリップボード用）
    * 常にワークスペース直下にコンテナページを作成し、その下にデータベースを配置
    */
-  async createDatabase(name: string): Promise<{ id: string; url: string }> {
+  async createDatabase(name: string): Promise<{ id: string; url: string; properties: Record<string, string>; defaultViewId?: string }> {
     try {
       console.log('[NotionService.createDatabase] Creating database:', name)
 
@@ -331,10 +367,32 @@ export class NotionService {
 
       const result = await response.json()
       console.log('[NotionService.createDatabase] Database created successfully:', result)
+      console.log('[NotionService.createDatabase] Database URL:', result.url)
+
+      // プロパティIDを抽出
+      const propertyIds: Record<string, string> = {}
+      if (result.properties) {
+        Object.keys(result.properties).forEach(key => {
+          if (result.properties[key] && result.properties[key].id) {
+            propertyIds[key] = result.properties[key].id
+          }
+        })
+      }
+
+      // URLからデフォルトビューIDを抽出
+      const defaultViewId = extractViewIdFromUrl(result.url)
+      console.log('[NotionService.createDatabase] Extracted default view ID from URL:', defaultViewId)
+
+      // URLにビューIDが含まれていない場合、データベース作成後に内部APIで取得する必要がある
+      if (!defaultViewId) {
+        console.warn('[NotionService.createDatabase] No view ID found in URL. Will need to fetch from internal API.')
+      }
 
       return {
         id: result.id,
-        url: result.url
+        url: result.url,
+        properties: propertyIds,
+        defaultViewId
       }
     } catch (error) {
       console.error('[NotionService.createDatabase] Error creating database:', error)
