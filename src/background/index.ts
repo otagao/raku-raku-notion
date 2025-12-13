@@ -298,32 +298,36 @@ async function handleClipPage(
   sendResponse: (response?: any) => void
 ) {
   const sendProgress = (status: string) => {
-    if (sender.tab?.id) {
-      chrome.tabs.sendMessage(sender.tab.id, {
-        type: 'CLIP_PROGRESS',
-        status,
-      });
-    }
+    // Popupウィンドウに進行状況を送信
+    chrome.runtime.sendMessage({
+      type: 'CLIP_PROGRESS',
+      status,
+    }).catch(() => {
+      // Popupが閉じられている場合は無視
+    });
   };
 
-  const sendCompletion = (success: boolean) => {
-    if (sender.tab?.id) {
-      chrome.tabs.sendMessage(sender.tab.id, {
-        type: 'CLIP_COMPLETE',
-        success,
-        databaseId: data.databaseId,
-      });
-    }
+  const sendCompletion = (success: boolean, error?: string) => {
+    // Popupウィンドウに完了通知を送信
+    chrome.runtime.sendMessage({
+      type: 'CLIP_COMPLETE',
+      success,
+      databaseId: data.databaseId,
+      error
+    }).catch(() => {
+      // Popupが閉じられている場合は無視
+    });
   };
 
   try {
     const config = await StorageService.getNotionConfig()
 
     if (!config.apiKey && !config.accessToken) {
-      sendCompletion(false);
+      const errorMsg = "Notion API key or access token is not configured"
+      sendCompletion(false, errorMsg);
       sendResponse({
         success: false,
-        error: "Notion API key or access token is not configured"
+        error: errorMsg
       })
       return
     }
@@ -375,10 +379,11 @@ async function handleClipPage(
     })
   } catch (error) {
     console.error("Failed to clip page:", error)
-    sendCompletion(false);
+    const errorMsg = error instanceof Error ? error.message : "Failed to clip page"
+    sendCompletion(false, errorMsg);
     sendResponse({
       success: false,
-      error: error instanceof Error ? error.message : "Failed to clip page"
+      error: errorMsg
     })
   }
 }

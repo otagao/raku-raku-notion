@@ -47,15 +47,21 @@ function IndexPopup() {
               }
             });
           }
-          setClipProgress('完了');
-        } else {
-          setClipProgress('失敗');
-        }
+          setClipProgress('✓ クリップ完了！');
 
-        setTimeout(() => {
-          setIsClipping(false);
-          window.close();
-        }, 2000); // 2秒後に画面を閉じる
+          // 成功時は1.5秒後に自動的に閉じる
+          setTimeout(() => {
+            window.close();
+          }, 1500);
+        } else {
+          setClipProgress(`✗ クリップ失敗: ${message.error || '不明なエラー'}`);
+
+          // 失敗時は3秒後に閉じる（エラーメッセージを読む時間を確保）
+          setTimeout(() => {
+            setIsClipping(false);
+            setCurrentScreen('home');
+          }, 3000);
+        }
       }
     };
 
