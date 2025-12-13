@@ -4,11 +4,21 @@ export type Screen = 'home' | 'create-clipboard' | 'clipboard-list' | 'select-cl
 export interface Clipboard {
   id: string                    // ローカルのユニークID
   name: string                  // クリップボード名
-  createdAt: Date | string     // 作成日時（ストレージでは文字列）
+  createdAt: Date | string      // 作成日時（ストレージでは文字列）
   lastClippedAt?: Date | string // 最終クリップ日時
-  notionDatabaseId: string     // NotionのデータベースID
-  notionDatabaseUrl?: string   // NotionデータベースのURL
-  createdByExtension: boolean  // この拡張機能で作成されたか
+  notionDatabaseId: string      // NotionのデータベースID
+  notionDatabaseUrl?: string    // NotionデータベースのURL
+  createdByExtension: boolean   // この拡張機能で作成されたか
+}
+
+export interface NotionDatabaseSummary {
+  id: string
+  title: string
+  url?: string
+  description?: string
+  iconEmoji?: string
+  lastEditedTime?: string
+  createdTime?: string
 }
 
 // 後方互換性のため残す（削除予定）
