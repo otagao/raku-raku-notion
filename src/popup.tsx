@@ -162,7 +162,7 @@ function IndexPopup() {
 
       let viewIdToRemove = defaultViewId
 
-      // データベース作成直後は内部APIへの反映に時間がかかるため待機（15秒に延長）
+      // データベース作成直後は内部APIへの反映に時間がかかるため待機
       console.log('[handleCreateClipboard] Waiting 15 seconds for database permissions to sync...')
       await new Promise(resolve => setTimeout(resolve, 15000))
 
