@@ -141,19 +141,31 @@ async function addGalleryView(
     if (!response.ok) {
       const errorText = await response.text()
       console.error("[NotionAPIHelper] API Error Response (full):", errorText)
+      console.error("[NotionAPIHelper] Request details - databaseId:", databaseId, "workspaceId:", workspaceId)
+      console.error("[NotionAPIHelper] Transaction payload was:", JSON.stringify(transaction, null, 2))
 
       // JSONパースを試みて、詳細なエラーメッセージを抽出
       let errorDetail = errorText
+      let errorType = 'Unknown'
       try {
         const errorJson = JSON.parse(errorText)
         errorDetail = errorJson.debugMessage || errorJson.message || errorText
+        errorType = errorJson.name || 'Unknown'
+
+        // 権限エラーの場合、より詳細な情報を提供
+        if (errorDetail.includes('edit access') || errorDetail.includes('permission')) {
+          console.error("[NotionAPIHelper] Permission error detected. This may be caused by:")
+          console.error("  1. Database not synced to internal API yet (try waiting longer)")
+          console.error("  2. Incorrect spaceId (should use database's spaceId, not workspace_id)")
+          console.error("  3. User not logged in to Notion.so in this browser")
+        }
       } catch (e) {
         // JSONパースに失敗した場合はそのまま使用
       }
 
       return {
         success: false,
-        error: `API returned ${response.status}: ${errorDetail}`
+        error: `API returned ${response.status} (${errorType}): ${errorDetail}`
       }
     }
 
@@ -170,9 +182,9 @@ async function addGalleryView(
 }
 
 /**
- * データベースのビュー情報を取得する
+ * データベースのビュー情報とspaceIdを取得する
  */
-async function getDatabaseViews(rawDatabaseId: string): Promise<{ success: boolean; viewIds?: string[]; error?: string }> {
+async function getDatabaseViews(rawDatabaseId: string): Promise<{ success: boolean; viewIds?: string[]; spaceId?: string; error?: string }> {
   try {
     const databaseId = formatUUID(rawDatabaseId)
 
@@ -199,15 +211,23 @@ async function getDatabaseViews(rawDatabaseId: string): Promise<{ success: boole
     }
 
     const data = await response.json()
+    console.log("[NotionAPIHelper] loadPageChunk response:", JSON.stringify(data, null, 2))
+
+    // spaceIdを取得
+    let spaceId: string | undefined
+    if (data.recordMap?.block?.[databaseId]?.value?.space_id) {
+      spaceId = data.recordMap.block[databaseId].value.space_id
+      console.log("[NotionAPIHelper] Found spaceId from block metadata:", spaceId)
+    }
 
     // collection_view からビューIDを取得
     if (data.recordMap?.collection_view) {
       const viewIds = Object.keys(data.recordMap.collection_view)
       console.log("[NotionAPIHelper] Found view IDs:", viewIds)
-      return { success: true, viewIds }
+      return { success: true, viewIds, spaceId }
     }
 
-    return { success: true, viewIds: [] }
+    return { success: true, viewIds: [], spaceId }
 
   } catch (error) {
     console.error("[NotionAPIHelper] Error:", error)
