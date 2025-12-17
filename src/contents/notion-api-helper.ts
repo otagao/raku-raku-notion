@@ -7,7 +7,8 @@ import type { PlasmoCSConfig } from "plasmo"
 
 export const config: PlasmoCSConfig = {
   matches: ["https://www.notion.so/*"],
-  run_at: "document_idle"
+  run_at: "document_idle",
+  all_frames: false // メインフレームのみで実行
 }
 
 // 簡易UUID生成
@@ -219,30 +220,50 @@ async function getDatabaseViews(rawDatabaseId: string): Promise<{ success: boole
 
 // Background Scriptからのメッセージを受信
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log("[NotionAPIHelper] Received message:", request.type)
+  console.log("[NotionAPIHelper] ========== MESSAGE RECEIVED ==========")
+  console.log("[NotionAPIHelper] Message type:", request.type)
+  console.log("[NotionAPIHelper] Full request:", request)
+  console.log("[NotionAPIHelper] Sender:", sender)
 
   // Content Script読み込み確認用のping
   if (request.type === 'ping') {
+    console.log("[NotionAPIHelper] Responding to ping")
     sendResponse({ success: true })
     return false
   }
 
   if (request.type === 'add-gallery-view') {
+    console.log("[NotionAPIHelper] Processing add-gallery-view request")
     addGalleryView(
       request.databaseId,
       request.workspaceId,
       request.visibleProperties || [],
       request.existingViewId
-    ).then(sendResponse)
+    ).then(result => {
+      console.log("[NotionAPIHelper] add-gallery-view completed:", result)
+      sendResponse(result)
+    })
     return true // 非同期レスポンス
   }
 
   if (request.type === 'get-database-views') {
-    getDatabaseViews(request.databaseId).then(sendResponse)
+    console.log("[NotionAPIHelper] Processing get-database-views request")
+    getDatabaseViews(request.databaseId).then(result => {
+      console.log("[NotionAPIHelper] get-database-views completed:", result)
+      sendResponse(result)
+    })
     return true // 非同期レスポンス
   }
 
+  console.log("[NotionAPIHelper] Unknown message type, ignoring")
   return false
 })
 
+const loadId = Math.random().toString(36).substring(7)
+console.log("[NotionAPIHelper] ========================================")
 console.log("[NotionAPIHelper] Content script loaded on Notion.so")
+console.log("[NotionAPIHelper] Load ID:", loadId)
+console.log("[NotionAPIHelper] Current URL:", window.location.href)
+console.log("[NotionAPIHelper] Extension ID:", chrome.runtime.id)
+console.log("[NotionAPIHelper] Waiting for messages...")
+console.log("[NotionAPIHelper] ========================================")
