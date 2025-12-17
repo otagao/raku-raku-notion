@@ -188,7 +188,13 @@ function IndexPopup() {
 
       console.log('[handleCreateClipboard] Adding gallery view with properties:', visiblePropIds)
       console.log('[handleCreateClipboard] View to remove:', viewIdToRemove)
-      await InternalNotionService.addGalleryView(databaseId, visiblePropIds, viewIdToRemove)
+      console.log('[handleCreateClipboard] Using workspace ID:', config.workspaceId)
+
+      if (!config.workspaceId) {
+        throw new Error('Workspace ID not found in config. Please re-authenticate with Notion.')
+      }
+
+      await InternalNotionService.addGalleryView(databaseId, config.workspaceId, visiblePropIds, viewIdToRemove)
       console.log('[handleCreateClipboard] Gallery view added and default view removed successfully')
     } catch (error) {
       console.warn('Failed to add gallery view via internal API:', error)
@@ -250,7 +256,14 @@ function IndexPopup() {
     }
     setInternalTestResult("ギャラリービュー追加中...")
     try {
-      await InternalNotionService.addGalleryView(testDatabaseId)
+      // Notion設定からworkspaceIdを取得
+      const config = await StorageService.getNotionConfig()
+      if (!config.workspaceId) {
+        setInternalTestResult("エラー: Workspace IDが見つかりません。Notionと再認証してください。")
+        return
+      }
+
+      await InternalNotionService.addGalleryView(testDatabaseId, config.workspaceId)
       setInternalTestResult(`成功: ギャラリービューを追加しました。\nDatabase ID: ${testDatabaseId}\nNotionで確認してください。`)
     } catch (error) {
       setInternalTestResult(`エラー: ${error instanceof Error ? error.message : '不明なエラー'}`)
