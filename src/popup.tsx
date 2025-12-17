@@ -169,15 +169,19 @@ function IndexPopup() {
         console.log('[handleCreateClipboard] Waiting 10 seconds for database to sync to internal API...')
         await new Promise(resolve => setTimeout(resolve, 10000))
 
-        const existingViews = await InternalNotionService.getDatabaseViews(databaseId)
-        console.log('[handleCreateClipboard] Existing views from internal API:', existingViews)
+        // Background Script経由でContent Scriptを使用してビュー一覧を取得
+        const viewsResponse = await chrome.runtime.sendMessage({
+          type: 'get-database-views-via-content',
+          data: { databaseId }
+        })
 
-        if (existingViews.length > 0) {
-          // 最初のビューがデフォルトビュー
-          viewIdToRemove = existingViews[0]
+        console.log('[handleCreateClipboard] Views response from content script:', viewsResponse)
+
+        if (viewsResponse.success && viewsResponse.viewIds && viewsResponse.viewIds.length > 0) {
+          viewIdToRemove = viewsResponse.viewIds[0]
           console.log('[handleCreateClipboard] Using first view as default view:', viewIdToRemove)
         } else {
-          console.warn('[handleCreateClipboard] Could not find any views via internal API')
+          console.warn('[handleCreateClipboard] Could not find any views via internal API:', viewsResponse.error)
         }
       }
 
@@ -194,7 +198,23 @@ function IndexPopup() {
         throw new Error('Workspace ID not found in config. Please re-authenticate with Notion.')
       }
 
-      await InternalNotionService.addGalleryView(databaseId, config.workspaceId, visiblePropIds, viewIdToRemove)
+      // Background Script経由でContent Scriptを使用してギャラリービューを追加
+      const galleryResponse = await chrome.runtime.sendMessage({
+        type: 'add-gallery-view-via-content',
+        data: {
+          databaseId,
+          workspaceId: config.workspaceId,
+          visibleProperties: visiblePropIds,
+          existingViewId: viewIdToRemove
+        }
+      })
+
+      console.log('[handleCreateClipboard] Gallery view response from content script:', galleryResponse)
+
+      if (!galleryResponse.success) {
+        throw new Error(galleryResponse.error || 'Failed to add gallery view')
+      }
+
       console.log('[handleCreateClipboard] Gallery view added and default view removed successfully')
     } catch (error) {
       console.warn('Failed to add gallery view via internal API:', error)
@@ -263,8 +283,20 @@ function IndexPopup() {
         return
       }
 
-      await InternalNotionService.addGalleryView(testDatabaseId, config.workspaceId)
-      setInternalTestResult(`成功: ギャラリービューを追加しました。\nDatabase ID: ${testDatabaseId}\nNotionで確認してください。`)
+      // Background Script経由でContent Scriptを使用してギャラリービューを追加
+      const response = await chrome.runtime.sendMessage({
+        type: 'add-gallery-view-via-content',
+        data: {
+          databaseId: testDatabaseId,
+          workspaceId: config.workspaceId
+        }
+      })
+
+      if (response.success) {
+        setInternalTestResult(`成功: ギャラリービューを追加しました。\nDatabase ID: ${testDatabaseId}\nNotionで確認してください。`)
+      } else {
+        setInternalTestResult(`エラー: ${response.error || '不明なエラー'}`)
+      }
     } catch (error) {
       setInternalTestResult(`エラー: ${error instanceof Error ? error.message : '不明なエラー'}`)
       console.error('Add Gallery View Failed:', error)

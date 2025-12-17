@@ -42,7 +42,8 @@
       "storage",
       "activeTab",
       "identity",
-      "tabs"
+      "tabs",
+      "scripting"
     ],
     "externally_connectable": {
       "matches": [

@@ -82,6 +82,14 @@ async function handleMessage(
         await handleCreateDatabase(message.data, sendResponse)
         break
 
+      case "add-gallery-view-via-content":
+        await handleAddGalleryViewViaContent(message.data, sendResponse)
+        break
+
+      case "get-database-views-via-content":
+        await handleGetDatabaseViewsViaContent(message.data, sendResponse)
+        break
+
       default:
         sendResponse({ success: false, error: "Unknown message type" })
     }
@@ -418,6 +426,180 @@ async function handleCreateDatabase(
     sendResponse({
       success: false,
       error: error instanceof Error ? error.message : "Failed to create database"
+    })
+  }
+}
+
+/**
+ * タブにContent Scriptを注入する（既に注入されている場合はスキップ）
+ */
+async function ensureContentScriptInjected(tabId: number): Promise<void> {
+  try {
+    // Content Scriptが既に読み込まれているかチェック（pingメッセージを送信）
+    await chrome.tabs.sendMessage(tabId, { type: 'ping' })
+    console.log('[Background] Content script already loaded in tab:', tabId)
+  } catch (error) {
+    // Content Scriptが読み込まれていない場合、動的に注入
+    console.log('[Background] Injecting content script into tab:', tabId)
+
+    // manifest.jsonからNotion用のContent Scriptファイル名を取得
+    const manifest = chrome.runtime.getManifest()
+    const notionContentScript = manifest.content_scripts?.find(cs =>
+      cs.matches?.includes("https://www.notion.so/*")
+    )
+
+    if (!notionContentScript || !notionContentScript.js || notionContentScript.js.length === 0) {
+      throw new Error('Notion content script not found in manifest')
+    }
+
+    const scriptFile = notionContentScript.js[0]
+    console.log('[Background] Injecting content script file:', scriptFile)
+
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: [scriptFile]
+    })
+    // 注入後、初期化を待つ
+    await new Promise(resolve => setTimeout(resolve, 500))
+  }
+}
+
+/**
+ * Content Script経由でギャラリービューを追加
+ * Notion.so上のContent Scriptを使用してCookie認証で内部APIを呼び出す
+ */
+async function handleAddGalleryViewViaContent(
+  data: {
+    databaseId: string
+    workspaceId: string
+    visibleProperties?: string[]
+    existingViewId?: string
+  },
+  sendResponse: (response?: any) => void
+) {
+  try {
+    console.log('[Background] Adding gallery view via content script:', data.databaseId)
+
+    // Notion.soのタブを探す
+    const notionTabs = await chrome.tabs.query({ url: "https://www.notion.so/*" })
+
+    if (notionTabs.length === 0) {
+      // Notion.soのタブがない場合、新しいタブを開く
+      console.log('[Background] No Notion.so tab found, creating new tab')
+      const tab = await chrome.tabs.create({
+        url: "https://www.notion.so",
+        active: false // バックグラウンドで開く
+      })
+
+      // タブの読み込み完了を待つ
+      await new Promise<void>((resolve) => {
+        const listener = (tabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
+          if (tabId === tab.id && changeInfo.status === 'complete') {
+            chrome.tabs.onUpdated.removeListener(listener)
+            resolve()
+          }
+        }
+        chrome.tabs.onUpdated.addListener(listener)
+      })
+
+      // Content Scriptの自動注入を待つ
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      // Content Scriptにメッセージを送信
+      const response = await chrome.tabs.sendMessage(tab.id!, {
+        type: 'add-gallery-view',
+        databaseId: data.databaseId,
+        workspaceId: data.workspaceId,
+        visibleProperties: data.visibleProperties || [],
+        existingViewId: data.existingViewId
+      })
+
+      // タブを閉じる
+      await chrome.tabs.remove(tab.id!)
+
+      sendResponse(response)
+    } else {
+      // 既存のNotion.soタブを使用
+      console.log('[Background] Using existing Notion.so tab:', notionTabs[0].id)
+
+      // Content Scriptが注入されているか確認し、なければ注入
+      await ensureContentScriptInjected(notionTabs[0].id!)
+
+      const response = await chrome.tabs.sendMessage(notionTabs[0].id!, {
+        type: 'add-gallery-view',
+        databaseId: data.databaseId,
+        workspaceId: data.workspaceId,
+        visibleProperties: data.visibleProperties || [],
+        existingViewId: data.existingViewId
+      })
+
+      sendResponse(response)
+    }
+  } catch (error) {
+    console.error('[Background] Failed to add gallery view via content:', error)
+    sendResponse({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to add gallery view'
+    })
+  }
+}
+
+/**
+ * Content Script経由でデータベースのビュー一覧を取得
+ */
+async function handleGetDatabaseViewsViaContent(
+  data: { databaseId: string },
+  sendResponse: (response?: any) => void
+) {
+  try {
+    console.log('[Background] Getting database views via content script:', data.databaseId)
+
+    // Notion.soのタブを探す
+    const notionTabs = await chrome.tabs.query({ url: "https://www.notion.so/*" })
+
+    if (notionTabs.length === 0) {
+      // Notion.soのタブがない場合、新しいタブを開く
+      const tab = await chrome.tabs.create({
+        url: "https://www.notion.so",
+        active: false
+      })
+
+      await new Promise<void>((resolve) => {
+        const listener = (tabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
+          if (tabId === tab.id && changeInfo.status === 'complete') {
+            chrome.tabs.onUpdated.removeListener(listener)
+            resolve()
+          }
+        }
+        chrome.tabs.onUpdated.addListener(listener)
+      })
+
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      const response = await chrome.tabs.sendMessage(tab.id!, {
+        type: 'get-database-views',
+        databaseId: data.databaseId
+      })
+
+      await chrome.tabs.remove(tab.id!)
+
+      sendResponse(response)
+    } else {
+      // Content Scriptが注入されているか確認し、なければ注入
+      await ensureContentScriptInjected(notionTabs[0].id!)
+
+      const response = await chrome.tabs.sendMessage(notionTabs[0].id!, {
+        type: 'get-database-views',
+        databaseId: data.databaseId
+      })
+
+      sendResponse(response)
+    }
+  } catch (error) {
+    console.error('[Background] Failed to get database views via content:', error)
+    sendResponse({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get database views'
     })
   }
 }
