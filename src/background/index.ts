@@ -442,14 +442,17 @@ async function ensureContentScriptInjected(tabId: number): Promise<void> {
     // Content Scriptが読み込まれていない場合、動的に注入
     console.log('[Background] Injecting content script into tab:', tabId)
 
-    // manifest.jsonからNotion用のContent Scriptファイル名を取得
+    // manifest.jsonからNotion API Helper用のContent Scriptファイル名を取得
+    // run_at が "document_idle" のものを探す（notion-simplify は "document_start"）
     const manifest = chrome.runtime.getManifest()
-    const notionContentScript = manifest.content_scripts?.find(cs =>
-      cs.matches?.includes("https://www.notion.so/*")
-    )
+    const notionContentScript = manifest.content_scripts?.find(cs => {
+      const isNotionUrl = cs.matches?.includes("https://www.notion.so/*")
+      const isDocumentIdle = cs.run_at === "document_idle" || !cs.run_at // デフォルトは document_idle
+      return isNotionUrl && isDocumentIdle
+    })
 
     if (!notionContentScript || !notionContentScript.js || notionContentScript.js.length === 0) {
-      throw new Error('Notion content script not found in manifest')
+      throw new Error('Notion API Helper content script not found in manifest')
     }
 
     const scriptFile = notionContentScript.js[0]
