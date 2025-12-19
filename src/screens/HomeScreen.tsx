@@ -118,7 +118,7 @@ const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage }) => {
                 fontSize: 'inherit'
               }}
             >
-              設定から接続してください
+              設定からNotionに接続してください
             </button>
           </span>
         )}
@@ -152,13 +152,25 @@ const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage }) => {
           <button
             className="button button-secondary"
             onClick={() => onNavigate('clipboard-list')}
+            disabled={!isConnected}
+            style={{
+              opacity: !isConnected ? 0.5 : 1,
+              cursor: !isConnected ? 'not-allowed' : 'pointer'
+            }}
+            title={!isConnected ? 'Notionに接続してください' : ''}
           >
             保存先データベース一覧を見る
           </button>
           <button
             className="button button-secondary"
             onClick={() => onNavigate('create-clipboard')}
-            style={{ marginTop: '12px' }}
+            disabled={!isConnected}
+            style={{
+              marginTop: '12px',
+              opacity: !isConnected ? 0.5 : 1,
+              cursor: !isConnected ? 'not-allowed' : 'pointer'
+            }}
+            title={!isConnected ? 'Notionに接続してください' : ''}
           >
             + 新しい保存先データベースを作成
           </button>
