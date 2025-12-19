@@ -499,21 +499,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
           )}
         </div>
       )}
-
-      <div style={{ marginTop: '32px', paddingTop: '16px', borderTop: '1px solid #eee' }}>
-        <h3 style={{ marginBottom: '12px' }}>接続状態</h3>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div
-            style={{
-              width: '12px',
-              height: '12px',
-              borderRadius: '50%',
-              backgroundColor: isConnected ? '#0a0' : '#ccc'
-            }}
-          />
-          <span>{isConnected ? '接続済み' : '未接続'}</span>
-        </div>
-      </div>
     </div>
   )
 }
