@@ -14,11 +14,16 @@ raku-raku-notion/
 │   │   ├── ClipboardListScreen.tsx
 │   │   ├── SelectClipboardScreen.tsx
 │   │   ├── SettingsScreen.tsx
+│   │   ├── ClippingProgressScreen.tsx
+│   │   ├── MemoDialog.tsx
 │   │   └── DemoScreen.tsx
+│   ├── contents/              # Content Scripts
+│   │   ├── extract-content.ts # ページコンテンツ抽出
+│   │   └── notion-api-helper.ts # Notion内部API呼び出し（Notion.so上でCookie認証を利用）
 │   ├── services/              # ビジネスロジック層
 │   │   ├── storage.ts         # Chrome Storage API ラッパー
 │   │   ├── notion.ts          # Notion 公式API (v1) クライアント
-│   │   └── internal-notion.ts # Notion 内部API (v3) クライアント
+│   │   └── internal-notion.ts # Notion 内部API (v3) クライアント（非推奨・参考用）
 │   ├── background/            # バックグラウンドスクリプト
 │   │   └── index.ts
 │   ├── utils/                 # ユーティリティ関数
@@ -138,11 +143,17 @@ class InternalNotionService {
 }
 ```
 
-**重要**: 内部APIはNotionのブラウザセッション（Cookie）を利用するため、拡張機能内でのみ動作します。主な用途：
+**重要**: 内部APIはNotionのブラウザセッション（Cookie）を利用するため、Content Script経由で実行する必要があります。主な用途：
 
 - 新規データベースにギャラリービューを追加
 - デフォルトビューの削除
 - ビュー情報の取得（`loadPageChunk`エンドポイント使用）
+
+**実装方法**:
+- `src/contents/notion-api-helper.ts`: Notion.so上で実行されるContent Script
+- Popup/Background内のfetchではCookieが送信されないため、メッセージパッシングでContent Scriptに処理を委譲
+- ユーザーID取得: `loadPageChunk`レスポンスから親ページの権限情報（`user_permission`）を解析
+- 権限エラー対策: データベース作成直後に操作を実行（権限が確実に設定されている状態を利用）
 
 ### 3. バックグラウンド層 (Background)
 
@@ -161,6 +172,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       // CLIP_COMPLETE: 完了通知
     case 'create-database':
       // データベース作成
+    case 'add-gallery-view-via-content':
+      // Content Script経由でギャラリービューを追加
+      // Notion.soタブを探すか新規作成し、Content Scriptに処理を委譲
+    case 'get-database-views-via-content':
+      // Content Script経由でデータベースのビュー一覧を取得
     case 'start-oauth':
       // OAuth認証開始
     case 'complete-oauth':
@@ -186,11 +202,25 @@ User Input (CreateClipboardScreen)
   ↓
 popup.tsx (handleCreateClipboard)
   ↓
+Background Service Worker (create-database message)
+  ↓
 NotionService.createDatabase() ← Notion API
   ↓
-InternalNotionService.addGalleryView() ← Notion Internal API (v3)
-  - ギャラリービュー追加
-  - デフォルトビュー削除
+Background Service Worker (add-gallery-view-via-content message)
+  ↓
+Content Script (notion-api-helper.ts on Notion.so)
+  - Notion.soタブを探すか新規作成
+  - Content Scriptが既に注入されているか確認（pingメッセージ）
+  - 未注入の場合、chrome.scripting.executeScriptで動的注入
+  ↓
+Notion Internal API (v3) ← Cookie認証で呼び出し
+  - loadPageChunkでユーザーID取得（親ページの権限情報から）
+  - ギャラリービュー追加（saveTransactions）
+  - デフォルトビュー削除（viewIdが指定されている場合）
+  ↓
+Background Service Worker ← 成功/失敗を返却
+  ↓
+popup.tsx ← レスポンス受信
   ↓
 StorageService.addClipboard() ← Chrome Storage
   ↓

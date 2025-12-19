@@ -26,11 +26,13 @@ export class InternalNotionService {
     /**
      * データベースにギャラリービューを追加し、既存のデフォルトビュー（テーブル）を削除する
      * @param rawDatabaseId - データベースID
+     * @param workspaceId - ワークスペースID (NotionConfigから取得)
      * @param visibleProperties - ギャラリービューで表示するプロパティIDのリスト
      * @param existingViewId - 削除する既存のビューID（オプション）
      */
     static async addGalleryView(
         rawDatabaseId: string,
+        workspaceId: string,
         visibleProperties: string[] = [],
         existingViewId?: string
     ): Promise<void> {
@@ -38,6 +40,7 @@ export class InternalNotionService {
         const viewId = generateUUID()
 
         console.log("[InternalNotionService] Adding gallery view to database:", databaseId)
+        console.log("[InternalNotionService] Using workspace ID:", workspaceId)
         if (existingViewId) {
             console.log("[InternalNotionService] Will remove existing view:", existingViewId)
         } else {
@@ -126,20 +129,11 @@ export class InternalNotionService {
 
         const transaction = {
             id: generateUUID(),
-            spaceId: "",
+            spaceId: formatUUID(workspaceId),
             operations: operations
         }
 
         try {
-            // spaceIdを取得するために一度loadUserContentを呼ぶ
-            // (getBlockでspaceIdが取れている可能性もあるが、確実なloadUserContentを使う)
-            if (!transaction.spaceId) {
-                const { spaces } = await this.loadUserContent()
-                if (spaces.length > 0) {
-                    transaction.spaceId = spaces[0].id
-                }
-            }
-
             console.log("[InternalNotionService] Transaction payload:", JSON.stringify(transaction, null, 2))
 
             const response = await fetch(`${NOTION_API_V3_BASE}/saveTransactions`, {
