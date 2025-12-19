@@ -222,6 +222,8 @@ HomeScreen
 - Notion.soタブがない場合は自動的にバックグラウンドで開いて処理
 - 既存タブには動的にContent Scriptを注入（`chrome.scripting.executeScript`）
 - manifest.jsonから実際のビルド済みファイル名を取得して注入
+- ユーザーID取得: `loadPageChunk`レスポンスからデータベースの親ページの権限情報を解析
+- 権限エラー対策: データベース作成直後にビュー操作を実行（権限が正しく設定された状態を利用）
 
 ## コーディング規約
 
@@ -351,5 +353,5 @@ await client.createWebClip({ title, url, databaseId })
 
 ---
 
-**バージョン**: 1.0.3
-**最終更新**: 2025-12-12
+**バージョン**: 1.0.4
+**最終更新**: 2025-12-19
