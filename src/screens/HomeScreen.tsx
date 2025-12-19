@@ -39,7 +39,7 @@ const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage }) => {
           onClick={onClipPage}
           style={{ marginTop: '12px' }}
         >
-          📎 このページをクリップ
+          📎 このページを保存
         </button>
 
         <div style={{

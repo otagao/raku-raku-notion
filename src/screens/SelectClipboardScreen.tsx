@@ -75,7 +75,7 @@ const SelectClipboardScreen: FC<SelectClipboardScreenProps> = ({
                 </div>
                 {clipboard.lastClippedAt && (
                   <div style={{ marginBottom: '4px' }}>
-                    最終クリップ: {clipboard.lastClippedAt instanceof Date
+                    最終保存日時: {clipboard.lastClippedAt instanceof Date
                       ? clipboard.lastClippedAt.toLocaleDateString('ja-JP') + ' ' + clipboard.lastClippedAt.toLocaleTimeString('ja-JP')
                       : new Date(clipboard.lastClippedAt).toLocaleDateString('ja-JP') + ' ' + new Date(clipboard.lastClippedAt).toLocaleTimeString('ja-JP')}
                   </div>
