@@ -494,7 +494,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
                 padding: '14px 16px'
               }}
             >
-              {isLoading ? '接続テスト中...' : '保存して接続'}
+              {isLoading ? '接続テスト中...' : 'トークンを保存して接続'}
             </button>
           )}
         </div>
