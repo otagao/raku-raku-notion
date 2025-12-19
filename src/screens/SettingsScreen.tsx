@@ -12,6 +12,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
   const [apiKey, setApiKey] = useState('')
   const [isConnected, setIsConnected] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isCheckingConnection, setIsCheckingConnection] = useState(true)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [workspaceName, setWorkspaceName] = useState('')
@@ -127,7 +128,13 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
         if ((config.authMethod === 'oauth' && config.accessToken) ||
           (config.authMethod === 'manual' && config.apiKey)) {
           await checkConnection(config)
+        } else {
+          // 認証情報がない場合は確認完了状態にする
+          setIsCheckingConnection(false)
         }
+      } else {
+        // 設定がない場合も確認完了状態にする
+        setIsCheckingConnection(false)
       }
 
       // UI簡略化設定の読み込み
@@ -135,17 +142,21 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
       setUiSimplifyEnabled(uiSimplifyConfig.enabled)
     } catch (err) {
       console.error('Failed to load config:', err)
+      setIsCheckingConnection(false)
     }
   }
 
   const checkConnection = async (config?: NotionConfig) => {
     try {
+      setIsCheckingConnection(true)
       const currentConfig = config || await StorageService.getNotionConfig()
       const client = createNotionClient(currentConfig)
       const connected = await client.testConnection()
       setIsConnected(connected)
     } catch (err) {
       setIsConnected(false)
+    } finally {
+      setIsCheckingConnection(false)
     }
   }
 
@@ -284,22 +295,49 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
         </div>
       )}
 
-      {isConnected && workspaceName && (
-        <div style={{
-          padding: '12px',
-          marginBottom: '16px',
-          backgroundColor: '#e8f4f8',
-          borderRadius: '4px'
-        }}>
-          <strong>接続中:</strong> {workspaceName}
+      {/* 接続状態ボックス（常に表示） */}
+      <div style={{
+        padding: '12px',
+        marginBottom: '16px',
+        backgroundColor: isConnected ? '#e8f4f8' : '#f5f5f5',
+        borderRadius: '4px',
+        border: `1px solid ${isConnected ? '#b3d9e8' : '#ddd'}`,
+        minHeight: '44px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }}>
+        <div>
+          {isCheckingConnection ? (
+            <span style={{ color: '#666' }}>接続状態を確認中...</span>
+          ) : isConnected && workspaceName ? (
+            <span>
+              <strong>接続中:</strong> {workspaceName}
+            </span>
+          ) : isConnected ? (
+            <span>
+              <strong>接続中:</strong> Notionワークスペース
+            </span>
+          ) : (
+            <span style={{ color: '#666' }}>未接続</span>
+          )}
+        </div>
+        {isConnected && !isCheckingConnection && (
           <button
             onClick={handleDisconnect}
-            style={{ marginLeft: '12px', fontSize: '12px' }}
+            style={{
+              fontSize: '12px',
+              padding: '4px 8px',
+              background: '#fff',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
           >
             連携解除
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* UI簡略化設定 */}
       <div style={{ marginBottom: '32px', paddingTop: '16px', borderTop: '1px solid #eee' }}>
@@ -385,10 +423,16 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
                   handleOAuthLogin()
                 }}
                 disabled={isLoading || !oauthConfig.clientId}
-                className="primary-button"
-                style={{ width: '100%' }}
+                className="button"
+                style={{
+                  width: '100%',
+                  background: isLoading || !oauthConfig.clientId ? undefined : '#0078d4',
+                  fontSize: '15px',
+                  fontWeight: '600',
+                  padding: '14px 16px'
+                }}
               >
-                {isLoading ? '処理中...' : 'Notionで認証'}
+                {isLoading ? '処理中...' : 'Notionで認証して接続'}
               </button>
               {(!oauthConfig.clientId) && (
                 <div style={{
@@ -441,29 +485,20 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
             <button
               onClick={handleManualSave}
               disabled={isLoading || !apiKey.trim()}
-              className="primary-button"
-              style={{ width: '100%' }}
+              className="button"
+              style={{
+                width: '100%',
+                background: isLoading || !apiKey.trim() ? undefined : '#0078d4',
+                fontSize: '15px',
+                fontWeight: '600',
+                padding: '14px 16px'
+              }}
             >
-              {isLoading ? '接続テスト中...' : '保存して接続'}
+              {isLoading ? '接続テスト中...' : 'トークンを保存して接続'}
             </button>
           )}
         </div>
       )}
-
-      <div style={{ marginTop: '32px', paddingTop: '16px', borderTop: '1px solid #eee' }}>
-        <h3 style={{ marginBottom: '12px' }}>接続状態</h3>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div
-            style={{
-              width: '12px',
-              height: '12px',
-              borderRadius: '50%',
-              backgroundColor: isConnected ? '#0a0' : '#ccc'
-            }}
-          />
-          <span>{isConnected ? '接続済み' : '未接続'}</span>
-        </div>
-      </div>
     </div>
   )
 }
