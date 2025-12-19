@@ -423,10 +423,16 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
                   handleOAuthLogin()
                 }}
                 disabled={isLoading || !oauthConfig.clientId}
-                className="primary-button"
-                style={{ width: '100%' }}
+                className="button"
+                style={{
+                  width: '100%',
+                  background: isLoading || !oauthConfig.clientId ? undefined : '#0078d4',
+                  fontSize: '15px',
+                  fontWeight: '600',
+                  padding: '14px 16px'
+                }}
               >
-                {isLoading ? '処理中...' : 'Notionで認証'}
+                {isLoading ? '処理中...' : 'Notionで認証して接続'}
               </button>
               {(!oauthConfig.clientId) && (
                 <div style={{
@@ -479,8 +485,14 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
             <button
               onClick={handleManualSave}
               disabled={isLoading || !apiKey.trim()}
-              className="primary-button"
-              style={{ width: '100%' }}
+              className="button"
+              style={{
+                width: '100%',
+                background: isLoading || !apiKey.trim() ? undefined : '#0078d4',
+                fontSize: '15px',
+                fontWeight: '600',
+                padding: '14px 16px'
+              }}
             >
               {isLoading ? '接続テスト中...' : '保存して接続'}
             </button>
