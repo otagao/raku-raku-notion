@@ -82,12 +82,14 @@ src/
 ├── popup.tsx              # メインエントリーポイント
 ├── screens/               # 画面コンポーネント（HomeScreen, SettingsScreenなど）
 ├── components/            # 再利用可能コンポーネント
-├── contents/              # Content Scripts（ページコンテンツ抽出）
+├── contents/              # Content Scripts
+│   ├── extract-content.ts # ページコンテンツ抽出
+│   └── notion-api-helper.ts # Notion内部API呼び出し（Notion.so上で実行）
 ├── services/              # ビジネスロジック層
 │   ├── storage.ts         # Chrome Storage API ラッパー
 │   ├── notion.ts          # Notion 公式API (v1) クライアント
-│   └── internal-notion.ts # Notion 内部API (v3) クライアント（ギャラリービュー操作）
-├── background/            # Service Worker（OAuth + API呼び出し）
+│   └── internal-notion.ts # Notion 内部API (v3) クライアント（非推奨・参考用）
+├── background/            # Service Worker（OAuth + API呼び出し + Content Script管理）
 ├── utils/                 # ユーティリティ（oauth.ts）
 └── types/                 # TypeScript型定義
 
@@ -201,11 +203,27 @@ HomeScreen
 - デフォルトのテーブルビューを自動削除し、ギャラリービューのみを表示
 
 **実装詳細**:
-- `InternalNotionService.addGalleryView()`: ギャラリービュー追加とデフォルトビュー削除を実行
+- **Content Script経由で内部APIを呼び出し**: Notion.soページ上でCookie認証を利用
+- フロー: `Popup → Background → Content Script (notion.so) → Notion Internal API`
+- `src/contents/notion-api-helper.ts`: Notion.so上で実行されるContent Script
+  - `addGalleryView()`: ギャラリービュー追加＋デフォルトビュー削除
+  - `getDatabaseViews()`: ビュー一覧取得
+- `src/background/index.ts`: Content Scriptとの仲介
+  - `handleAddGalleryViewViaContent()`: ギャラリービュー追加ハンドラ
+  - `handleGetDatabaseViewsViaContent()`: ビュー取得ハンドラ
+  - `ensureContentScriptInjected()`: Content Scriptの動的注入
 - URLから取得したビューIDを使用してデフォルトビューを特定
 - URLにビューIDがない場合は、内部APIで取得（10秒待機後）
 - 表示プロパティ: URL、メモ
 - 内部API失敗時も警告のみで、クリップボード作成は成功とする
+
+**技術的詳細**:
+- Popup内のfetchではCookieが送信されないため、Content Script経由で実行
+- Notion.soタブがない場合は自動的にバックグラウンドで開いて処理
+- 既存タブには動的にContent Scriptを注入（`chrome.scripting.executeScript`）
+- manifest.jsonから実際のビルド済みファイル名を取得して注入
+- ユーザーID取得: `loadPageChunk`レスポンスからデータベースの親ページの権限情報を解析
+- 権限エラー対策: データベース作成直後にビュー操作を実行（権限が正しく設定された状態を利用）
 
 ## コーディング規約
 
@@ -335,5 +353,5 @@ await client.createWebClip({ title, url, databaseId })
 
 ---
 
-**バージョン**: 1.0.3
-**最終更新**: 2025-12-12
+**バージョン**: 1.0.4
+**最終更新**: 2025-12-19
