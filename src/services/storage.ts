@@ -1,10 +1,11 @@
-import type { Form, NotionConfig, CurrentTabInfo, Clipboard } from "~types"
+import type { Form, NotionConfig, CurrentTabInfo, Clipboard, UISimplifyConfig } from "~types"
 
 const STORAGE_KEYS = {
   FORMS: 'raku-forms',
   CLIPBOARDS: 'raku-clipboards',
   NOTION_CONFIG: 'raku-notion-config',
-  INITIALIZED: 'raku-initialized'
+  INITIALIZED: 'raku-initialized',
+  UI_SIMPLIFY_CONFIG: 'raku-ui-simplify-config'
 } as const
 
 const MOCK_FORMS: Form[] = [
@@ -227,5 +228,32 @@ export class StorageService {
   static async getClipboardByDatabaseId(databaseId: string): Promise<Clipboard | null> {
     const clipboards = await this.getClipboards()
     return clipboards.find(cb => cb.notionDatabaseId === databaseId) || null
+  }
+
+  // ========== UI簡略化設定管理 ==========
+
+  /**
+   * UI簡略化設定を取得
+   */
+  static async getUISimplifyConfig(): Promise<UISimplifyConfig> {
+    try {
+      const result = await chrome.storage.local.get(STORAGE_KEYS.UI_SIMPLIFY_CONFIG)
+      return result[STORAGE_KEYS.UI_SIMPLIFY_CONFIG] || { enabled: false }
+    } catch (error) {
+      console.error('Failed to get UI simplify config:', error)
+      return { enabled: false }
+    }
+  }
+
+  /**
+   * UI簡略化設定を保存
+   */
+  static async saveUISimplifyConfig(config: UISimplifyConfig): Promise<void> {
+    try {
+      await chrome.storage.local.set({ [STORAGE_KEYS.UI_SIMPLIFY_CONFIG]: config })
+    } catch (error) {
+      console.error('Failed to save UI simplify config:', error)
+      throw error
+    }
   }
 }

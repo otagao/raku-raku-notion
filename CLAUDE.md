@@ -84,13 +84,17 @@ src/
 ├── components/            # 再利用可能コンポーネント
 ├── contents/              # Content Scripts
 │   ├── extract-content.ts # ページコンテンツ抽出
-│   └── notion-api-helper.ts # Notion内部API呼び出し（Notion.so上で実行）
+│   ├── notion-api-helper.ts # Notion内部API呼び出し（Notion.so上で実行）
+│   └── notion-simplify.ts # Notion UI簡略化（www.notion.soでのみ動作）
 ├── services/              # ビジネスロジック層
 │   ├── storage.ts         # Chrome Storage API ラッパー
 │   ├── notion.ts          # Notion 公式API (v1) クライアント
 │   └── internal-notion.ts # Notion 内部API (v3) クライアント（非推奨・参考用）
 ├── background/            # Service Worker（OAuth + API呼び出し + Content Script管理）
 ├── utils/                 # ユーティリティ（oauth.ts）
+├── styles/                # スタイルシート
+│   ├── global.css         # グローバルスタイル
+│   └── notion-custom.css  # Notion UI簡略化用CSS
 └── types/                 # TypeScript型定義
 
 assets/
@@ -121,9 +125,10 @@ workers/                   # Cloudflare Workers OAuth バックエンド
 ```typescript
 // Chrome Storage Local
 {
-  'raku-clipboards': Clipboard[],     // クリップボードリスト
-  'raku-notion-config': NotionConfig, // Notion設定
-  'raku-initialized': boolean         // 初期化フラグ
+  'raku-clipboards': Clipboard[],           // クリップボードリスト
+  'raku-notion-config': NotionConfig,       // Notion設定
+  'raku-initialized': boolean,              // 初期化フラグ
+  'raku-ui-simplify-config': UISimplifyConfig // UI簡略化設定
 }
 ```
 
@@ -136,6 +141,7 @@ workers/                   # Cloudflare Workers OAuth バックエンド
 - `NotionConfig`: Notion認証設定 (OAuth/手動トークン両対応)
 - `WebClipData`: Webクリップデータ
 - `NotionDatabaseSummary`: 既存データベースの要約情報（タイトル、URL、アイコンなど）
+- `UISimplifyConfig`: UI簡略化設定（有効/無効フラグ）
 
 ### 3. 画面遷移フロー
 
@@ -150,6 +156,7 @@ HomeScreen
   │     └─> Notionの既存データベース一覧表示（未登録のもののみ）
   │           └─> クリップボードに追加可能
   └─> SettingsScreen (⚙️設定アイコン)
+        ├─> Notion UI簡略化（有効/無効切り替え）
         ├─> OAuth認証フロー
         └─> 手動トークン入力
 ```
@@ -224,6 +231,24 @@ HomeScreen
 - manifest.jsonから実際のビルド済みファイル名を取得して注入
 - ユーザーID取得: `loadPageChunk`レスポンスからデータベースの親ページの権限情報を解析
 - 権限エラー対策: データベース作成直後にビュー操作を実行（権限が正しく設定された状態を利用）
+
+### 7. Notion UI簡略化機能
+
+**機能概要**:
+- www.notion.soでのみ動作するContent Scriptを使用してNotionのUIを簡略化
+- 設定画面でトグルスイッチによるON/OFF切り替えが可能
+- リアルタイム反映（ページ再読み込み不要）
+
+**実装詳細**:
+- `src/contents/notion-simplify.ts`: Content Script実装（`document_start`で実行）
+- `src/styles/notion-custom.css`: CSS定義（サイドバー・ツールバーの非表示ルール）
+- `StorageService.getUISimplifyConfig()` / `saveUISimplifyConfig()`: 設定の読み書き
+- `chrome.storage.onChanged`でリアルタイム反映
+
+**非表示にするUI要素**:
+- サイドバー: ホーム、検索、設定、ゴミ箱、テンプレート、受信トレイアイコン
+- トップバー: 共有、お気に入り、その他ボタン
+- AIボタン、サイドバー切り替えボタン、自動化ビューなど
 
 ## コーディング規約
 

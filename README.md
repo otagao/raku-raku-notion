@@ -21,6 +21,7 @@ Notionの公式ウェブクリッパーよりもシンプルで、カスタマ�
 - 📄 **自動コンテンツ抽出**: ページ本文、サムネイル、アイコンを自動取得
 - 📝 **メモ機能**: クリップ時にメモを追加可能（IME対応）
 - 📊 **クリップ進行状況表示**: クリップ実行中のリアルタイム進捗表示
+- 🧹 **Notion UI簡略化**: Notionのサイドバーやツールバーを非表示にしてスッキリ表示（トグル切り替え可能）
 
 詳細は [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) を参照してください。
 
@@ -77,6 +78,7 @@ npm run dev
 - [x] 既存データベース取り込み機能
 - [x] クリップ進行状況表示
 - [x] 内部API権限エラー対策（ユーザーID取得方法の改善）
+- [x] Notion UI簡略化機能
 
 ### 🔜 Phase 5: カスタマイズ機能
 
@@ -106,10 +108,15 @@ raku-raku-notion/
 │   ├── popup.tsx              # メインエントリーポイント
 │   ├── screens/               # 画面コンポーネント
 │   ├── components/            # 再利用可能コンポーネント
-│   ├── contents/              # Content Scripts（ページコンテンツ抽出）
+│   ├── contents/              # Content Scripts
+│   │   ├── extract-content.ts # ページコンテンツ抽出
+│   │   └── notion-simplify.ts # Notion UI簡略化
 │   ├── services/              # ビジネスロジック層
 │   ├── background/            # Service Worker
 │   ├── utils/                 # ユーティリティ
+│   ├── styles/                # スタイルシート
+│   │   ├── global.css         # グローバルスタイル
+│   │   └── notion-custom.css  # Notion UI簡略化用CSS
 │   └── types/                 # TypeScript型定義
 ├── oauth-static/              # OAuth認証用静的サイト
 │   ├── callback.html          # OAuth認証コールバック
@@ -117,6 +124,7 @@ raku-raku-notion/
 │   ├── privacy.html           # プライバシーポリシー
 │   ├── terms.html             # 利用規約
 │   └── README.md              # デプロイ手順
+├── workers/                   # Cloudflare Workers（OAuthバックエンド）
 ├── docs/                      # ドキュメント
 ├── assets/                    # アイコンなど
 └── build/                     # ビルド出力

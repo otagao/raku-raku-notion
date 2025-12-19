@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import type { NotionConfig, NotionOAuthConfig } from '~types'
+import type { NotionConfig, NotionOAuthConfig, UISimplifyConfig } from '~types'
 import { StorageService } from '~services/storage'
 import { createNotionClient } from '~services/notion'
 
@@ -19,6 +19,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
     clientId: '',
     redirectUri: 'https://raku-raku-notion.pages.dev/callback.html'
   })
+  const [uiSimplifyEnabled, setUiSimplifyEnabled] = useState<boolean | null>(null)
 
   // OAuth設定を初期化
   useEffect(() => {
@@ -128,6 +129,10 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
           await checkConnection(config)
         }
       }
+
+      // UI簡略化設定の読み込み
+      const uiSimplifyConfig = await StorageService.getUISimplifyConfig()
+      setUiSimplifyEnabled(uiSimplifyConfig.enabled)
     } catch (err) {
       console.error('Failed to load config:', err)
     }
@@ -233,6 +238,19 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
     }
   }
 
+  const handleUISimplifyToggle = async (enabled: boolean) => {
+    try {
+      setUiSimplifyEnabled(enabled)
+      await StorageService.saveUISimplifyConfig({ enabled })
+      setSuccessMessage(enabled ? 'UI簡略化を有効にしました' : 'UI簡略化を無効にしました')
+
+      // 3秒後にメッセージをクリア
+      setTimeout(() => setSuccessMessage(''), 3000)
+    } catch (err) {
+      setError('設定の保存に失敗しました')
+    }
+  }
+
   return (
     <div className="container">
       <div className="header">
@@ -282,6 +300,41 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
           </button>
         </div>
       )}
+
+      {/* UI簡略化設定 */}
+      <div style={{ marginBottom: '32px', paddingTop: '16px', borderTop: '1px solid #eee' }}>
+        <h3 style={{ marginBottom: '12px', fontSize: '16px', fontWeight: 600 }}>
+          Notion UI簡略化
+        </h3>
+        <p style={{ marginBottom: '16px', color: '#666', fontSize: '14px' }}>
+          Notionのサイドバーやツールバーの一部を非表示にします
+        </p>
+
+        <div style={{ display: 'flex', gap: '16px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+            <input
+              type="radio"
+              checked={uiSimplifyEnabled === false}
+              onChange={() => handleUISimplifyToggle(false)}
+              disabled={uiSimplifyEnabled === null}
+            />
+            無効
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+            <input
+              type="radio"
+              checked={uiSimplifyEnabled === true}
+              onChange={() => handleUISimplifyToggle(true)}
+              disabled={uiSimplifyEnabled === null}
+            />
+            有効
+          </label>
+        </div>
+
+        <small style={{ color: '#666', display: 'block', marginTop: '8px' }}>
+          ※ 変更は即座に反映されます（ページの再読み込みは不要）
+        </small>
+      </div>
 
       <div style={{ marginBottom: '24px' }}>
         <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>

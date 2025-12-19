@@ -1,0 +1,69 @@
+/* Notion UI Simplification Styles */
+
+/* AI Face icon link */
+a:has(svg.aiFace) {
+  display: none !important;
+}
+
+/* Sidebar items with specific icons */
+div[style*="min-height: 27px"]:has(svg.inbox) {
+  display: none !important;
+}
+
+div[style*="min-height: 27px"]:has(svg.home) {
+  display: none !important;
+}
+
+div[style*="min-height: 27px"]:has(svg.magnifyingGlass) {
+  display: none !important;
+}
+
+div[style*="min-height: 27px"]:has(svg.gear) {
+  display: none !important;
+}
+
+/* Templates and Trash in sidebar */
+div[style*="min-height: 24px"]:has(svg.templates) {
+  display: none !important;
+}
+
+div[style*="min-height: 24px"]:has(svg.trash) {
+  display: none !important;
+}
+
+/* Sidebar switcher and header */
+.notion-sidebar-switcher {
+  visibility: collapse;
+}
+
+.notion-outliner-shared-header-container {
+  visibility: collapse;
+}
+
+/* AI button */
+.notion-ai-button {
+  visibility: collapse;
+}
+
+/* Automation view */
+.notion-collection-automation-edit-view {
+  display: none !important;
+}
+
+/* Top bar buttons */
+.notion-topbar-share-menu {
+  display: none !important;
+}
+
+.notion-topbar-favorite-button {
+  display: none !important;
+}
+
+.notion-topbar-more-button {
+  display: none !important;
+}
+
+/* Generic 28x28 buttons */
+div[style*="height: 28px"][style*="width: 28px"][style*="padding: 0px"] {
+  display: none !important;
+}

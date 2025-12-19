@@ -107,3 +107,8 @@ export interface CurrentTabInfo {
   url: string
   tabId: number
 }
+
+// UI簡略化設定
+export interface UISimplifyConfig {
+  enabled: boolean  // 有効/無効フラグ
+}
