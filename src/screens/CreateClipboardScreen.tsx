@@ -69,7 +69,7 @@ const CreateClipboardScreen: FC<CreateClipboardScreenProps> = ({
           className="button"
           disabled={!clipboardName.trim() || isCreating}
         >
-          {isCreating ? (countdown > 0 ? `初期化中... あと${countdown}秒` : '作成中...') : '保存先データベースを作成'}
+          {isCreating ? (countdown > 0 ? `新規データベース作成中... あと${countdown}秒` : '作成中...') : '保存先データベースを作成'}
         </button>
       </form>
     </div>
