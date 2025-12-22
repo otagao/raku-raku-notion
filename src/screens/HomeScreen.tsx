@@ -100,24 +100,38 @@ const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage, language, onT
 
   return (
     <div className="container">
-      <div className="header">
+      <div className="header" style={{ position: 'relative' }}>
         <h1>Raku Raku Notion</h1>
-        <button
-          onClick={() => onNavigate('settings')}
-          style={{
-            position: 'absolute',
-            top: '20px',
-            right: '20px',
-            background: 'transparent',
-            border: 'none',
-            fontSize: '20px',
-            cursor: 'pointer',
-            padding: '4px 8px'
-          }}
-          title="設定"
-        >
-          ⚙️
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={onToggleLanguage}
+            style={{
+              background: 'transparent',
+              border: '1px solid #ddd',
+              fontSize: '12px',
+              cursor: 'pointer',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              color: '#666'
+            }}
+            title={language === 'ja' ? '日本語表示中' : 'English display'}
+          >
+            {language === 'ja' ? '日本語' : 'English'}
+          </button>
+          <button
+            onClick={() => onNavigate('settings')}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              fontSize: '20px',
+              cursor: 'pointer',
+              padding: '4px 8px'
+            }}
+            title="設定"
+          >
+            ⚙️
+          </button>
+        </div>
       </div>
 
       {/* 接続状態ボックス */}
@@ -204,13 +218,6 @@ const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage, language, onT
             title={!isConnected ? 'Notionに接続してください' : ''}
           >
             {t.createButton}
-          </button>
-          <button
-            className="button button-secondary"
-            onClick={onToggleLanguage}
-            style={{ marginTop: '12px' }}
-          >
-            {language === 'ja' ? 'English' : '日本語'}
           </button>
         </div>
       </div>
