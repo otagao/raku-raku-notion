@@ -4,6 +4,7 @@
  */
 
 import type { PlasmoCSConfig } from "plasmo"
+import customCssText from "data-text:~styles/notion-custom.css"
 
 // www.notion.soでのみ実行
 export const config: PlasmoCSConfig = {
@@ -14,26 +15,6 @@ export const config: PlasmoCSConfig = {
 
 const STYLE_ELEMENT_ID = 'raku-notion-simplify-styles'
 const STORAGE_KEY = 'raku-ui-simplify-config'
-
-// CSS定義（notion-custom.cssの内容をインライン化）
-const CUSTOM_CSS = `
-/* Notion UI Simplification Styles */
-a:has(svg.aiFace) { display: none !important; }
-div[style*="min-height: 27px"]:has(svg.inbox) { display: none !important; }
-div[style*="min-height: 27px"]:has(svg.home) { display: none !important; }
-div[style*="min-height: 27px"]:has(svg.magnifyingGlass) { display: none !important; }
-div[style*="min-height: 27px"]:has(svg.gear) { display: none !important; }
-div[style*="min-height: 24px"]:has(svg.templates) { display: none !important; }
-div[style*="min-height: 24px"]:has(svg.trash) { display: none !important; }
-.notion-sidebar-switcher { visibility: collapse; }
-.notion-outliner-shared-header-container { visibility: collapse; }
-.notion-ai-button { visibility: collapse; }
-.notion-collection-automation-edit-view { display: none !important; }
-.notion-topbar-share-menu { display: none !important; }
-.notion-topbar-favorite-button { display: none !important; }
-.notion-topbar-more-button { display: none !important; }
-div[style*="height: 28px"][style*="width: 28px"][style*="padding: 0px"] { display: none !important; }
-`
 
 /**
  * CSSを注入してNotionのUIを簡略化
@@ -48,7 +29,7 @@ function injectStyles(): void {
   // スタイル要素を作成
   const styleElement = document.createElement('style')
   styleElement.id = STYLE_ELEMENT_ID
-  styleElement.textContent = CUSTOM_CSS
+  styleElement.textContent = customCssText
 
   // headまたはbodyに追加
   const target = document.head || document.documentElement
