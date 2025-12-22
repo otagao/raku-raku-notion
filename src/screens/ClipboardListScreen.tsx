@@ -48,20 +48,23 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
 
   const renderExcludedDatabases = () => (
     <div style={{ marginTop: '24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ margin: 0, fontSize: '16px' }}>保存先リストから除外されたデータベース</h2>
-        <button
-          className="button button-secondary"
-          onClick={() => onRefreshDatabases?.()}
-          disabled={isLoadingDatabases}
-          style={{ padding: '4px 12px', fontSize: '12px' }}
-        >
-          {isLoadingDatabases ? '取得中...' : '最新情報に更新'}
-        </button>
+      <div style={{ marginBottom: '8px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={{ margin: 0, fontSize: '16px' }}>一覧から除外されたデータベース</h2>
+          <button
+            className="button button-secondary"
+            onClick={() => onRefreshDatabases?.()}
+            disabled={isLoadingDatabases}
+            style={{ padding: '4px 12px', fontSize: '12px', marginLeft: '8px', width: '80px' }}
+          >
+            {isLoadingDatabases ? '取得中...' : '更新'}
+          </button>
+        </div>
+        <p className="hint" style={{ marginTop: '4px', marginBottom: 0 }}>
+          上記「保存先データベース一覧」に含まれないデータベースを取得・表示します。
+          <br/>基本的には拡張機能で作成したもののみ取得されます。
+        </p>
       </div>
-      <p className="hint" style={{ marginTop: '4px' }}>
-        連携済みアカウントから、保存先リストに登録されていないデータベースを表示します。
-      </p>
       {databaseError && (
         <div className="error-message" style={{ marginBottom: '8px' }}>
           {databaseError}
