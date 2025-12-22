@@ -32,6 +32,7 @@ function IndexPopup() {
   const [isLoadingDatabases, setIsLoadingDatabases] = useState(false)
   const [databaseError, setDatabaseError] = useState<string | null>(null)
   const [language, setLanguage] = useState<Language>('ja')
+  const [creationCountdown, setCreationCountdown] = useState(0)
 
   const internalTestTexts = useMemo(() => ({
     ja: {
@@ -190,15 +191,33 @@ function IndexPopup() {
 
       let viewIdToRemove = defaultViewId
 
-      // データベース作成直後は内部APIへの反映に時間がかかるため待機
-      console.log('[handleCreateClipboard] Waiting 15 seconds for database permissions to sync...')
-      await new Promise(resolve => setTimeout(resolve, 15000))
+      // データベース作成直後は内部APIへの反映に時間がかかるため待機（ポーリング方式）
+      console.log('[handleCreateClipboard] Waiting for database permissions to sync (Polling)...')
 
-      // Background Script経由でContent Scriptを使用してビュー一覧とspaceIdを取得
-      const viewsResponse = await chrome.runtime.sendMessage({
-        type: 'get-database-views-via-content',
-        data: { databaseId }
-      })
+      let viewsResponse: any = null
+      const MAX_RETRIES = 30
+
+      for (let i = 0; i < MAX_RETRIES; i++) {
+        setCreationCountdown(MAX_RETRIES - i)
+
+        // Internal APIでビュー一覧取得を試行
+        viewsResponse = await chrome.runtime.sendMessage({
+          type: 'get-database-views-via-content',
+          data: { databaseId }
+        })
+
+        // ビュー取得に成功したらループを抜ける
+        if (viewsResponse && viewsResponse.success && viewsResponse.viewIds && viewsResponse.viewIds.length > 0) {
+          console.log(`[handleCreateClipboard] Database synced successfully after ${i + 1} seconds`)
+          break
+        }
+
+        // 失敗した場合は1秒待機して再試行
+        if (i < MAX_RETRIES - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000))
+        }
+      }
+      setCreationCountdown(0)
 
       console.log('[handleCreateClipboard] Views response from content script:', viewsResponse)
 
@@ -440,6 +459,7 @@ function IndexPopup() {
             onNavigate={handleNavigate}
             onCreateClipboard={handleCreateClipboard}
             language={language}
+            countdown={creationCountdown}
           />
         )
       case 'clipboard-list':
