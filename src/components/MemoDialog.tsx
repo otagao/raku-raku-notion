@@ -1,15 +1,44 @@
 import { type FC, useState, useRef, useEffect, type KeyboardEvent } from "react"
+import type { Language } from "~types"
 
 interface MemoDialogProps {
   onConfirm: (memo: string) => void
   onCancel: () => void
   clipboardName?: string
+  language: Language
 }
 
-const MemoDialog: FC<MemoDialogProps> = ({ onConfirm, onCancel, clipboardName }) => {
+const translations: Record<Language, {
+  title: string
+  clipboardLabel: string
+  placeholder: string
+  hint: string
+  cancel: string
+  confirm: string
+}> = {
+  ja: {
+    title: 'メモを追加（任意）',
+    clipboardLabel: 'クリップ先:',
+    placeholder: 'このクリップにメモを追加できます...',
+    hint: '💡 Shift + Enter で改行、Enter で確定',
+    cancel: 'キャンセル',
+    confirm: 'クリップする'
+  },
+  en: {
+    title: 'Add memo (optional)',
+    clipboardLabel: 'Destination:',
+    placeholder: 'You can add a memo to this clip...',
+    hint: '💡 Shift + Enter for new line, Enter to confirm',
+    cancel: 'Cancel',
+    confirm: 'Save'
+  }
+}
+
+const MemoDialog: FC<MemoDialogProps> = ({ onConfirm, onCancel, clipboardName, language }) => {
   const [memo, setMemo] = useState("")
   const [isComposing, setIsComposing] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const t = translations[language]
 
   useEffect(() => {
     // ダイアログが開いたらテキストエリアにフォーカス
@@ -68,7 +97,7 @@ const MemoDialog: FC<MemoDialogProps> = ({ onConfirm, onCancel, clipboardName })
           fontSize: '16px',
           fontWeight: '600'
         }}>
-          メモを追加（任意）
+          {t.title}
         </h3>
 
         {clipboardName && (
@@ -80,7 +109,7 @@ const MemoDialog: FC<MemoDialogProps> = ({ onConfirm, onCancel, clipboardName })
             fontSize: '14px',
             color: '#333'
           }}>
-            <span style={{ color: '#666', fontSize: '12px' }}>クリップ先:</span>
+            <span style={{ color: '#666', fontSize: '12px' }}>{t.clipboardLabel}</span>
             <span style={{ marginLeft: '8px', fontWeight: '500' }}>
               📋 {clipboardName}
             </span>
@@ -94,7 +123,7 @@ const MemoDialog: FC<MemoDialogProps> = ({ onConfirm, onCancel, clipboardName })
           onKeyDown={handleKeyDown}
           onCompositionStart={handleCompositionStart}
           onCompositionEnd={handleCompositionEnd}
-          placeholder="このクリップにメモを追加できます..."
+          placeholder={t.placeholder}
           style={{
             width: '100%',
             minHeight: '100px',
@@ -114,7 +143,7 @@ const MemoDialog: FC<MemoDialogProps> = ({ onConfirm, onCancel, clipboardName })
           marginTop: '8px',
           marginBottom: '16px'
         }}>
-          💡 Shift + Enter で改行、Enter で確定
+          {t.hint}
         </div>
 
         <div style={{
@@ -127,14 +156,14 @@ const MemoDialog: FC<MemoDialogProps> = ({ onConfirm, onCancel, clipboardName })
             className="button button-secondary"
             style={{ margin: 0 }}
           >
-            キャンセル
+            {t.cancel}
           </button>
           <button
             onClick={() => onConfirm(memo)}
             className="button"
             style={{ margin: 0 }}
           >
-            クリップする
+            {t.confirm}
           </button>
         </div>
       </div>

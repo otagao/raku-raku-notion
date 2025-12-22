@@ -1,11 +1,12 @@
-import type { Form, NotionConfig, CurrentTabInfo, Clipboard, UISimplifyConfig } from "~types"
+import type { Form, NotionConfig, CurrentTabInfo, Clipboard, UISimplifyConfig, LanguageConfig } from "~types"
 
 const STORAGE_KEYS = {
   FORMS: 'raku-forms',
   CLIPBOARDS: 'raku-clipboards',
   NOTION_CONFIG: 'raku-notion-config',
   INITIALIZED: 'raku-initialized',
-  UI_SIMPLIFY_CONFIG: 'raku-ui-simplify-config'
+  UI_SIMPLIFY_CONFIG: 'raku-ui-simplify-config',
+  LANGUAGE_CONFIG: 'raku-language-config'
 } as const
 
 const MOCK_FORMS: Form[] = [
@@ -253,6 +254,27 @@ export class StorageService {
       await chrome.storage.local.set({ [STORAGE_KEYS.UI_SIMPLIFY_CONFIG]: config })
     } catch (error) {
       console.error('Failed to save UI simplify config:', error)
+      throw error
+    }
+  }
+
+  // ========== 言語設定管理 ==========
+
+  static async getLanguageConfig(): Promise<LanguageConfig> {
+    try {
+      const result = await chrome.storage.local.get(STORAGE_KEYS.LANGUAGE_CONFIG)
+      return result[STORAGE_KEYS.LANGUAGE_CONFIG] || { language: 'ja' }
+    } catch (error) {
+      console.error('Failed to get language config:', error)
+      return { language: 'ja' }
+    }
+  }
+
+  static async saveLanguageConfig(config: LanguageConfig): Promise<void> {
+    try {
+      await chrome.storage.local.set({ [STORAGE_KEYS.LANGUAGE_CONFIG]: config })
+    } catch (error) {
+      console.error('Failed to save language config:', error)
       throw error
     }
   }

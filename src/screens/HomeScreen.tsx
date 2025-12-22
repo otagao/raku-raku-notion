@@ -1,13 +1,46 @@
 import { type FC, useState, useEffect } from "react"
 import { StorageService } from "~services/storage"
 import { createNotionClient } from "~services/notion"
+import type { Language } from "~types"
 
 interface HomeScreenProps {
   onNavigate: (screen: string) => void
   onClipPage?: () => void
+  language: Language
+  onToggleLanguage: () => void
 }
 
-const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage }) => {
+const translations: Record<Language, {
+  saving: string
+  clipButton: string
+  listButton: string
+  createButton: string
+  checking: string
+  connected: (name: string) => string
+  disconnected: string
+}> = {
+  ja: {
+    saving: 'ウェブページをNotionに簡単保存',
+    clipButton: '📎 このページを保存',
+    listButton: '保存先データベース一覧を見る',
+    createButton: '+ 新しい保存先データベースを作成',
+    checking: '接続状態を確認中...',
+    connected: (name) => `接続中: ${name || 'Notionワークスペース'}`,
+    disconnected: '設定からNotionに接続してください'
+  },
+  en: {
+    saving: 'Save web pages to Notion easily',
+    clipButton: '📎 Save this page',
+    listButton: 'View destination databases',
+    createButton: '+ Create a new destination database',
+    checking: 'Checking connection...',
+    connected: (name) => `Connected: ${name || 'Notion workspace'}`,
+    disconnected: 'Connect to Notion in Settings'
+  }
+}
+
+const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage, language, onToggleLanguage }) => {
+  const t = translations[language]
   const [isConnected, setIsConnected] = useState<boolean>(false)
   const [workspaceName, setWorkspaceName] = useState<string>('')
   const [isCheckingConnection, setIsCheckingConnection] = useState<boolean>(true)
@@ -99,11 +132,9 @@ const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage }) => {
         alignItems: 'center'
       }}>
         {isCheckingConnection ? (
-          <span style={{ color: '#666' }}>接続状態を確認中...</span>
+          <span style={{ color: '#666' }}>{t.checking}</span>
         ) : isConnected ? (
-          <span>
-            <strong>接続中:</strong> {workspaceName || 'Notionワークスペース'}
-          </span>
+          <span>{t.connected(workspaceName)}</span>
         ) : (
           <span style={{ color: '#666' }}>
             未接続 - <button
@@ -118,7 +149,7 @@ const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage }) => {
                 fontSize: 'inherit'
               }}
             >
-              設定からNotionに接続してください
+              {t.disconnected}
             </button>
           </span>
         )}
@@ -127,7 +158,7 @@ const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage }) => {
       <div className="empty-state">
         <div className="empty-state-icon">📝</div>
         <div className="empty-state-text">
-          ウェブページをNotionに簡単保存
+          {t.saving}
         </div>
 
         <button
@@ -141,7 +172,7 @@ const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage }) => {
           }}
           title={!isConnected ? 'Notionに接続してください' : ''}
         >
-          📎 このページを保存
+          {t.clipButton}
         </button>
 
         <div style={{
@@ -159,7 +190,7 @@ const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage }) => {
             }}
             title={!isConnected ? 'Notionに接続してください' : ''}
           >
-            保存先データベース一覧を見る
+            {t.listButton}
           </button>
           <button
             className="button button-secondary"
@@ -172,7 +203,14 @@ const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage }) => {
             }}
             title={!isConnected ? 'Notionに接続してください' : ''}
           >
-            + 新しい保存先データベースを作成
+            {t.createButton}
+          </button>
+          <button
+            className="button button-secondary"
+            onClick={onToggleLanguage}
+            style={{ marginTop: '12px' }}
+          >
+            {language === 'ja' ? 'English' : '日本語'}
           </button>
         </div>
       </div>
