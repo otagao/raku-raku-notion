@@ -1,17 +1,39 @@
 import { useState, type FC } from "react"
+import type { Language } from "~types"
 
 interface CreateClipboardScreenProps {
   onNavigate: (screen: string) => void
   onCreateClipboard: (clipboardName: string) => void
+  language: Language
 }
 
 const CreateClipboardScreen: FC<CreateClipboardScreenProps> = ({
   onNavigate,
-  onCreateClipboard
+  onCreateClipboard,
+  language
 }) => {
   const [clipboardName, setClipboardName] = useState("")
   const [isCreating, setIsCreating] = useState(false)
   const [error, setError] = useState("")
+
+  const t = {
+    ja: {
+      title: "新規保存先データベース作成",
+      label: "保存先データベース名",
+      placeholder: "例: 記事クリップ、参考リンクなど",
+      hint: "Notionに新しいデータベースを作成します",
+      submit: isCreating ? "作成中..." : "保存先データベースを作成",
+      back: "← 戻る"
+    },
+    en: {
+      title: "Create Destination Database",
+      label: "Destination database name",
+      placeholder: "e.g. Article clips, Reference links",
+      hint: "Create a new database in Notion",
+      submit: isCreating ? "Creating..." : "Create destination database",
+      back: "← Back"
+    }
+  }[language]
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -33,26 +55,26 @@ const CreateClipboardScreen: FC<CreateClipboardScreenProps> = ({
     <div className="container">
       <div className="header">
         <button className="back-button" onClick={() => onNavigate('home')}>
-          ← 戻る
+          {t.back}
         </button>
-        <h1>新規保存先データベース作成</h1>
+        <h1>{t.title}</h1>
       </div>
 
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label htmlFor="clipboard-name">保存先データベース名</label>
+          <label htmlFor="clipboard-name">{t.label}</label>
           <input
             id="clipboard-name"
             type="text"
             className="input"
-            placeholder="例: 記事クリップ、参考リンクなど"
+            placeholder={t.placeholder}
             value={clipboardName}
             onChange={(e) => setClipboardName(e.target.value)}
             autoFocus
             disabled={isCreating}
           />
           <p className="hint">
-            Notionに新しいデータベースを作成します
+            {t.hint}
           </p>
         </div>
 
@@ -67,7 +89,7 @@ const CreateClipboardScreen: FC<CreateClipboardScreenProps> = ({
           className="button"
           disabled={!clipboardName.trim() || isCreating}
         >
-          {isCreating ? '作成中...' : '保存先データベースを作成'}
+          {t.submit}
         </button>
       </form>
     </div>
