@@ -31,6 +31,7 @@ function IndexPopup() {
   const [availableDatabases, setAvailableDatabases] = useState<NotionDatabaseSummary[]>([])
   const [isLoadingDatabases, setIsLoadingDatabases] = useState(false)
   const [databaseError, setDatabaseError] = useState<string | null>(null)
+  const [creationCountdown, setCreationCountdown] = useState(0)
 
   useEffect(() => {
     initializeAndLoadData()
@@ -164,7 +165,11 @@ function IndexPopup() {
 
       // データベース作成直後は内部APIへの反映に時間がかかるため待機
       console.log('[handleCreateClipboard] Waiting 15 seconds for database permissions to sync...')
-      await new Promise(resolve => setTimeout(resolve, 15000))
+      for (let i = 15; i > 0; i--) {
+        setCreationCountdown(i)
+        await new Promise(resolve => setTimeout(resolve, 1000))
+      }
+      setCreationCountdown(0)
 
       // Background Script経由でContent Scriptを使用してビュー一覧とspaceIdを取得
       const viewsResponse = await chrome.runtime.sendMessage({
@@ -404,6 +409,7 @@ function IndexPopup() {
           <CreateClipboardScreen
             onNavigate={handleNavigate}
             onCreateClipboard={handleCreateClipboard}
+            countdown={creationCountdown}
           />
         )
       case 'clipboard-list':

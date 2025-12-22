@@ -3,11 +3,13 @@ import { useState, type FC } from "react"
 interface CreateClipboardScreenProps {
   onNavigate: (screen: string) => void
   onCreateClipboard: (clipboardName: string) => void
+  countdown: number
 }
 
 const CreateClipboardScreen: FC<CreateClipboardScreenProps> = ({
   onNavigate,
-  onCreateClipboard
+  onCreateClipboard,
+  countdown
 }) => {
   const [clipboardName, setClipboardName] = useState("")
   const [isCreating, setIsCreating] = useState(false)
@@ -67,8 +69,13 @@ const CreateClipboardScreen: FC<CreateClipboardScreenProps> = ({
           className="button"
           disabled={!clipboardName.trim() || isCreating}
         >
-          {isCreating ? '作成中...' : '保存先データベースを作成'}
+          {isCreating ? (countdown > 0 ? `新規データベース作成中... あと${countdown}秒` : '作成中...') : '保存先データベースを作成'}
         </button>
+        {isCreating && (
+          <p style={{ color: '#d9534f', fontSize: '12px', marginTop: '10px', textAlign: 'center', fontWeight: 'bold' }}>
+            完了するまで、この画面を閉じたり別の場所に移動したりしないでください。
+          </p>
+        )}
       </form>
     </div>
   )
