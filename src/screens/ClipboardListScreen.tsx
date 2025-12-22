@@ -32,7 +32,7 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
 
   const handleDelete = (e: React.MouseEvent, clipboardId: string) => {
     e.stopPropagation()
-    if (confirm('この保存先データベースを削除しますか？')) {
+    if (confirm('この保存先データベースを保存先リストから除外しますか？')) {
       onDeleteClipboard?.(clipboardId)
     }
   }
@@ -46,10 +46,10 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
     return date.toLocaleString('ja-JP')
   }
 
-  const renderAvailableDatabases = () => (
+  const renderExcludedDatabases = () => (
     <div style={{ marginTop: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ margin: 0, fontSize: '16px' }}>Notionの既存データベース</h2>
+        <h2 style={{ margin: 0, fontSize: '16px' }}>保存先リストから除外されたデータベース</h2>
         <button
           className="button button-secondary"
           onClick={() => onRefreshDatabases?.()}
@@ -60,7 +60,7 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
         </button>
       </div>
       <p className="hint" style={{ marginTop: '4px' }}>
-        連携済みアカウントから、まだ登録していないデータベースを表示します。
+        連携済みアカウントから、保存先リストに登録されていないデータベースを表示します。
       </p>
       {databaseError && (
         <div className="error-message" style={{ marginBottom: '8px' }}>
@@ -188,7 +188,7 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
                       cursor: 'pointer'
                     }}
                   >
-                    削除
+                    保存先リストから除外
                   </button>
                 )}
               </div>
@@ -205,7 +205,7 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
         </div>
       ) : hasAvailableDatabases ? (
         <div className="hint" style={{ marginBottom: '16px' }}>
-          まだ登録されたクリップボードはありません。下の既存データベースから追加できます。
+          まだ登録されたクリップボードはありません。下の除外されたデータベースから追加できます。
         </div>
       ) : (
         <div className="empty-state">
@@ -222,7 +222,7 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
         </div>
       )}
 
-      {shouldShowAvailableSection && renderAvailableDatabases()}
+      {shouldShowAvailableSection && renderExcludedDatabases()}
     </div>
   )
 }
