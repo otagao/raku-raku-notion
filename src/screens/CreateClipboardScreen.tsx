@@ -5,12 +5,14 @@ interface CreateClipboardScreenProps {
   onNavigate: (screen: string) => void
   onCreateClipboard: (clipboardName: string) => void
   language: Language
+  countdown: number
 }
 
 const CreateClipboardScreen: FC<CreateClipboardScreenProps> = ({
   onNavigate,
   onCreateClipboard,
-  language
+  language,
+  countdown
 }) => {
   const [clipboardName, setClipboardName] = useState("")
   const [isCreating, setIsCreating] = useState(false)
@@ -91,6 +93,21 @@ const CreateClipboardScreen: FC<CreateClipboardScreenProps> = ({
         >
           {t.submit}
         </button>
+        {isCreating && (
+          <>
+            <p style={{ color: '#d9534f', fontSize: '12px', marginTop: '10px', textAlign: 'center', fontWeight: 'bold' }}>
+              完了するまで、この画面を閉じたり別のタブに移動したりしないでください。
+            </p>
+            {countdown > 0 && (
+              <p style={{ color: '#666', fontSize: '12px', marginTop: '5px', textAlign: 'center' }}>
+                {language === 'ja'
+                  ? `データベースの権限設定を待機中... (残り ${countdown}秒)`
+                  : `Waiting for database permissions... (${countdown}s remaining)`
+                }
+              </p>
+            )}
+          </>
+        )}
       </form>
     </div>
   )
