@@ -52,7 +52,7 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
     <div style={{ marginTop: '24px' }}>
       <div style={{ marginBottom: '8px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ margin: 0, fontSize: '16px' }}>一覧から除外されたデータベース</h2>
+          <h2 style={{ margin: 0, fontSize: '16px' }}>一覧に登録されていないデータベース</h2>
           <button
             className="button button-secondary"
             onClick={() => onRefreshDatabases?.()}
@@ -63,7 +63,7 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
           </button>
         </div>
         <p className="hint" style={{ marginTop: '4px', marginBottom: 0 }}>
-          上記「保存先データベース一覧」に含まれないデータベースをワークスペースから取得・表示します。
+          「保存先データベース一覧」に含まれないデータベースをワークスペースから取得・表示します。
           <br/>基本的には拡張機能で作成したもののみ取得されます。
         </p>
       </div>
@@ -222,8 +222,16 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
           </button>
         </div>
       ) : hasAvailableDatabases ? (
-        <div className="hint" style={{ marginBottom: '16px' }}>
-          まだ登録されたクリップボードはありません。下の除外されたデータベースから追加できます。
+        <div style={{ marginBottom: '16px' }}>
+          <div className="hint" style={{ marginBottom: '12px' }}>
+            まだ登録されたクリップボードはありません。下の未登録データベースを追加することができます。
+          </div>
+          <button
+            className="button button-secondary"
+            onClick={() => onNavigate('create-clipboard')}
+          >
+            + 新しい保存先データベースを追加
+          </button>
         </div>
       ) : (
         <div className="empty-state">
