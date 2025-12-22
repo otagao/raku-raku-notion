@@ -10,6 +10,7 @@ interface ClipboardListScreenProps {
   onRefreshDatabases?: () => void
   isLoadingDatabases?: boolean
   databaseError?: string | null
+  databaseInfoMessage?: string | null
 }
 
 const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
@@ -20,7 +21,8 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
   onImportDatabase,
   onRefreshDatabases,
   isLoadingDatabases = false,
-  databaseError
+  databaseError,
+  databaseInfoMessage
 }) => {
   const handleClipboardClick = (clipboard: Clipboard) => {
     // Notionデータベースを新しいタブで開く
@@ -61,13 +63,26 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
           </button>
         </div>
         <p className="hint" style={{ marginTop: '4px', marginBottom: 0 }}>
-          上記「保存先データベース一覧」に含まれないデータベースを取得・表示します。
+          上記「保存先データベース一覧」に含まれないデータベースをワークスペースから取得・表示します。
           <br/>基本的には拡張機能で作成したもののみ取得されます。
         </p>
       </div>
       {databaseError && (
         <div className="error-message" style={{ marginBottom: '8px' }}>
           {databaseError}
+        </div>
+      )}
+
+      {databaseInfoMessage && (
+        <div style={{
+          marginBottom: '8px',
+          padding: '12px',
+          backgroundColor: '#e3f2fd',
+          borderRadius: '4px',
+          color: '#1976d2',
+          fontSize: '13px'
+        }}>
+          {databaseInfoMessage}
         </div>
       )}
 
