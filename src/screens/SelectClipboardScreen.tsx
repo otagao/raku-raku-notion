@@ -1,37 +1,77 @@
 import type { FC } from "react"
-import type { Clipboard } from "~types"
+import type { Clipboard, Language } from "~types"
 
 interface SelectClipboardScreenProps {
   clipboards: Clipboard[]
   onNavigate: (screen: string) => void
   onSelectClipboard: (databaseId: string) => void
+  language: Language
+}
+
+const translations: Record<Language, {
+  cancel: string
+  title: string
+  emptyTitle: string
+  createNew: string
+  instruction: string
+  createdByExtension: string
+  createdAt: string
+  lastSaved: string
+  addNew: string
+}> = {
+  ja: {
+    cancel: '← キャンセル',
+    title: 'クリップ先を選択',
+    emptyTitle: '保存先データベースがまだありません',
+    createNew: '新規作成',
+    instruction: 'このページを保存する保存先データベースを選択してください',
+    createdByExtension: '拡張機能作成',
+    createdAt: '作成日',
+    lastSaved: '最終保存日時',
+    addNew: '+ 新しい保存先データベースを追加'
+  },
+  en: {
+    cancel: '← Cancel',
+    title: 'Select destination',
+    emptyTitle: 'No destination databases yet',
+    createNew: 'Create new',
+    instruction: 'Select a destination database to save this page',
+    createdByExtension: 'Created by extension',
+    createdAt: 'Created',
+    lastSaved: 'Last saved',
+    addNew: '+ Add a new destination database'
+  }
 }
 
 const SelectClipboardScreen: FC<SelectClipboardScreenProps> = ({
   clipboards,
   onNavigate,
-  onSelectClipboard
+  onSelectClipboard,
+  language
 }) => {
+  const t = translations[language]
+  const locale = language === 'ja' ? 'ja-JP' : 'en-US'
+
   return (
     <div className="container">
       <div className="header">
         <button className="back-button" onClick={() => onNavigate('home')}>
-          ← キャンセル
+          {t.cancel}
         </button>
-        <h1>クリップ先を選択</h1>
+        <h1>{t.title}</h1>
       </div>
 
       {clipboards.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">📋</div>
           <div className="empty-state-text">
-            保存先データベースがまだありません
+            {t.emptyTitle}
           </div>
           <button
             className="button"
             onClick={() => onNavigate('create-clipboard')}
           >
-            新規作成
+            {t.createNew}
           </button>
         </div>
       ) : (
@@ -41,7 +81,7 @@ const SelectClipboardScreen: FC<SelectClipboardScreenProps> = ({
             color: '#666',
             fontSize: '14px'
           }}>
-            このページを保存する保存先データベースを選択してください
+            {t.instruction}
           </p>
 
           {clipboards.map((clipboard) => (
@@ -63,21 +103,21 @@ const SelectClipboardScreen: FC<SelectClipboardScreenProps> = ({
                     borderRadius: '4px',
                     fontWeight: 'normal'
                   }}>
-                    拡張機能作成
+                    {t.createdByExtension}
                   </span>
                 )}
               </div>
               <div className="list-item-meta">
                 <div style={{ marginBottom: '4px' }}>
-                  作成日: {clipboard.createdAt instanceof Date
-                    ? clipboard.createdAt.toLocaleDateString('ja-JP')
-                    : new Date(clipboard.createdAt).toLocaleDateString('ja-JP')}
+                  {t.createdAt}: {clipboard.createdAt instanceof Date
+                    ? clipboard.createdAt.toLocaleDateString(locale)
+                    : new Date(clipboard.createdAt).toLocaleDateString(locale)}
                 </div>
                 {clipboard.lastClippedAt && (
                   <div style={{ marginBottom: '4px' }}>
-                    最終保存日時: {clipboard.lastClippedAt instanceof Date
-                      ? clipboard.lastClippedAt.toLocaleDateString('ja-JP') + ' ' + clipboard.lastClippedAt.toLocaleTimeString('ja-JP')
-                      : new Date(clipboard.lastClippedAt).toLocaleDateString('ja-JP') + ' ' + new Date(clipboard.lastClippedAt).toLocaleTimeString('ja-JP')}
+                    {t.lastSaved}: {clipboard.lastClippedAt instanceof Date
+                      ? clipboard.lastClippedAt.toLocaleDateString(locale) + ' ' + clipboard.lastClippedAt.toLocaleTimeString(locale)
+                      : new Date(clipboard.lastClippedAt).toLocaleDateString(locale) + ' ' + new Date(clipboard.lastClippedAt).toLocaleTimeString(locale)}
                   </div>
                 )}
               </div>
@@ -89,7 +129,7 @@ const SelectClipboardScreen: FC<SelectClipboardScreenProps> = ({
             onClick={() => onNavigate('create-clipboard')}
             style={{ marginTop: '16px' }}
           >
-            + 新しい保存先データベースを追加
+            {t.addNew}
           </button>
         </div>
       )}

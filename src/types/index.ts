@@ -112,3 +112,9 @@ export interface CurrentTabInfo {
 export interface UISimplifyConfig {
   enabled: boolean  // 有効/無効フラグ
 }
+
+export type Language = 'ja' | 'en'
+
+export interface LanguageConfig {
+  language: Language
+}

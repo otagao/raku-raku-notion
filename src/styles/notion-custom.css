@@ -31,11 +31,7 @@ div[style*="min-height: 24px"]:has(svg.trash) {
   display: none !important;
 }
 
-/* Sidebar switcher and header */
-.notion-sidebar-switcher {
-  visibility: collapse;
-}
-
+/* Sidebar */
 .notion-outliner-shared-header-container {
   visibility: collapse;
 }
