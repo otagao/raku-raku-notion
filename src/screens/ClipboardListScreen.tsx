@@ -1,5 +1,5 @@
-import type { FC } from "react"
-import type { Clipboard, NotionDatabaseSummary } from "~types"
+import React, { type FC } from "react"
+import type { Clipboard, NotionDatabaseSummary, Language } from "~types"
 
 interface ClipboardListScreenProps {
   clipboards: Clipboard[]
@@ -11,6 +11,78 @@ interface ClipboardListScreenProps {
   isLoadingDatabases?: boolean
   databaseError?: string | null
   databaseInfoMessage?: string | null
+  language: Language
+}
+
+const translations: Record<Language, {
+  back: string
+  title: string
+  createdByExtension: string
+  createdAt: string
+  lastSaved: string
+  delete: string
+  addNew: string
+  emptyTitle: string
+  emptyAction: string
+  emptyHint: string
+  selectHint: string
+  availableTitle: string
+  refresh: string
+  refreshing: string
+  availableHint: string
+  noAvailable: string
+  unregistered: string
+  register: string
+  deleteConfirm: string
+  updatedAt: string
+  noClipboards: string
+}> = {
+  ja: {
+    back: '← 戻る',
+    title: '保存先データベース一覧',
+    createdByExtension: '拡張機能作成',
+    createdAt: '作成日',
+    lastSaved: '最終保存日時',
+    delete: '保存先リストから除外',
+    addNew: '+ 新しい保存先データベースを追加',
+    emptyTitle: 'クリップボードがまだありません',
+    emptyAction: '新規作成',
+    emptyHint: 'まだ登録されたクリップボードはありません。下の既存データベースから追加できます。',
+    selectHint: 'まだ登録されたクリップボードはありません。下の既存データベースから追加できます。',
+    availableTitle: '一覧に登録されていないデータベース',
+    refresh: '更新',
+    refreshing: '取得中...',
+    availableHint: '「保存先データベース一覧」に含まれないデータベースをワークスペースから取得・表示します。\n基本的には拡張機能で作成したもののみ取得されます。',
+    noAvailable: '表示できるデータベースはありません。',
+    unregistered: '未登録',
+    register: '保存先データベースとして登録',
+    deleteConfirm: 'この保存先データベースを保存先リストから除外しますか？',
+    updatedAt: '最終更新',
+    noClipboards: 'まだ登録されたクリップボードはありません。'
+  },
+  en: {
+    back: '← Back',
+    title: 'Destination Databases',
+    createdByExtension: 'Created by extension',
+    createdAt: 'Created',
+    lastSaved: 'Last saved',
+    delete: 'Delete',
+    addNew: '+ Add a new destination database',
+    emptyTitle: 'No clipboards yet',
+    emptyAction: 'Create new',
+    emptyHint: 'No clipboards registered. You can add from existing databases below.',
+    selectHint: 'No clipboards registered yet. Add one from the existing databases below.',
+    availableTitle: 'Existing Notion databases',
+    refresh: 'Refresh',
+    refreshing: 'Loading...',
+    availableHint: 'Shows databases from the linked account that are not registered yet.',
+    noAvailable: 'No databases to show.',
+    unregistered: 'Not registered',
+    register: 'Register as destination',
+    deleteConfirm: 'Delete this destination database?',
+    updatedAt: 'Last updated',
+    noClipboards: 'No clipboards registered yet.'
+  }
 }
 
 const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
@@ -22,8 +94,12 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
   onRefreshDatabases,
   isLoadingDatabases = false,
   databaseError,
-  databaseInfoMessage
+  databaseInfoMessage,
+  language
 }) => {
+  const t = translations[language]
+  const locale = language === 'ja' ? 'ja-JP' : 'en-US'
+
   const handleClipboardClick = (clipboard: Clipboard) => {
     // Notionデータベースを新しいタブで開く
     if (clipboard.notionDatabaseUrl) {
@@ -34,7 +110,7 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
 
   const handleDelete = (e: React.MouseEvent, clipboardId: string) => {
     e.stopPropagation()
-    if (confirm('この保存先データベースを保存先リストから除外しますか？')) {
+    if (confirm(t.deleteConfirm)) {
       onDeleteClipboard?.(clipboardId)
     }
   }
@@ -45,26 +121,30 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
     if (isNaN(date.getTime())) {
       return value
     }
-    return date.toLocaleString('ja-JP')
+    return date.toLocaleString(locale)
   }
 
   const renderExcludedDatabases = () => (
     <div style={{ marginTop: '24px' }}>
       <div style={{ marginBottom: '8px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ margin: 0, fontSize: '16px' }}>一覧に登録されていないデータベース</h2>
+          <h2 style={{ margin: 0, fontSize: '16px' }}>{t.availableTitle}</h2>
           <button
             className="button button-secondary"
             onClick={() => onRefreshDatabases?.()}
             disabled={isLoadingDatabases}
             style={{ padding: '4px 12px', fontSize: '12px', marginLeft: '8px', width: '80px' }}
           >
-            {isLoadingDatabases ? '取得中...' : '更新'}
+            {isLoadingDatabases ? t.refreshing : t.refresh}
           </button>
         </div>
         <p className="hint" style={{ marginTop: '4px', marginBottom: 0 }}>
-          「保存先データベース一覧」に含まれないデータベースをワークスペースから取得・表示します。
-          <br/>基本的には拡張機能で作成したもののみ取得されます。
+          {t.availableHint.split('\n').map((line, idx) => (
+            <React.Fragment key={idx}>
+              {line}
+              {idx === 0 && <br />}
+            </React.Fragment>
+          ))}
         </p>
       </div>
       {databaseError && (
@@ -88,7 +168,7 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
 
       {availableDatabases.length === 0 && !isLoadingDatabases ? (
         <div className="hint">
-          表示できるデータベースはありません。
+          {t.noAvailable}
         </div>
       ) : (
         availableDatabases.map((database) => (
@@ -111,7 +191,7 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
                 borderRadius: '4px',
                 fontWeight: 'normal'
               }}>
-                未登録
+                {t.unregistered}
               </span>
             </div>
             <div className="list-item-meta">
@@ -122,7 +202,7 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
               )}
               {database.lastEditedTime && (
                 <div style={{ marginBottom: '4px', color: '#666' }}>
-                  最終更新: {formatDateTime(database.lastEditedTime)}
+                  {t.updatedAt}: {formatDateTime(database.lastEditedTime)}
                 </div>
               )}
               <button
@@ -133,7 +213,7 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
                   fontSize: '12px'
                 }}
               >
-                保存先データベースとして登録
+                {t.register}
               </button>
             </div>
           </div>
@@ -150,9 +230,9 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
     <div className="container">
       <div className="header">
         <button className="back-button" onClick={() => onNavigate('home')}>
-          ← 戻る
+          {t.back}
         </button>
-        <h1>保存先データベース一覧</h1>
+        <h1>{t.title}</h1>
       </div>
 
       {hasClipboards ? (
@@ -175,21 +255,21 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
                     borderRadius: '4px',
                     fontWeight: 'normal'
                   }}>
-                    拡張機能作成
+                    {t.createdByExtension}
                   </span>
                 )}
               </div>
               <div className="list-item-meta">
                 <div style={{ marginBottom: '4px' }}>
-                  作成日: {clipboard.createdAt instanceof Date
-                    ? clipboard.createdAt.toLocaleDateString('ja-JP')
-                    : new Date(clipboard.createdAt).toLocaleDateString('ja-JP')}
+                  {t.createdAt}: {clipboard.createdAt instanceof Date
+                    ? clipboard.createdAt.toLocaleDateString(locale)
+                    : new Date(clipboard.createdAt).toLocaleDateString(locale)}
                 </div>
                 {clipboard.lastClippedAt && (
                   <div style={{ marginBottom: '4px' }}>
-                    最終保存日時: {clipboard.lastClippedAt instanceof Date
-                      ? clipboard.lastClippedAt.toLocaleDateString('ja-JP') + ' ' + clipboard.lastClippedAt.toLocaleTimeString('ja-JP')
-                      : new Date(clipboard.lastClippedAt).toLocaleDateString('ja-JP') + ' ' + new Date(clipboard.lastClippedAt).toLocaleTimeString('ja-JP')}
+                    {t.lastSaved}: {clipboard.lastClippedAt instanceof Date
+                      ? clipboard.lastClippedAt.toLocaleDateString(locale) + ' ' + clipboard.lastClippedAt.toLocaleTimeString(locale)
+                      : new Date(clipboard.lastClippedAt).toLocaleDateString(locale) + ' ' + new Date(clipboard.lastClippedAt).toLocaleTimeString(locale)}
                   </div>
                 )}
                 {onDeleteClipboard && (
@@ -206,7 +286,7 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
                       cursor: 'pointer'
                     }}
                   >
-                    保存先リストから除外
+                    {t.delete}
                   </button>
                 )}
               </div>
@@ -218,32 +298,32 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
             onClick={() => onNavigate('create-clipboard')}
             style={{ marginTop: '16px' }}
           >
-            + 新しい保存先データベースを追加
+            {t.addNew}
           </button>
         </div>
       ) : hasAvailableDatabases ? (
         <div style={{ marginBottom: '16px' }}>
           <div className="hint" style={{ marginBottom: '12px' }}>
-            まだ登録されたクリップボードはありません。下の未登録データベースを追加することができます。
+            {t.selectHint}
           </div>
           <button
             className="button button-secondary"
             onClick={() => onNavigate('create-clipboard')}
           >
-            + 新しい保存先データベースを追加
+            {t.addNew}
           </button>
         </div>
       ) : (
         <div className="empty-state">
           <div className="empty-state-icon">📋</div>
           <div className="empty-state-text">
-            クリップボードがまだありません
+            {t.emptyTitle}
           </div>
           <button
             className="button"
             onClick={() => onNavigate('create-clipboard')}
           >
-            新規作成
+            {t.emptyAction}
           </button>
         </div>
       )}
