@@ -31,6 +31,7 @@ function IndexPopup() {
   const [availableDatabases, setAvailableDatabases] = useState<NotionDatabaseSummary[]>([])
   const [isLoadingDatabases, setIsLoadingDatabases] = useState(false)
   const [databaseError, setDatabaseError] = useState<string | null>(null)
+  const [databaseInfoMessage, setDatabaseInfoMessage] = useState<string | null>(null)
   const [language, setLanguage] = useState<Language>('ja')
   const [creationCountdown, setCreationCountdown] = useState(0)
 
@@ -122,6 +123,7 @@ function IndexPopup() {
   const refreshAvailableDatabases = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     if (!silent) {
       setDatabaseError(null)
+      setDatabaseInfoMessage(null)
     }
     setIsLoadingDatabases(true)
     try {
@@ -140,7 +142,42 @@ function IndexPopup() {
         notionClient.listDatabases(),
         StorageService.getClipboards()
       ])
-      const existingIds = new Set(storedClipboards.map(cb => cb.notionDatabaseId))
+
+      // 削除済みデータベースの検知
+      const remoteDatabaseIds = new Set(databases.map(db => db.id))
+      const deletedClipboards = storedClipboards.filter(
+        cb => !remoteDatabaseIds.has(cb.notionDatabaseId)
+      )
+
+      // 削除後のクリップボードリストを保持（未削除の場合は元のリストを使用）
+      let currentClipboards = storedClipboards
+
+      if (deletedClipboards.length > 0 && !silent) {
+        // 確認ダイアログを表示
+        const confirmed = window.confirm(
+          `${deletedClipboards.length}件の削除済みデータベースが見つかりました。一覧から削除しますか?`
+        )
+
+        if (confirmed) {
+          // ユーザーが削除を承認した場合、一括削除
+          for (const clipboard of deletedClipboards) {
+            await StorageService.deleteClipboard(clipboard.id)
+          }
+
+          // クリップボードリストを再取得（削除後の最新状態）
+          currentClipboards = await StorageService.getClipboards()
+          setClipboards(currentClipboards)
+
+          // 情報メッセージを表示
+          setDatabaseInfoMessage(
+            `${deletedClipboards.length}件の削除済みデータベースを一覧から削除しました`
+          )
+        }
+      }
+
+      // 未登録のデータベースをフィルタリング（既存機能）
+      // 削除実行後は currentClipboards を使用して正確に計算
+      const existingIds = new Set(currentClipboards.map(cb => cb.notionDatabaseId))
       const filtered = databases.filter(db => !existingIds.has(db.id))
       setAvailableDatabases(filtered)
     } catch (error) {
@@ -473,6 +510,7 @@ function IndexPopup() {
             onRefreshDatabases={refreshAvailableDatabases}
             isLoadingDatabases={isLoadingDatabases}
             databaseError={databaseError}
+            databaseInfoMessage={databaseInfoMessage}
             language={language}
           />
         )

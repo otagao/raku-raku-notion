@@ -313,6 +313,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, language
 
   const handleDisconnect = async () => {
     try {
+      // Notion連携設定をリセット
       await StorageService.saveNotionConfig({
         authMethod: 'oauth',
         apiKey: undefined,
@@ -321,10 +322,16 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, language
         workspaceName: undefined,
         botId: undefined
       })
+
+      // 保存先データベース一覧を全削除
+      await StorageService.saveClipboards([])
+
       setIsConnected(false)
       setApiKey('')
       setWorkspaceName('')
-      setSuccessMessage(t.successDisconnected)
+      setSuccessMessage(language === 'ja'
+        ? 'Notion連携を解除しました（保存先データベース一覧もリセットされました）'
+        : t.successDisconnected)
     } catch (err) {
       setError(t.errorDisconnect)
     }

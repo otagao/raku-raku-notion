@@ -1,4 +1,4 @@
-import type { FC } from "react"
+import React, { type FC } from "react"
 import type { Clipboard, NotionDatabaseSummary, Language } from "~types"
 
 interface ClipboardListScreenProps {
@@ -10,6 +10,7 @@ interface ClipboardListScreenProps {
   onRefreshDatabases?: () => void
   isLoadingDatabases?: boolean
   databaseError?: string | null
+  databaseInfoMessage?: string | null
   language: Language
 }
 
@@ -42,20 +43,20 @@ const translations: Record<Language, {
     createdByExtension: '拡張機能作成',
     createdAt: '作成日',
     lastSaved: '最終保存日時',
-    delete: '削除',
+    delete: '保存先リストから除外',
     addNew: '+ 新しい保存先データベースを追加',
     emptyTitle: 'クリップボードがまだありません',
     emptyAction: '新規作成',
     emptyHint: 'まだ登録されたクリップボードはありません。下の既存データベースから追加できます。',
     selectHint: 'まだ登録されたクリップボードはありません。下の既存データベースから追加できます。',
-    availableTitle: 'Notionの既存データベース',
-    refresh: '最新情報に更新',
+    availableTitle: '一覧に登録されていないデータベース',
+    refresh: '更新',
     refreshing: '取得中...',
-    availableHint: '連携済みアカウントから、まだ登録していないデータベースを表示します。',
+    availableHint: '「保存先データベース一覧」に含まれないデータベースをワークスペースから取得・表示します。\n基本的には拡張機能で作成したもののみ取得されます。',
     noAvailable: '表示できるデータベースはありません。',
     unregistered: '未登録',
     register: '保存先データベースとして登録',
-    deleteConfirm: 'この保存先データベースを削除しますか？',
+    deleteConfirm: 'この保存先データベースを保存先リストから除外しますか？',
     updatedAt: '最終更新',
     noClipboards: 'まだ登録されたクリップボードはありません。'
   },
@@ -93,6 +94,7 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
   onRefreshDatabases,
   isLoadingDatabases = false,
   databaseError,
+  databaseInfoMessage,
   language
 }) => {
   const t = translations[language]
@@ -122,25 +124,45 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
     return date.toLocaleString(locale)
   }
 
-  const renderAvailableDatabases = () => (
+  const renderExcludedDatabases = () => (
     <div style={{ marginTop: '24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ margin: 0, fontSize: '16px' }}>{t.availableTitle}</h2>
-        <button
-          className="button button-secondary"
-          onClick={() => onRefreshDatabases?.()}
-          disabled={isLoadingDatabases}
-          style={{ padding: '4px 12px', fontSize: '12px' }}
-        >
-          {isLoadingDatabases ? t.refreshing : t.refresh}
-        </button>
+      <div style={{ marginBottom: '8px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={{ margin: 0, fontSize: '16px' }}>{t.availableTitle}</h2>
+          <button
+            className="button button-secondary"
+            onClick={() => onRefreshDatabases?.()}
+            disabled={isLoadingDatabases}
+            style={{ padding: '4px 12px', fontSize: '12px', marginLeft: '8px', width: '80px' }}
+          >
+            {isLoadingDatabases ? t.refreshing : t.refresh}
+          </button>
+        </div>
+        <p className="hint" style={{ marginTop: '4px', marginBottom: 0 }}>
+          {t.availableHint.split('\n').map((line, idx) => (
+            <React.Fragment key={idx}>
+              {line}
+              {idx === 0 && <br />}
+            </React.Fragment>
+          ))}
+        </p>
       </div>
-      <p className="hint" style={{ marginTop: '4px' }}>
-        {t.availableHint}
-      </p>
       {databaseError && (
         <div className="error-message" style={{ marginBottom: '8px' }}>
           {databaseError}
+        </div>
+      )}
+
+      {databaseInfoMessage && (
+        <div style={{
+          marginBottom: '8px',
+          padding: '12px',
+          backgroundColor: '#e3f2fd',
+          borderRadius: '4px',
+          color: '#1976d2',
+          fontSize: '13px'
+        }}>
+          {databaseInfoMessage}
         </div>
       )}
 
@@ -280,8 +302,16 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
           </button>
         </div>
       ) : hasAvailableDatabases ? (
-        <div className="hint" style={{ marginBottom: '16px' }}>
-          {t.selectHint}
+        <div style={{ marginBottom: '16px' }}>
+          <div className="hint" style={{ marginBottom: '12px' }}>
+            {t.selectHint}
+          </div>
+          <button
+            className="button button-secondary"
+            onClick={() => onNavigate('create-clipboard')}
+          >
+            {t.addNew}
+          </button>
         </div>
       ) : (
         <div className="empty-state">
@@ -298,7 +328,7 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
         </div>
       )}
 
-      {shouldShowAvailableSection && renderAvailableDatabases()}
+      {shouldShowAvailableSection && renderExcludedDatabases()}
     </div>
   )
 }
