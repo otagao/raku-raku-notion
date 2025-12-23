@@ -101,8 +101,8 @@ const CreateClipboardScreen: FC<CreateClipboardScreenProps> = ({
             {countdown > 0 && (
               <p style={{ color: '#666', fontSize: '12px', marginTop: '5px', textAlign: 'center' }}>
                 {language === 'ja'
-                  ? `データベースの権限設定を待機中... (残り ${countdown}秒)`
-                  : `Waiting for database permissions... (${countdown}s remaining)`
+                  ? `データベースの権限設定を待機中... (最大 ${countdown}秒)`
+                  : `Waiting for database permissions... (max ${countdown}s)`
                 }
               </p>
             )}
