@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import HomeScreen from "~screens/HomeScreen"
 import CreateFormScreen from "~screens/CreateFormScreen"
 import FormListScreen from "~screens/FormListScreen"
@@ -12,7 +12,7 @@ import MemoDialog from "~components/MemoDialog"
 import { StorageService } from "~services/storage"
 import { createNotionClient } from "~services/notion"
 import { InternalNotionService } from "~services/internal-notion"
-import type { Screen, Form, Clipboard, NotionDatabaseSummary } from "~types"
+import type { Screen, Form, Clipboard, NotionDatabaseSummary, Language } from "~types"
 import "~styles/global.css"
 
 function IndexPopup() {
@@ -31,7 +31,23 @@ function IndexPopup() {
   const [availableDatabases, setAvailableDatabases] = useState<NotionDatabaseSummary[]>([])
   const [isLoadingDatabases, setIsLoadingDatabases] = useState(false)
   const [databaseError, setDatabaseError] = useState<string | null>(null)
+  const [language, setLanguage] = useState<Language>('ja')
   const [creationCountdown, setCreationCountdown] = useState(0)
+
+  const internalTestTexts = useMemo(() => ({
+    ja: {
+      heading: '内部APIテスト',
+      connectButton: '接続テスト実行 (Read-Only)',
+      addGallery: 'ギャラリービュー追加 (Write)',
+      targetLabel: 'Target Database ID (Test):'
+    },
+    en: {
+      heading: 'Internal API Test',
+      connectButton: 'Run connection test (Read-Only)',
+      addGallery: 'Add gallery view (Write)',
+      targetLabel: 'Target Database ID (Test):'
+    }
+  }), [])
 
   useEffect(() => {
     initializeAndLoadData()
@@ -79,6 +95,7 @@ function IndexPopup() {
     // 保存済み保存先データベースをロード
     await loadClipboards()
     await refreshAvailableDatabases({ silent: true })
+    await loadLanguage()
   }
 
   const loadForms = async () => {
@@ -89,6 +106,17 @@ function IndexPopup() {
   const loadClipboards = async () => {
     const loadedClipboards = await StorageService.getClipboards()
     setClipboards(loadedClipboards)
+  }
+
+  const loadLanguage = async () => {
+    const config = await StorageService.getLanguageConfig()
+    setLanguage(config.language || 'ja')
+  }
+
+  const toggleLanguage = async () => {
+    const next = language === 'ja' ? 'en' : 'ja'
+    setLanguage(next)
+    await StorageService.saveLanguageConfig({ language: next })
   }
 
   const refreshAvailableDatabases = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
@@ -408,7 +436,14 @@ function IndexPopup() {
   const renderScreen = () => {
     switch (currentScreen) {
       case 'home':
-        return <HomeScreen onNavigate={handleNavigate} onClipPage={handleClipPage} />
+        return (
+          <HomeScreen
+            onNavigate={handleNavigate}
+            onClipPage={handleClipPage}
+            language={language}
+            onToggleLanguage={toggleLanguage}
+          />
+        )
       case 'create-form':
         return (
           <CreateFormScreen
@@ -423,6 +458,7 @@ function IndexPopup() {
           <CreateClipboardScreen
             onNavigate={handleNavigate}
             onCreateClipboard={handleCreateClipboard}
+            language={language}
             countdown={creationCountdown}
           />
         )
@@ -437,6 +473,7 @@ function IndexPopup() {
             onRefreshDatabases={refreshAvailableDatabases}
             isLoadingDatabases={isLoadingDatabases}
             databaseError={databaseError}
+            language={language}
           />
         )
       case 'select-clipboard':
@@ -445,16 +482,18 @@ function IndexPopup() {
             clipboards={clipboards}
             onNavigate={handleNavigate}
             onSelectClipboard={handleSelectClipboard}
+            language={language}
           />
         )
       case 'demo':
         return <DemoScreen formId={selectedFormId} onNavigate={handleNavigate} />
       case 'settings':
+        const tInternal = internalTestTexts[language]
         return (
           <>
-            <SettingsScreen onBack={() => handleNavigate('home')} />
+            <SettingsScreen onBack={() => handleNavigate('home')} language={language} />
             <div style={{ padding: '20px', borderTop: '1px solid #eee' }}>
-              <h3>内部APIテスト</h3>
+              <h3>{tInternal.heading}</h3>
               <button
                 onClick={handleTestInternalApi}
                 style={{
@@ -466,12 +505,12 @@ function IndexPopup() {
                   cursor: 'pointer'
                 }}
               >
-                接続テスト実行 (Read-Only)
+                {tInternal.connectButton}
               </button>
 
               <div style={{ marginTop: '15px', borderTop: '1px dashed #ccc', paddingTop: '10px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px' }}>
-                  Target Database ID (Test):
+                  {tInternal.targetLabel}
                 </label>
                 <input
                   type="text"
@@ -486,15 +525,15 @@ function IndexPopup() {
                     padding: '8px 16px',
                     backgroundColor: '#d9534f', // Danger color for write action
                     color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    width: '100%'
-                  }}
-                >
-                  ギャラリービュー追加 (Write)
-                </button>
-              </div>
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  width: '100%'
+                }}
+              >
+                {tInternal.addGallery}
+              </button>
+            </div>
 
               {internalTestResult && (
                 <pre style={{
@@ -512,7 +551,14 @@ function IndexPopup() {
           </>
         )
       default:
-        return <HomeScreen onNavigate={handleNavigate} onClipPage={handleClipPage} />
+        return (
+          <HomeScreen
+            onNavigate={handleNavigate}
+            onClipPage={handleClipPage}
+            language={language}
+            onToggleLanguage={toggleLanguage}
+          />
+        )
     }
   }
 
@@ -528,6 +574,7 @@ function IndexPopup() {
               onConfirm={handleMemoConfirm}
               onCancel={handleMemoCancel}
               clipboardName={pendingClipboardName}
+              language={language}
             />
           )}
         </>
