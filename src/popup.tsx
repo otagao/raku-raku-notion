@@ -359,6 +359,11 @@ function IndexPopup() {
     }
   }
 
+  const handleOpenTutorial = () => {
+    const url = chrome.runtime.getURL('assets/tutorial.html')
+    chrome.tabs.create({ url })
+  }
+
 
   const handleAddGalleryView = async () => {
     if (!testDatabaseId) {
@@ -456,6 +461,7 @@ function IndexPopup() {
             onToggleLanguage={toggleLanguage}
             memo={memoDraft}
             onMemoChange={setMemoDraft}
+            onOpenTutorial={handleOpenTutorial}
           />
         )
       case 'create-form':
@@ -574,6 +580,7 @@ function IndexPopup() {
             onToggleLanguage={toggleLanguage}
             memo={memoDraft}
             onMemoChange={setMemoDraft}
+            onOpenTutorial={handleOpenTutorial}
           />
         )
     }
