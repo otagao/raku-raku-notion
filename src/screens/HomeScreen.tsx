@@ -10,10 +10,12 @@ interface HomeScreenProps {
   onToggleLanguage: () => void
   memo: string
   onMemoChange: (value: string) => void
+  onOpenTutorial: () => void
 }
 
 const translations: Record<Language, {
   saving: string
+  tutorial: string
   memoLabel: string
   memoPlaceholder: string
   clipButton: string
@@ -25,6 +27,7 @@ const translations: Record<Language, {
 }> = {
   ja: {
     saving: 'ウェブページをNotionに簡単保存',
+    tutorial: 'チュートリアル',
     memoLabel: 'メモ（任意）',
     memoPlaceholder: 'ページについてのメモを入力できます',
     clipButton: '📎 このページを保存',
@@ -36,6 +39,7 @@ const translations: Record<Language, {
   },
   en: {
     saving: 'Save web pages to Notion easily',
+    tutorial: 'Tutorial',
     memoLabel: 'Memo (optional)',
     memoPlaceholder: 'Add a note about this page',
     clipButton: '📎 Save this page',
@@ -47,7 +51,7 @@ const translations: Record<Language, {
   }
 }
 
-const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage, language, onToggleLanguage, memo, onMemoChange }) => {
+const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage, language, onToggleLanguage, memo, onMemoChange, onOpenTutorial }) => {
   const t = translations[language]
   const [isConnected, setIsConnected] = useState<boolean>(false)
   const [workspaceName, setWorkspaceName] = useState<string>('')
@@ -111,6 +115,20 @@ const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage, language, onT
       <div className="header" style={{ position: 'relative' }}>
         <h1>Raku Raku Notion</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={onOpenTutorial}
+            style={{
+              background: 'transparent',
+              border: '1px solid #ddd',
+              fontSize: '12px',
+              cursor: 'pointer',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              color: '#666'
+            }}
+          >
+            {t.tutorial}
+          </button>
           <button
             onClick={onToggleLanguage}
             style={{
