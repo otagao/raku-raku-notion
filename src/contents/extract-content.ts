@@ -14,6 +14,7 @@ export const config: PlasmoCSConfig = {
 export interface ExtractedContent {
   text: string
   thumbnail?: string
+  images?: string[]
   icon?: string
   title: string
   url: string
@@ -78,6 +79,67 @@ function getThumbnail(): string | undefined {
   }
 
   return undefined
+}
+
+/**
+ * 複数画像を収集（OGP/Twitterを優先し、ページ内の大きめ画像を最大5件）
+ */
+function getImages(): string[] | undefined {
+  const urls: string[] = []
+
+  const og = document.querySelector('meta[property="og:image"]')?.getAttribute('content')
+  if (og) urls.push(og)
+  const tw = document.querySelector('meta[name="twitter:image"]')?.getAttribute('content')
+  if (tw && !urls.includes(tw)) urls.push(tw)
+
+  const images = Array.from(document.querySelectorAll('img'))
+  images.forEach(img => {
+    if (urls.length >= 20) return
+    const width = img.naturalWidth || parseInt(img.getAttribute('width') || '0', 10)
+    const height = img.naturalHeight || parseInt(img.getAttribute('height') || '0', 10)
+    const isLargeEnough = width >= 50 && height >= 50
+
+    const srcset = img.getAttribute('srcset') || img.getAttribute('data-srcset')
+    let candidate = img.src
+    if (!candidate && srcset) {
+      const first = srcset.split(',')[0]?.trim().split(' ')[0]
+      if (first) candidate = first
+    }
+    if (!candidate) {
+      candidate = img.getAttribute('data-src') || img.getAttribute('data-original') || img.getAttribute('data-lazy') || ''
+    }
+
+    if (candidate && isLargeEnough && !urls.includes(candidate)) {
+      urls.push(candidate)
+    }
+  })
+
+  // <source>タグのsrcsetも拾う
+  const sources = Array.from(document.querySelectorAll('picture source'))
+  sources.forEach(src => {
+    if (urls.length >= 20) return
+    const srcset = src.getAttribute('srcset') || ''
+    const first = srcset.split(',')[0]?.trim().split(' ')[0]
+    if (first && !urls.includes(first)) {
+      urls.push(first)
+    }
+  })
+
+  // CSS背景画像も拾う
+  const elemsWithBg = Array.from(document.querySelectorAll('*'))
+  elemsWithBg.forEach(el => {
+    if (urls.length >= 20) return
+    const bg = (el as HTMLElement).style.backgroundImage || getComputedStyle(el).backgroundImage
+    if (bg && bg.includes('url(')) {
+      const match = bg.match(/url\\(["']?(.*?)["']?\\)/)
+      const url = match?.[1]
+      if (url && !urls.includes(url) && url !== 'about:blank') {
+        urls.push(url)
+      }
+    }
+  })
+
+  return urls.length > 0 ? urls.slice(0, 20) : undefined
 }
 
 /**
@@ -165,11 +227,14 @@ function getPageTitle(): string {
  * ページからコンテンツを抽出
  */
 export function extractContent(): ExtractedContent {
+  const images = getImages()
+  const firstImage = images?.[0]
   return {
     title: getPageTitle(),
     url: window.location.href,
     text: getPageText(),
-    thumbnail: getThumbnail(),
+    thumbnail: firstImage || getThumbnail(),
+    images,
     icon: getIcon()
   }
 }
@@ -177,18 +242,37 @@ export function extractContent(): ExtractedContent {
 // メッセージリスナーを設定
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'extract-content') {
-    try {
-      const content = extractContent()
-      sendResponse({ success: true, content })
-    } catch (error) {
-      console.error('[Content Script] Error extracting content:', error)
-      sendResponse({
-        success: false,
-        error: error instanceof Error ? error.message : '不明なエラー'
-      })
-    }
+    ;(async () => {
+      try {
+        // 自動スクロールで遅延ロードを促す
+        await autoScrollForImages()
+        const content = extractContent()
+        sendResponse({ success: true, content })
+      } catch (error) {
+        console.error('[Content Script] Error extracting content:', error)
+        sendResponse({
+          success: false,
+          error: error instanceof Error ? error.message : '不明なエラー'
+        })
+      }
+    })()
     return true // 非同期レスポンスを示す
   }
 })
+
+async function autoScrollForImages() {
+  const step = Math.max(200, window.innerHeight * 0.6)
+  const totalHeight = document.body.scrollHeight
+  let scrolled = 0
+  while (scrolled < totalHeight) {
+    window.scrollBy(0, step)
+    scrolled += step
+    await new Promise(resolve => setTimeout(resolve, 200))
+  }
+  // 最下部で少し待つ
+  await new Promise(resolve => setTimeout(resolve, 800))
+  // 元の位置に戻す
+  window.scrollTo({ top: 0, behavior: 'instant' as any })
+}
 
 console.log('[Content Script] Loaded: extract-content.ts')

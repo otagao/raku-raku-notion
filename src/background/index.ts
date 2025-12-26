@@ -341,17 +341,21 @@ async function handleClipPage(
     }
 
     // Content Scriptからコンテンツを抽出（tabIdが指定されている場合）
-    let extractedContent: { text?: string; thumbnail?: string; icon?: string } = {}
+    let extractedContent: { text?: string; thumbnail?: string; images?: string[]; icon?: string } = {}
+    let fallbackContent: { text?: string; thumbnail?: string; images?: string[] } | null = null
     if (data.tabId) {
       try {
         console.log('[Background] Extracting content from tab:', data.tabId)
         sendProgress('ページの情報を取得中...');
+        // 遅延ロード対策: 少し待ってから抽出
+        await new Promise(resolve => setTimeout(resolve, 2000))
         const response = await chrome.tabs.sendMessage(data.tabId, { type: 'extract-content' })
 
         if (response?.success && response.content) {
           extractedContent = {
             text: response.content.text,
             thumbnail: response.content.thumbnail,
+            images: response.content.images,
             icon: response.content.icon
           }
           console.log('[Background] Content extracted successfully')
@@ -364,6 +368,17 @@ async function handleClipPage(
       }
     }
 
+    // 抽出が弱い場合のフォールバック: HTMLを直接fetchして解析
+    const shouldFallback = (!extractedContent.text || extractedContent.text.length < 100) && (!extractedContent.images || extractedContent.images.length === 0)
+    if (shouldFallback) {
+      try {
+        fallbackContent = await fetchContentFallback(data.url)
+        console.log('[Background] Fallback content fetched:', fallbackContent)
+      } catch (err) {
+        console.warn('[Background] Fallback content fetch failed:', err)
+      }
+    }
+
     const notionClient = createNotionClient(config)
 
     const webClipData: WebClipData = {
@@ -371,8 +386,9 @@ async function handleClipPage(
       url: data.url,
       databaseId: data.databaseId,
       // Content Scriptから取得したコンテンツを優先、なければdata引数を使用
-      content: extractedContent.text || data.content,
-      thumbnail: extractedContent.thumbnail || data.thumbnail,
+      content: extractedContent.text || fallbackContent?.text || data.content,
+      thumbnail: extractedContent.thumbnail || fallbackContent?.thumbnail || data.thumbnail,
+      images: (extractedContent.images && extractedContent.images.length > 0 ? extractedContent.images : fallbackContent?.images) || undefined,
       icon: extractedContent.icon,
       memo: data.memo
     }
@@ -654,6 +670,102 @@ async function handleGetDatabaseViewsViaContent(
       error: error instanceof Error ? error.message : 'Failed to get database views'
     })
   }
+}
+
+async function fetchContentFallback(url: string): Promise<{ text?: string; images?: string[]; thumbnail?: string }> {
+  const resp = await fetch(url, { method: 'GET' })
+  if (!resp.ok) {
+    throw new Error(`Fallback fetch failed: ${resp.status}`)
+  }
+  const html = await resp.text()
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, 'text/html')
+
+  // テキスト抽出: article→main→role=main→body（スクリプト/スタイル除外、header等は残す）
+  const candidates = [
+    doc.querySelector('article'),
+    doc.querySelector('main'),
+    doc.querySelector('[role="main"]'),
+    doc.body
+  ].filter(Boolean) as Element[]
+
+  const text = candidates.length > 0 ? extractTextFromDoc(candidates[0]) : undefined
+  const images = collectImagesFromDoc(doc)
+  const thumbnail = images && images.length > 0 ? images[0] : undefined
+
+  return { text, images, thumbnail }
+}
+
+function extractTextFromDoc(element: Element): string {
+  const clone = element.cloneNode(true) as HTMLElement
+  clone.querySelectorAll('script, style, noscript').forEach(el => el.remove())
+  const text = clone.textContent || ''
+  return text.replace(/\s+/g, ' ').trim().substring(0, 5000)
+}
+
+function collectImagesFromDoc(doc: Document): string[] | undefined {
+  const urls: string[] = []
+
+  // og/twitter
+  const og = doc.querySelector('meta[property="og:image"]')?.getAttribute('content')
+  if (og) urls.push(og)
+  const tw = doc.querySelector('meta[name="twitter:image"]')?.getAttribute('content')
+  if (tw && !urls.includes(tw)) urls.push(tw)
+
+  // imgタグ
+  const imgs = Array.from(doc.querySelectorAll('img'))
+  imgs.forEach(img => {
+    if (urls.length >= 20) return
+    const width = parseInt(img.getAttribute('width') || '0', 10) || img.naturalWidth
+    const height = parseInt(img.getAttribute('height') || '0', 10) || img.naturalHeight
+    const isLargeEnough = (width || 0) >= 50 && (height || 0) >= 50
+    const srcset = img.getAttribute('srcset') || img.getAttribute('data-srcset')
+    let candidate = img.getAttribute('src') || ''
+    if (!candidate && srcset) {
+      const first = srcset.split(',')[0]?.trim().split(' ')[0]
+      if (first) candidate = first
+    }
+    if (!candidate) {
+      candidate = img.getAttribute('data-src') || img.getAttribute('data-original') || img.getAttribute('data-lazy') || ''
+    }
+    if (candidate && isLargeEnough && !urls.includes(candidate)) {
+      urls.push(candidate)
+    }
+  })
+
+  // picture/source
+  const sources = Array.from(doc.querySelectorAll('picture source'))
+  sources.forEach(src => {
+    if (urls.length >= 20) return
+    const srcset = src.getAttribute('srcset') || ''
+    const first = srcset.split(',')[0]?.trim().split(' ')[0]
+    if (first && !urls.includes(first)) {
+      urls.push(first)
+    }
+  })
+
+  // CSS背景
+  const elemsWithBg = Array.from(doc.querySelectorAll('*'))
+  elemsWithBg.forEach(el => {
+    if (urls.length >= 20) return
+    const style = (el as HTMLElement).getAttribute('style') || ''
+    let bg = ''
+    if (style.includes('background')) {
+      bg = style
+    } else {
+      const computed = (el as HTMLElement).style.backgroundImage
+      bg = computed || ''
+    }
+    if (bg && bg.includes('url(')) {
+      const match = bg.match(/url\(["']?(.*?)["']?\)/)
+      const url = match?.[1]
+      if (url && !urls.includes(url) && url !== 'about:blank') {
+        urls.push(url)
+      }
+    }
+  })
+
+  return urls.length > 0 ? urls.slice(0, 20) : undefined
 }
 
 console.log("Raku Raku Notion background service worker loaded")
