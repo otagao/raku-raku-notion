@@ -708,9 +708,9 @@ function collectImagesFromDoc(doc: Document): string[] | undefined {
 
   // og/twitter
   const og = doc.querySelector('meta[property="og:image"]')?.getAttribute('content')
-  if (og) urls.push(og)
+    if (og && !isIgnoredImage(og)) urls.push(og)
   const tw = doc.querySelector('meta[name="twitter:image"]')?.getAttribute('content')
-  if (tw && !urls.includes(tw)) urls.push(tw)
+  if (tw && !isIgnoredImage(tw) && !urls.includes(tw)) urls.push(tw)
 
   // imgタグ
   const imgs = Array.from(doc.querySelectorAll('img'))
@@ -728,7 +728,7 @@ function collectImagesFromDoc(doc: Document): string[] | undefined {
     if (!candidate) {
       candidate = img.getAttribute('data-src') || img.getAttribute('data-original') || img.getAttribute('data-lazy') || ''
     }
-    if (candidate && isLargeEnough && !urls.includes(candidate)) {
+    if (candidate && isLargeEnough && !isIgnoredImage(candidate) && !urls.includes(candidate)) {
       urls.push(candidate)
     }
   })
@@ -739,7 +739,7 @@ function collectImagesFromDoc(doc: Document): string[] | undefined {
     if (urls.length >= 20) return
     const srcset = src.getAttribute('srcset') || ''
     const first = srcset.split(',')[0]?.trim().split(' ')[0]
-    if (first && !urls.includes(first)) {
+    if (first && !isIgnoredImage(first) && !urls.includes(first)) {
       urls.push(first)
     }
   })
@@ -759,7 +759,7 @@ function collectImagesFromDoc(doc: Document): string[] | undefined {
     if (bg && bg.includes('url(')) {
       const match = bg.match(/url\(["']?(.*?)["']?\)/)
       const url = match?.[1]
-      if (url && !urls.includes(url) && url !== 'about:blank') {
+      if (url && !isIgnoredImage(url) && !urls.includes(url) && url !== 'about:blank') {
         urls.push(url)
       }
     }
