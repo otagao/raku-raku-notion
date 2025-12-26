@@ -404,22 +404,28 @@ export class NotionService {
    * Webクリップをデータベースに追加する
    */
   async createWebClip(data: WebClipData): Promise<string> {
-    const { title, url, content, thumbnail, icon, memo, databaseId } = data
+    const { title, url, content, thumbnail, images, icon, memo, databaseId } = data
 
     try {
       const children: any[] = []
 
-      // サムネイルがある場合は画像ブロックとして追加
-      if (thumbnail) {
-        children.push({
-          object: "block",
-          type: "image",
-          image: {
-            type: "external",
-            external: {
-              url: thumbnail
+      const imageUrls = images && images.length > 0 ? images : (thumbnail ? [thumbnail] : [])
+      const coverUrl = imageUrls?.[0]
+      const bodyImages = imageUrls ? imageUrls.slice(0, 10) : []
+
+      // 本文用に画像ブロックを追加（カバーも含めて最大5件）
+      if (bodyImages.length > 0) {
+        bodyImages.forEach(imgUrl => {
+          children.push({
+            object: "block",
+            type: "image",
+            image: {
+              type: "external",
+              external: {
+                url: imgUrl
+              }
             }
-          }
+          })
         })
       }
 
@@ -449,7 +455,7 @@ export class NotionService {
             url: url
           }
         },
-        // サムネイルとテキストはページコンテンツ（children）として保存
+        // 画像やテキストはページコンテンツ（children）として保存
         children: children.length > 0 ? children : undefined
       }
 
@@ -473,6 +479,16 @@ export class NotionService {
           type: "external",
           external: {
             url: icon
+          }
+        }
+      }
+
+      // カバーに先頭画像を設定（あれば）
+      if (coverUrl) {
+        pageData.cover = {
+          type: "external",
+          external: {
+            url: coverUrl
           }
         }
       }
