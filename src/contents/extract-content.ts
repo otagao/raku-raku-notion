@@ -177,6 +177,14 @@ function getVideos(): { url: string; poster?: string }[] | undefined {
   } catch {
     youtubeVideoId = undefined
   }
+  const youtubeThumb = getYouTubeThumb(youtubeVideoId)
+  const ogPoster = (() => {
+    const og = document.querySelector('meta[property="og:image"]')?.getAttribute('content')
+    if (og && !isIgnoredImage(og)) return og
+    const tw = document.querySelector('meta[name="twitter:image"]')?.getAttribute('content')
+    if (tw && !isIgnoredImage(tw)) return tw
+    return undefined
+  })()
 
   const videos = Array.from(document.querySelectorAll('video'))
   videos.forEach(video => {
@@ -193,7 +201,7 @@ function getVideos(): { url: string; poster?: string }[] | undefined {
     if (candidate && !isAdLike) {
       urls.push({
         url: candidate,
-        poster: video.getAttribute('poster') || undefined
+        poster: video.getAttribute('poster') || youtubeThumb || ogPoster || undefined
       })
     }
   })
@@ -202,14 +210,14 @@ function getVideos(): { url: string; poster?: string }[] | undefined {
   if (urls.length < max) {
     const ogVideo = document.querySelector('meta[property="og:video"]')?.getAttribute('content')
     if (ogVideo && !urls.find(v => v.url === ogVideo)) {
-      const poster = document.querySelector('meta[property="og:image"]')?.getAttribute('content') || undefined
+      const poster = youtubeThumb || ogPoster
       urls.push({ url: ogVideo, poster })
     }
   }
 
   // ページ自体がYouTube等の場合、ページURLを動画URLとして扱う
   if (urls.length === 0 && (hostname.includes('youtube.com') || hostname.includes('youtu.be'))) {
-    const poster = document.querySelector('meta[property="og:image"]')?.getAttribute('content') || undefined
+    const poster = youtubeThumb || ogPoster
     urls.push({ url: window.location.href, poster })
   }
 
