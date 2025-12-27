@@ -64,6 +64,42 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
   return true; // 非同期レスポンスを保持
 })
 
+// コマンド（キーボードショートカット）リスナー
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command === "open-popup") {
+    try {
+      await chrome.action.openPopup()
+    } catch (error) {
+      console.error("[Background] Failed to open popup from command:", error)
+    }
+  }
+})
+
+// コンテキストメニューの作成
+const CONTEXT_MENU_ID = "open-popup-context"
+chrome.runtime.onInstalled.addListener(() => {
+  try {
+    chrome.contextMenus.create({
+      id: CONTEXT_MENU_ID,
+      title: "Raku Raku Notion を開く",
+      contexts: ["page", "selection", "link", "image", "video", "audio"]
+    })
+  } catch (error) {
+    console.error("[Background] Failed to create context menu:", error)
+  }
+})
+
+// コンテキストメニュークリック時の処理（将来他の処理に差し替え可）
+chrome.contextMenus.onClicked.addListener(async (info) => {
+  if (info.menuItemId === CONTEXT_MENU_ID) {
+    try {
+      await chrome.action.openPopup()
+    } catch (error) {
+      console.error("[Background] Failed to open popup from context menu:", error)
+    }
+  }
+})
+
 /**
  * メッセージハンドラ
  */
