@@ -14,6 +14,8 @@ export const config: PlasmoCSConfig = {
 export interface ExtractedContent {
   text: string
   thumbnail?: string
+  images?: string[]
+  videos?: { url: string; poster?: string }[]
   icon?: string
   title: string
   url: string
@@ -53,19 +55,33 @@ function getIcon(): string | undefined {
 /**
  * OGP画像またはfaviconを取得
  */
+function isIgnoredImage(url?: string | null): boolean {
+  if (!url) return false
+  const emoji = url.includes('/emoji/') || url.includes('twemoji') || url.includes('twimg.com/emoji') || url.includes('abs-0.twimg.com/emoji') || url.includes('abs.twimg.com/emoji') || (url.endsWith('.svg') && url.includes('emoji'))
+  const twitterOgPlaceholder = url.includes('abs.twimg.com/rweb/ssr/default/v2/og/image.png')
+  const youtubePlaceholder = url.includes('youtube.com/img/desktop/yt_1200.png')
+  return emoji || twitterOgPlaceholder || youtubePlaceholder
+}
+
+function getYouTubeThumb(videoId?: string | null): string | undefined {
+  if (!videoId) return undefined
+  // maxresdefault は無い場合もあるので、最低でも hqdefault を返す
+  return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
+}
+
 function getThumbnail(): string | undefined {
   // OG:image を優先
   const ogImage = document.querySelector('meta[property="og:image"]')
   if (ogImage) {
     const content = ogImage.getAttribute('content')
-    if (content) return content
+    if (content && !isIgnoredImage(content)) return content
   }
 
   // Twitter:image を次に試す
   const twitterImage = document.querySelector('meta[name="twitter:image"]')
   if (twitterImage) {
     const content = twitterImage.getAttribute('content')
-    if (content) return content
+    if (content && !isIgnoredImage(content)) return content
   }
 
   // 記事内の最初の大きな画像を取得
@@ -78,6 +94,134 @@ function getThumbnail(): string | undefined {
   }
 
   return undefined
+}
+
+/**
+ * 複数画像を収集（OGP/Twitterを優先し、ページ内の大きめ画像を最大5件）
+ */
+function getImages(): string[] | undefined {
+  const urls: string[] = []
+
+  const og = document.querySelector('meta[property="og:image"]')?.getAttribute('content')
+  if (og) urls.push(og)
+  const tw = document.querySelector('meta[name="twitter:image"]')?.getAttribute('content')
+  if (tw && !urls.includes(tw)) urls.push(tw)
+
+  const images = Array.from(document.querySelectorAll('img'))
+  images.forEach(img => {
+    if (urls.length >= 20) return
+    const width = img.naturalWidth || parseInt(img.getAttribute('width') || '0', 10)
+    const height = img.naturalHeight || parseInt(img.getAttribute('height') || '0', 10)
+    const isLargeEnough = width >= 120 && height >= 120
+
+    const srcset = img.getAttribute('srcset') || img.getAttribute('data-srcset')
+    let candidate = img.src
+    if (!candidate && srcset) {
+      const first = srcset.split(',')[0]?.trim().split(' ')[0]
+      if (first) candidate = first
+    }
+    if (!candidate) {
+      candidate = img.getAttribute('data-src') || img.getAttribute('data-original') || img.getAttribute('data-lazy') || ''
+    }
+
+    if (candidate && isLargeEnough && !isIgnoredImage(candidate) && !urls.includes(candidate)) {
+      urls.push(candidate)
+    }
+  })
+
+  // <source>タグのsrcsetも拾う
+  const sources = Array.from(document.querySelectorAll('picture source'))
+  sources.forEach(src => {
+    if (urls.length >= 20) return
+    const srcset = src.getAttribute('srcset') || ''
+    const first = srcset.split(',')[0]?.trim().split(' ')[0]
+    if (first && !urls.includes(first)) {
+      urls.push(first)
+    }
+  })
+
+  // CSS背景画像も拾う
+  const elemsWithBg = Array.from(document.querySelectorAll('*'))
+  elemsWithBg.forEach(el => {
+    if (urls.length >= 20) return
+    const bg = (el as HTMLElement).style.backgroundImage || getComputedStyle(el).backgroundImage
+    if (bg && bg.includes('url(')) {
+      const match = bg.match(/url\\(["']?(.*?)["']?\\)/)
+      const url = match?.[1]
+      if (url && !urls.includes(url) && url !== 'about:blank') {
+        urls.push(url)
+      }
+    }
+  })
+
+  return urls.length > 0 ? urls.slice(0, 20) : undefined
+}
+
+function getVideos(): { url: string; poster?: string }[] | undefined {
+  const urls: { url: string; poster?: string }[] = []
+  let hostname = ''
+  try {
+    hostname = new URL(window.location.href).hostname
+  } catch {
+    hostname = ''
+  }
+  const max = (hostname.includes('twitter.com') || hostname.includes('x.com')) ? 4 : 1
+  let youtubeVideoId: string | undefined
+  try {
+    const u = new URL(window.location.href)
+    if (u.hostname.includes('youtube.com')) {
+      youtubeVideoId = u.searchParams.get('v') || undefined
+    } else if (u.hostname.includes('youtu.be')) {
+      youtubeVideoId = u.pathname.replace('/', '') || undefined
+    }
+  } catch {
+    youtubeVideoId = undefined
+  }
+  const youtubeThumb = getYouTubeThumb(youtubeVideoId)
+  const ogPoster = (() => {
+    const og = document.querySelector('meta[property="og:image"]')?.getAttribute('content')
+    if (og && !isIgnoredImage(og)) return og
+    const tw = document.querySelector('meta[name="twitter:image"]')?.getAttribute('content')
+    if (tw && !isIgnoredImage(tw)) return tw
+    return undefined
+  })()
+
+  const videos = Array.from(document.querySelectorAll('video'))
+  videos.forEach(video => {
+    if (urls.length >= max) return
+    const sources = Array.from(video.querySelectorAll('source'))
+    let candidate = video.getAttribute('src') || ''
+    if (!candidate && sources.length > 0) {
+      candidate = sources[0]?.getAttribute('src') || ''
+    }
+    if (candidate && candidate.startsWith('blob:')) {
+      candidate = ''
+    }
+    const isAdLike = candidate.includes('ads') || candidate.includes('imasdk') || candidate.includes('ad-delivery') || candidate.includes('doubleclick')
+    if (candidate && !isAdLike) {
+      urls.push({
+        url: candidate,
+        poster: video.getAttribute('poster') || youtubeThumb || ogPoster || undefined
+      })
+    }
+  })
+
+  // og:video があれば追加（YouTube等の埋め込みリンクにも対応しやすい）
+  if (urls.length < max) {
+    const ogVideo = document.querySelector('meta[property="og:video"]')?.getAttribute('content')
+    if (ogVideo && !urls.find(v => v.url === ogVideo)) {
+      const poster = youtubeThumb || ogPoster
+      urls.push({ url: ogVideo, poster })
+    }
+  }
+
+  // ページ自体がYouTube等の場合、ページURLを動画URLとして扱う
+  if (urls.length === 0 && (hostname.includes('youtube.com') || hostname.includes('youtu.be'))) {
+    const poster = youtubeThumb || ogPoster
+    urls.push({ url: window.location.href, poster })
+  }
+
+  return urls.length > 0 ? urls : undefined
 }
 
 /**
@@ -165,11 +309,56 @@ function getPageTitle(): string {
  * ページからコンテンツを抽出
  */
 export function extractContent(): ExtractedContent {
+  const images = getImages()
+  const videos = getVideos()
+  const hostname = (() => {
+    try {
+      return new URL(window.location.href).hostname
+    } catch {
+      return ''
+    }
+  })()
+  let youtubeVideoId: string | undefined
+  try {
+    const u = new URL(window.location.href)
+    if (u.hostname.includes('youtube.com')) {
+      youtubeVideoId = u.searchParams.get('v') || undefined
+    } else if (u.hostname.includes('youtu.be')) {
+      youtubeVideoId = u.pathname.replace('/', '') || undefined
+    }
+  } catch {
+    youtubeVideoId = undefined
+  }
+
+  // YouTubeのサムネイルをカバー候補に追加
+  const imagesWithYouTube = (() => {
+    if (youtubeVideoId) {
+      const ytThumb = getYouTubeThumb(youtubeVideoId)
+      if (ytThumb) {
+        return images ? [ytThumb, ...images] : [ytThumb]
+      }
+    }
+    return images
+  })()
+
+  // X/Twitterの場合は1枚目を破棄する（プレースホルダを避けるため）
+  const filteredImages = (() => {
+    if (!imagesWithYouTube || imagesWithYouTube.length === 0) return imagesWithYouTube
+    if (hostname.includes('twitter.com') || hostname.includes('x.com')) {
+      return imagesWithYouTube.slice(1)
+    }
+    return imagesWithYouTube
+  })()
+
+  const firstImage = filteredImages?.[0]
+  const firstVideoPoster = videos && videos.length > 0 ? videos[0].poster : undefined
   return {
     title: getPageTitle(),
     url: window.location.href,
     text: getPageText(),
-    thumbnail: getThumbnail(),
+    thumbnail: firstVideoPoster || firstImage || getThumbnail(),
+    images: filteredImages,
+    videos,
     icon: getIcon()
   }
 }

@@ -8,7 +8,6 @@ import SelectClipboardScreen from "~screens/SelectClipboardScreen"
 import DemoScreen from "~screens/DemoScreen"
 import { SettingsScreen } from "~screens/SettingsScreen"
 import ClippingProgressScreen from "~screens/ClippingProgressScreen"
-import MemoDialog from "~components/MemoDialog"
 import { StorageService } from "~services/storage"
 import { createNotionClient } from "~services/notion"
 import { InternalNotionService } from "~services/internal-notion"
@@ -21,9 +20,6 @@ function IndexPopup() {
   const [clipboards, setClipboards] = useState<Clipboard[]>([])
   const [selectedFormId, setSelectedFormId] = useState<string | undefined>()
   const [selectedClipboardId, setSelectedClipboardId] = useState<string | undefined>()
-  const [showMemoDialog, setShowMemoDialog] = useState(false)
-  const [pendingClipDatabaseId, setPendingClipDatabaseId] = useState<string | undefined>()
-  const [pendingClipboardName, setPendingClipboardName] = useState<string | undefined>()
   const [isClipping, setIsClipping] = useState(false)
   const [clipProgress, setClipProgress] = useState("")
   const [internalTestResult, setInternalTestResult] = useState<string>("")
@@ -34,6 +30,7 @@ function IndexPopup() {
   const [databaseInfoMessage, setDatabaseInfoMessage] = useState<string | null>(null)
   const [language, setLanguage] = useState<Language>('ja')
   const [creationCountdown, setCreationCountdown] = useState(0)
+  const [memoDraft, setMemoDraft] = useState<string>("")
 
   const internalTestTexts = useMemo(() => ({
     ja: {
@@ -66,6 +63,7 @@ function IndexPopup() {
             });
           }
           setClipProgress('✓ クリップ完了！');
+          setMemoDraft("");
 
           // 成功時は1.5秒後に自動的に閉じる
           setTimeout(() => {
@@ -361,6 +359,11 @@ function IndexPopup() {
     }
   }
 
+  const handleOpenTutorial = () => {
+    const url = chrome.runtime.getURL('assets/tutorial.html')
+    chrome.tabs.create({ url })
+  }
+
 
   const handleAddGalleryView = async () => {
     if (!testDatabaseId) {
@@ -404,11 +407,9 @@ function IndexPopup() {
       return
     }
 
-    // 保存先データベースが1つだけの場合は自動選択してメモダイアログを表示
+    // 保存先データベースが1つだけの場合は自動選択してクリップ実行
     if (clipboards.length === 1) {
-      setPendingClipDatabaseId(clipboards[0].notionDatabaseId)
-      setPendingClipboardName(clipboards[0].name)
-      setShowMemoDialog(true)
+      await performClip(clipboards[0].notionDatabaseId, memoDraft || undefined)
       return
     }
 
@@ -417,28 +418,7 @@ function IndexPopup() {
   }
 
   const handleSelectClipboard = async (databaseId: string) => {
-    // 選択された保存先データベースの名前を取得
-    const selectedClipboard = clipboards.find(cb => cb.notionDatabaseId === databaseId)
-
-    // メモダイアログを表示
-    setPendingClipDatabaseId(databaseId)
-    setPendingClipboardName(selectedClipboard?.name)
-    setShowMemoDialog(true)
-  }
-
-  const handleMemoConfirm = async (memo: string) => {
-    setShowMemoDialog(false)
-    if (pendingClipDatabaseId) {
-      await performClip(pendingClipDatabaseId, memo)
-      setPendingClipDatabaseId(undefined)
-      setPendingClipboardName(undefined)
-    }
-  }
-
-  const handleMemoCancel = () => {
-    setShowMemoDialog(false)
-    setPendingClipDatabaseId(undefined)
-    setPendingClipboardName(undefined)
+    await performClip(databaseId, memoDraft || undefined)
   }
 
   const performClip = (databaseId: string, memo?: string) => {
@@ -479,6 +459,9 @@ function IndexPopup() {
             onClipPage={handleClipPage}
             language={language}
             onToggleLanguage={toggleLanguage}
+            memo={memoDraft}
+            onMemoChange={setMemoDraft}
+            onOpenTutorial={handleOpenTutorial}
           />
         )
       case 'create-form':
@@ -595,6 +578,9 @@ function IndexPopup() {
             onClipPage={handleClipPage}
             language={language}
             onToggleLanguage={toggleLanguage}
+            memo={memoDraft}
+            onMemoChange={setMemoDraft}
+            onOpenTutorial={handleOpenTutorial}
           />
         )
     }
@@ -605,17 +591,7 @@ function IndexPopup() {
       {isClipping ? (
         <ClippingProgressScreen progressMessage={clipProgress} />
       ) : (
-        <>
-          {renderScreen()}
-          {showMemoDialog && (
-            <MemoDialog
-              onConfirm={handleMemoConfirm}
-              onCancel={handleMemoCancel}
-              clipboardName={pendingClipboardName}
-              language={language}
-            />
-          )}
-        </>
+        renderScreen()
       )}
     </>
   )

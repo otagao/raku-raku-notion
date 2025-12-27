@@ -159,7 +159,7 @@ async function addGalleryView(
               ...galleryProperties
             ],
             gallery_cover: {
-              type: "page_content"
+              type: "page_cover"
             },
             gallery_cover_aspect: "contain"
           },

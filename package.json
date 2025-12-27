@@ -54,7 +54,8 @@
       {
         "resources": [
           "oauth-callback.html",
-          "oauth-callback.js"
+          "oauth-callback.js",
+          "assets/tutorial.html"
         ],
         "matches": [
           "<all_urls>"
