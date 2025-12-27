@@ -794,7 +794,8 @@ function collectVideosFromDoc(doc: Document): { url: string; poster?: string }[]
     if (candidate && candidate.startsWith('blob:')) {
       candidate = ''
     }
-    if (candidate) {
+    const isAdLike = candidate.includes('ads') || candidate.includes('imasdk') || candidate.includes('ad-delivery') || candidate.includes('doubleclick')
+    if (candidate && !isAdLike) {
       urls.push({
         url: candidate,
         poster: video.getAttribute('poster') || undefined
