@@ -43,7 +43,8 @@
       "activeTab",
       "identity",
       "tabs",
-      "scripting"
+      "scripting",
+      "contextMenus"
     ],
     "externally_connectable": {
       "matches": [
@@ -54,12 +55,21 @@
       {
         "resources": [
           "oauth-callback.html",
-          "oauth-callback.js"
+          "oauth-callback.js",
+          "assets/tutorial.html"
         ],
         "matches": [
           "<all_urls>"
         ]
       }
-    ]
+    ],
+    "commands": {
+      "open-popup": {
+        "suggested_key": {
+          "default": "Ctrl+Shift+Y"
+        },
+        "description": "拡張ポップアップを開くショートカット"
+      }
+    }
   }
 }
