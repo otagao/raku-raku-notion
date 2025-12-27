@@ -12,6 +12,26 @@ import { StorageService } from "~services/storage"
 import { generateOAuthUrl, generateState } from "~utils/oauth"
 import type { NotionPageData, NotionOAuthConfig, WebClipData } from "~types"
 
+// YouTube専用ヘルパー
+function extractYouTubeVideoId(urlStr: string): string | undefined {
+  try {
+    const u = new URL(urlStr)
+    if (u.hostname.includes('youtube.com')) {
+      return u.searchParams.get('v') || undefined
+    }
+    if (u.hostname.includes('youtu.be')) {
+      return u.pathname.replace('/', '') || undefined
+    }
+  } catch {
+    return undefined
+  }
+}
+
+function getYouTubeThumb(videoId?: string | null): string | undefined {
+  if (!videoId) return undefined
+  return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
+}
+
 // メッセージリスナー
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('[Background] Received message:', message.type, 'from:', sender.url || sender.id);
@@ -692,13 +712,49 @@ async function fetchContentFallback(url: string): Promise<{ text?: string; image
   ].filter(Boolean) as Element[]
 
   const text = candidates.length > 0 ? extractTextFromDoc(candidates[0]) : undefined
-  const images = collectImagesFromDoc(doc)
-  const videos = collectVideosFromDoc(doc)
+  let images = collectImagesFromDoc(doc) || []
+  let videos = collectVideosFromDoc(doc) || []
+
+  // X用ポスター候補（プレースホルダ除外）
+  const ogPoster = (() => {
+    const og = doc.querySelector('meta[property="og:image"]')?.getAttribute('content')
+    if (og && !isIgnoredImage(og)) return og
+    const tw = doc.querySelector('meta[name="twitter:image"]')?.getAttribute('content')
+    if (tw && !isIgnoredImage(tw)) return tw
+    return undefined
+  })()
+
+  // YouTubeページの場合のみ、現在URLからサムネイルを最優先に差し込む
+  const youtubeVideoId = extractYouTubeVideoId(url)
+  if (youtubeVideoId) {
+    const youtubeThumb = getYouTubeThumb(youtubeVideoId)
+    if (youtubeThumb) {
+      if (!images.includes(youtubeThumb)) {
+        images = [youtubeThumb, ...images].slice(0, 20)
+      }
+      videos = videos.map(v => v.poster ? v : { ...v, poster: youtubeThumb })
+      if (videos.length === 0) {
+        videos.push({ url, poster: youtubeThumb })
+      }
+    }
+  } else if (ogPoster) {
+    // YouTube以外（X含む）で、ポスターが無い動画にOG画像を適用
+    videos = videos.map(v => v.poster ? v : { ...v, poster: ogPoster })
+    if (videos.length === 0) {
+      videos.push({ url, poster: ogPoster })
+    }
+  }
+
   const thumbnail = videos && videos.length > 0 && videos[0].poster
     ? videos[0].poster
     : (images && images.length > 0 ? images[0] : undefined)
 
-  return { text, images, videos, thumbnail }
+  return {
+    text,
+    images: images.length > 0 ? images : undefined,
+    videos: videos.length > 0 ? videos : undefined,
+    thumbnail
+  }
 }
 
 function extractTextFromDoc(element: Element): string {
