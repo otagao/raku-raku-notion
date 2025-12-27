@@ -59,7 +59,14 @@ function isIgnoredImage(url?: string | null): boolean {
   if (!url) return false
   const emoji = url.includes('/emoji/') || url.includes('twemoji') || url.includes('twimg.com/emoji') || url.includes('abs-0.twimg.com/emoji') || url.includes('abs.twimg.com/emoji') || (url.endsWith('.svg') && url.includes('emoji'))
   const twitterOgPlaceholder = url.includes('abs.twimg.com/rweb/ssr/default/v2/og/image.png')
-  return emoji || twitterOgPlaceholder
+  const youtubePlaceholder = url.includes('youtube.com/img/desktop/yt_1200.png')
+  return emoji || twitterOgPlaceholder || youtubePlaceholder
+}
+
+function getYouTubeThumb(videoId?: string | null): string | undefined {
+  if (!videoId) return undefined
+  // maxresdefault は無い場合もあるので、最低でも hqdefault を返す
+  return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
 }
 
 function getThumbnail(): string | undefined {
@@ -159,6 +166,17 @@ function getVideos(): { url: string; poster?: string }[] | undefined {
     hostname = ''
   }
   const max = (hostname.includes('twitter.com') || hostname.includes('x.com')) ? 4 : 1
+  let youtubeVideoId: string | undefined
+  try {
+    const u = new URL(window.location.href)
+    if (u.hostname.includes('youtube.com')) {
+      youtubeVideoId = u.searchParams.get('v') || undefined
+    } else if (u.hostname.includes('youtu.be')) {
+      youtubeVideoId = u.pathname.replace('/', '') || undefined
+    }
+  } catch {
+    youtubeVideoId = undefined
+  }
 
   const videos = Array.from(document.querySelectorAll('video'))
   videos.forEach(video => {
@@ -292,14 +310,36 @@ export function extractContent(): ExtractedContent {
       return ''
     }
   })()
+  let youtubeVideoId: string | undefined
+  try {
+    const u = new URL(window.location.href)
+    if (u.hostname.includes('youtube.com')) {
+      youtubeVideoId = u.searchParams.get('v') || undefined
+    } else if (u.hostname.includes('youtu.be')) {
+      youtubeVideoId = u.pathname.replace('/', '') || undefined
+    }
+  } catch {
+    youtubeVideoId = undefined
+  }
+
+  // YouTubeのサムネイルをカバー候補に追加
+  const imagesWithYouTube = (() => {
+    if (youtubeVideoId) {
+      const ytThumb = getYouTubeThumb(youtubeVideoId)
+      if (ytThumb) {
+        return images ? [ytThumb, ...images] : [ytThumb]
+      }
+    }
+    return images
+  })()
 
   // X/Twitterの場合は1枚目を破棄する（プレースホルダを避けるため）
   const filteredImages = (() => {
-    if (!images || images.length === 0) return images
+    if (!imagesWithYouTube || imagesWithYouTube.length === 0) return imagesWithYouTube
     if (hostname.includes('twitter.com') || hostname.includes('x.com')) {
-      return images.slice(1)
+      return imagesWithYouTube.slice(1)
     }
-    return images
+    return imagesWithYouTube
   })()
 
   const firstImage = filteredImages?.[0]
