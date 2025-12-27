@@ -106,7 +106,7 @@ export class InternalNotionService {
                             ...galleryProperties
                         ],
                         gallery_cover: {
-                            type: "page_content"
+                            type: "page_cover"
                         },
                         gallery_cover_aspect: "contain" // 画像全体を表示
                     },
