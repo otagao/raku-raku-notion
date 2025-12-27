@@ -97,9 +97,16 @@ export interface WebClipData {
   url: string
   content?: string       // ページ本文（テキスト）
   thumbnail?: string     // サムネイル画像URL
+  images?: string[]      // 追加画像URL（カバー候補含む）
+  videos?: VideoData[]   // 動画URLとポスター
   icon?: string          // ページアイコン（favicon）URL
   memo?: string          // ユーザーメモ
   databaseId: string     // 保存先データベースID
+}
+
+export interface VideoData {
+  url: string
+  poster?: string
 }
 
 export interface CurrentTabInfo {

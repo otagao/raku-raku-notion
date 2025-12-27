@@ -15,6 +15,7 @@ export interface ExtractedContent {
   text: string
   thumbnail?: string
   images?: string[]
+  videos?: { url: string; poster?: string }[]
   icon?: string
   title: string
   url: string
@@ -149,6 +150,53 @@ function getImages(): string[] | undefined {
   return urls.length > 0 ? urls.slice(0, 20) : undefined
 }
 
+function getVideos(): { url: string; poster?: string }[] | undefined {
+  const urls: { url: string; poster?: string }[] = []
+  let hostname = ''
+  try {
+    hostname = new URL(window.location.href).hostname
+  } catch {
+    hostname = ''
+  }
+  const max = (hostname.includes('twitter.com') || hostname.includes('x.com')) ? 4 : 1
+
+  const videos = Array.from(document.querySelectorAll('video'))
+  videos.forEach(video => {
+    if (urls.length >= max) return
+    const sources = Array.from(video.querySelectorAll('source'))
+    let candidate = video.getAttribute('src') || ''
+    if (!candidate && sources.length > 0) {
+      candidate = sources[0]?.getAttribute('src') || ''
+    }
+    if (candidate && candidate.startsWith('blob:')) {
+      candidate = ''
+    }
+    if (candidate) {
+      urls.push({
+        url: candidate,
+        poster: video.getAttribute('poster') || undefined
+      })
+    }
+  })
+
+  // og:video があれば追加（YouTube等の埋め込みリンクにも対応しやすい）
+  if (urls.length < max) {
+    const ogVideo = document.querySelector('meta[property="og:video"]')?.getAttribute('content')
+    if (ogVideo && !urls.find(v => v.url === ogVideo)) {
+      const poster = document.querySelector('meta[property="og:image"]')?.getAttribute('content') || undefined
+      urls.push({ url: ogVideo, poster })
+    }
+  }
+
+  // ページ自体がYouTube等の場合、ページURLを動画URLとして扱う
+  if (urls.length === 0 && (hostname.includes('youtube.com') || hostname.includes('youtu.be'))) {
+    const poster = document.querySelector('meta[property="og:image"]')?.getAttribute('content') || undefined
+    urls.push({ url: window.location.href, poster })
+  }
+
+  return urls.length > 0 ? urls : undefined
+}
+
 /**
  * ページのメインテキストを抽出
  * article要素、main要素、またはbody要素から抽出
@@ -235,6 +283,7 @@ function getPageTitle(): string {
  */
 export function extractContent(): ExtractedContent {
   const images = getImages()
+  const videos = getVideos()
   const hostname = (() => {
     try {
       return new URL(window.location.href).hostname
@@ -253,12 +302,14 @@ export function extractContent(): ExtractedContent {
   })()
 
   const firstImage = filteredImages?.[0]
+  const firstVideoPoster = videos && videos.length > 0 ? videos[0].poster : undefined
   return {
     title: getPageTitle(),
     url: window.location.href,
     text: getPageText(),
-    thumbnail: firstImage || getThumbnail(),
+    thumbnail: firstVideoPoster || firstImage || getThumbnail(),
     images: filteredImages,
+    videos,
     icon: getIcon()
   }
 }

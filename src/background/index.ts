@@ -341,8 +341,8 @@ async function handleClipPage(
     }
 
     // Content Scriptからコンテンツを抽出（tabIdが指定されている場合）
-    let extractedContent: { text?: string; thumbnail?: string; images?: string[]; icon?: string } = {}
-    let fallbackContent: { text?: string; thumbnail?: string; images?: string[] } | null = null
+    let extractedContent: { text?: string; thumbnail?: string; images?: string[]; videos?: { url: string; poster?: string }[]; icon?: string } = {}
+    let fallbackContent: { text?: string; thumbnail?: string; images?: string[]; videos?: { url: string; poster?: string }[] } | null = null
     if (data.tabId) {
       try {
         console.log('[Background] Extracting content from tab:', data.tabId)
@@ -356,6 +356,7 @@ async function handleClipPage(
             text: response.content.text,
             thumbnail: response.content.thumbnail,
             images: response.content.images,
+            videos: response.content.videos,
             icon: response.content.icon
           }
           console.log('[Background] Content extracted successfully')
@@ -389,6 +390,7 @@ async function handleClipPage(
       content: extractedContent.text || fallbackContent?.text || data.content,
       thumbnail: extractedContent.thumbnail || fallbackContent?.thumbnail || data.thumbnail,
       images: (extractedContent.images && extractedContent.images.length > 0 ? extractedContent.images : fallbackContent?.images) || undefined,
+      videos: (extractedContent.videos && extractedContent.videos.length > 0 ? extractedContent.videos : fallbackContent?.videos) || undefined,
       icon: extractedContent.icon,
       memo: data.memo
     }
@@ -672,7 +674,7 @@ async function handleGetDatabaseViewsViaContent(
   }
 }
 
-async function fetchContentFallback(url: string): Promise<{ text?: string; images?: string[]; thumbnail?: string }> {
+async function fetchContentFallback(url: string): Promise<{ text?: string; images?: string[]; videos?: { url: string; poster?: string }[]; thumbnail?: string }> {
   const resp = await fetch(url, { method: 'GET' })
   if (!resp.ok) {
     throw new Error(`Fallback fetch failed: ${resp.status}`)
@@ -691,9 +693,12 @@ async function fetchContentFallback(url: string): Promise<{ text?: string; image
 
   const text = candidates.length > 0 ? extractTextFromDoc(candidates[0]) : undefined
   const images = collectImagesFromDoc(doc)
-  const thumbnail = images && images.length > 0 ? images[0] : undefined
+  const videos = collectVideosFromDoc(doc)
+  const thumbnail = videos && videos.length > 0 && videos[0].poster
+    ? videos[0].poster
+    : (images && images.length > 0 ? images[0] : undefined)
 
-  return { text, images, thumbnail }
+  return { text, images, videos, thumbnail }
 }
 
 function extractTextFromDoc(element: Element): string {
@@ -766,6 +771,38 @@ function collectImagesFromDoc(doc: Document): string[] | undefined {
   })
 
   return urls.length > 0 ? urls.slice(0, 20) : undefined
+}
+
+function collectVideosFromDoc(doc: Document): { url: string; poster?: string }[] | undefined {
+  const urls: { url: string; poster?: string }[] = []
+  let hostname = ''
+  try {
+    hostname = new URL(doc.URL).hostname
+  } catch {
+    hostname = ''
+  }
+  const max = (hostname.includes('twitter.com') || hostname.includes('x.com')) ? 4 : 1
+
+  const videos = Array.from(doc.querySelectorAll('video'))
+  videos.forEach(video => {
+    if (urls.length >= max) return
+    const sources = Array.from(video.querySelectorAll('source'))
+    let candidate = video.getAttribute('src') || ''
+    if (!candidate && sources.length > 0) {
+      candidate = sources[0]?.getAttribute('src') || ''
+    }
+    if (candidate && candidate.startsWith('blob:')) {
+      candidate = ''
+    }
+    if (candidate) {
+      urls.push({
+        url: candidate,
+        poster: video.getAttribute('poster') || undefined
+      })
+    }
+  })
+
+  return urls.length > 0 ? urls : undefined
 }
 
 console.log("Raku Raku Notion background service worker loaded")
