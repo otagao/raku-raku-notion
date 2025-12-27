@@ -404,14 +404,33 @@ export class NotionService {
    * Webクリップをデータベースに追加する
    */
   async createWebClip(data: WebClipData): Promise<string> {
-    const { title, url, content, thumbnail, images, icon, memo, databaseId } = data
+    const { title, url, content, thumbnail, images, videos, icon, memo, databaseId } = data
 
     try {
       const children: any[] = []
 
       const imageUrls = images && images.length > 0 ? images : (thumbnail ? [thumbnail] : [])
-      const coverUrl = imageUrls?.[0]
       const bodyImages = imageUrls ? imageUrls.slice(0, 10) : []
+      let coverUrl = imageUrls?.[0] || thumbnail
+
+      // 動画ブロックを追加（再生可否はホスト依存）
+      if (videos && videos.length > 0) {
+        videos.forEach(video => {
+          children.push({
+            object: "block",
+            type: "video",
+            video: {
+              type: "external",
+              external: {
+                url: video.url
+              }
+            }
+          })
+        })
+        if (!coverUrl && videos[0].poster) {
+          coverUrl = videos[0].poster
+        }
+      }
 
       // 本文用に画像ブロックを追加（カバーも含めて最大5件）
       if (bodyImages.length > 0) {
