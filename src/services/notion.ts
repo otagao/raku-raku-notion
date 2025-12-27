@@ -411,45 +411,61 @@ export class NotionService {
 
       const imageUrls = images && images.length > 0 ? images : (thumbnail ? [thumbnail] : [])
       const bodyImages = imageUrls ? imageUrls.slice(0, 10) : []
-      let coverUrl = imageUrls?.[0] || thumbnail
+      const coverUrl = videos?.[0]?.poster || imageUrls?.[0] || thumbnail
+      let hostname = ''
+      try {
+        hostname = new URL(url).hostname
+      } catch {
+        hostname = ''
+      }
+      const isTwitter = hostname.includes('twitter.com') || hostname.includes('x.com')
 
-      // 動画ブロックを追加（再生可否はホスト依存）
-      if (videos && videos.length > 0) {
-        videos.forEach(video => {
-          children.push({
-            object: "block",
-            type: "video",
-            video: {
-              type: "external",
-              external: {
-                url: video.url
-              }
-            }
-          })
+      // X/Twitterの場合は埋め込みカードのみを置く（画像ブロックは追加しない）
+      if (isTwitter) {
+        children.length = 0
+        children.push({
+          object: "block",
+          type: "embed",
+          embed: {
+            url
+          }
         })
-        if (!coverUrl && videos[0].poster) {
-          coverUrl = videos[0].poster
+      } else {
+        // 動画ブロックを追加（最大3件程度）
+        if (videos && videos.length > 0) {
+          videos.slice(0, 3).forEach(video => {
+            children.push({
+              object: "block",
+              type: "video",
+              video: {
+                type: "external",
+                external: {
+                  url: video.url
+                }
+              }
+            })
+          })
+        }
+
+        // 本文用に画像ブロックを追加（カバーも含めて最大5件）
+        if (bodyImages.length > 0) {
+          bodyImages.forEach(imgUrl => {
+            children.push({
+              object: "block",
+              type: "image",
+              image: {
+                type: "external",
+                external: {
+                  url: imgUrl
+                }
+              }
+            })
+          })
         }
       }
 
-      // 本文用に画像ブロックを追加（カバーも含めて最大5件）
-      if (bodyImages.length > 0) {
-        bodyImages.forEach(imgUrl => {
-          children.push({
-            object: "block",
-            type: "image",
-            image: {
-              type: "external",
-              external: {
-                url: imgUrl
-              }
-            }
-          })
-        })
-      }
-
       // 本文がある場合は段落ブロックとして追加
-      if (content) {
+      if (content && !isTwitter) {
         // 長いテキストは2000文字ごとに分割（Notion APIの制限）
         const chunks = content.match(/.{1,2000}/g) || []
         chunks.forEach(chunk => {
