@@ -1,24 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import HomeScreen from "~screens/HomeScreen"
-import CreateFormScreen from "~screens/CreateFormScreen"
-import FormListScreen from "~screens/FormListScreen"
 import CreateClipboardScreen from "~screens/CreateClipboardScreen"
 import ClipboardListScreen from "~screens/ClipboardListScreen"
 import SelectClipboardScreen from "~screens/SelectClipboardScreen"
-import DemoScreen from "~screens/DemoScreen"
 import { SettingsScreen } from "~screens/SettingsScreen"
 import ClippingProgressScreen from "~screens/ClippingProgressScreen"
 import { StorageService } from "~services/storage"
 import { createNotionClient } from "~services/notion"
 import { InternalNotionService } from "~services/internal-notion"
-import type { Screen, Form, Clipboard, NotionDatabaseSummary, Language } from "~types"
+import type { Screen, Clipboard, NotionDatabaseSummary, Language } from "~types"
 import "~styles/global.css"
 
 function IndexPopup() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('home')
-  const [forms, setForms] = useState<Form[]>([])
   const [clipboards, setClipboards] = useState<Clipboard[]>([])
-  const [selectedFormId, setSelectedFormId] = useState<string | undefined>()
   const [selectedClipboardId, setSelectedClipboardId] = useState<string | undefined>()
   const [isClipping, setIsClipping] = useState(false)
   const [clipProgress, setClipProgress] = useState("")
@@ -89,17 +84,9 @@ function IndexPopup() {
   }, [])
 
   const initializeAndLoadData = async () => {
-    await StorageService.initializeMockData()
-    await loadForms()
-    // 保存済み保存先データベースをロード
     await loadClipboards()
     await refreshAvailableDatabases({ silent: true })
     await loadLanguage()
-  }
-
-  const loadForms = async () => {
-    const loadedForms = await StorageService.getForms()
-    setForms(loadedForms)
   }
 
   const loadClipboards = async () => {
@@ -191,17 +178,8 @@ function IndexPopup() {
   const handleNavigate = (screen: string, idParam?: string) => {
     setCurrentScreen(screen as Screen)
     if (idParam) {
-      if (screen === 'demo') {
-        setSelectedFormId(idParam)
-      } else {
-        setSelectedClipboardId(idParam)
-      }
+      setSelectedClipboardId(idParam)
     }
-  }
-
-  const handleCreateForm = async (formName: string) => {
-    await StorageService.addForm({ name: formName })
-    await loadForms()
   }
 
   const handleCreateClipboard = async (clipboardName: string) => {
@@ -464,15 +442,6 @@ function IndexPopup() {
             onOpenTutorial={handleOpenTutorial}
           />
         )
-      case 'create-form':
-        return (
-          <CreateFormScreen
-            onNavigate={handleNavigate}
-            onCreateForm={handleCreateForm}
-          />
-        )
-      case 'form-list':
-        return <FormListScreen forms={forms} onNavigate={handleNavigate} allForms={forms} />
       case 'create-clipboard':
         return (
           <CreateClipboardScreen
@@ -506,8 +475,6 @@ function IndexPopup() {
             language={language}
           />
         )
-      case 'demo':
-        return <DemoScreen formId={selectedFormId} onNavigate={handleNavigate} />
       case 'settings':
         const tInternal = internalTestTexts[language]
         return (
