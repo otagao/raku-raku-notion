@@ -4,6 +4,8 @@
  */
 
 import type { PlasmoCSConfig } from "plasmo"
+import { extractYouTubeVideoId, getYouTubeThumb } from "~utils/youtube"
+import { isIgnoredImage, extractTextFromElement } from "~utils/content-extraction"
 
 // すべてのHTTPページで実行
 export const config: PlasmoCSConfig = {
