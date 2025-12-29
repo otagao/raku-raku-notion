@@ -14,24 +14,28 @@ raku-raku-notion/
 │   │   ├── ClipboardListScreen.tsx
 │   │   ├── SelectClipboardScreen.tsx
 │   │   ├── SettingsScreen.tsx
-│   │   ├── ClippingProgressScreen.tsx
-│   │   ├── MemoDialog.tsx
-│   │   └── DemoScreen.tsx
+│   │   └── ClippingProgressScreen.tsx
 │   ├── contents/              # Content Scripts
 │   │   ├── extract-content.ts # ページコンテンツ抽出
-│   │   └── notion-api-helper.ts # Notion内部API呼び出し（Notion.so上でCookie認証を利用）
+│   │   ├── notion-api-helper.ts # Notion内部API呼び出し（Notion.so上でCookie認証を利用）
+│   │   └── notion-simplify.ts # Notion UI簡略化（www.notion.soでのみ動作）
 │   ├── services/              # ビジネスロジック層
 │   │   ├── storage.ts         # Chrome Storage API ラッパー
 │   │   ├── notion.ts          # Notion 公式API (v1) クライアント
-│   │   └── internal-notion.ts # Notion 内部API (v3) クライアント（非推奨・参考用）
+│   │   └── internal-notion.ts # Notion 内部API (v3) クライアント（参考用）
 │   ├── background/            # バックグラウンドスクリプト
-│   │   └── index.ts
+│   │   └── index.ts           # OAuth + API呼び出し + Content Script管理
 │   ├── utils/                 # ユーティリティ関数
-│   │   └── oauth.ts
+│   │   ├── oauth.ts           # OAuth認証ヘルパー
+│   │   ├── youtube.ts         # YouTube関連ヘルパー
+│   │   ├── uuid.ts            # UUID生成・変換ヘルパー
+│   │   └── content-extraction.ts # コンテンツ抽出ヘルパー
 │   ├── types/                 # TypeScript型定義
-│   │   └── index.ts
-│   ├── styles/                # グローバルスタイル
-│   │   └── global.css
+│   │   ├── index.ts           # メイン型定義
+│   │   └── internal-notion.ts # 内部API型定義
+│   ├── styles/                # スタイルシート
+│   │   ├── global.css         # グローバルスタイル
+│   │   └── notion-custom.css  # Notion UI簡略化用CSS
 │   └── components/            # 再利用可能コンポーネント
 ├── assets/
 │   ├── icon.png
@@ -63,15 +67,19 @@ raku-raku-notion/
 
 各画面は独立したReactコンポーネントとして実装されています：
 
-- **HomeScreen**: エントリーポイント、クリップボタンと導線
+- **HomeScreen**: エントリーポイント、クリップボタンとメモ入力
 - **CreateClipboardScreen**: クリップボード作成フォーム
 - **ClipboardListScreen**: クリップボード一覧表示＋既存データベース取り込み
-- **SelectClipboardScreen**: クリップ先選択
-- **SettingsScreen**: Notion認証設定
+- **SelectClipboardScreen**: クリップ先選択（複数クリップボードがある場合）
+- **SettingsScreen**: Notion認証設定（OAuth/手動トークン）、UI簡略化設定
 - **ClippingProgressScreen**: クリップ実行中の進行状況表示
-- **MemoDialog**: クリップ時のメモ入力ダイアログ
 
 画面間の遷移は `popup.tsx` のルーティングロジックで管理されます。
+
+```typescript
+export type Screen = 'home' | 'create-clipboard' | 'clipboard-list' |
+                     'select-clipboard' | 'settings'
+```
 
 ### 2. ビジネスロジック層 (Services)
 
@@ -84,20 +92,28 @@ raku-raku-notion/
 Chrome Storage APIのラッパーとして機能：
 
 ```typescript
-export const StorageService = {
+export class StorageService {
   // クリップボード操作
-  getClipboards(): Promise<Clipboard[]>
-  addClipboard(data: Partial<Clipboard>): Promise<void>
-  deleteClipboard(id: string): Promise<void>
+  static getClipboards(): Promise<Clipboard[]>
+  static addClipboard(data: Partial<Clipboard>): Promise<void>
+  static deleteClipboard(id: string): Promise<void>
+  static getClipboardByDatabaseId(databaseId: string): Promise<Clipboard | undefined>
+  static updateClipboardLastClipped(clipboardId: string): Promise<void>
 
   // Notion設定
-  getNotionConfig(): Promise<NotionConfig>
-  saveNotionConfig(config: NotionConfig): Promise<void>
+  static getNotionConfig(): Promise<NotionConfig>
+  static saveNotionConfig(config: NotionConfig): Promise<void>
+
+  // UI簡略化設定
+  static getUISimplifyConfig(): Promise<UISimplifyConfig>
+  static saveUISimplifyConfig(config: UISimplifyConfig): Promise<void>
+
+  // 言語設定
+  static getLanguageConfig(): Promise<LanguageConfig>
+  static saveLanguageConfig(config: LanguageConfig): Promise<void>
 
   // ユーティリティ
-  getCurrentTabInfo(): Promise<CurrentTabInfo>
-  debugStorage(): Promise<void>
-  resetStorage(): Promise<void>
+  static getCurrentTabInfo(): Promise<CurrentTabInfo>
 }
 ```
 

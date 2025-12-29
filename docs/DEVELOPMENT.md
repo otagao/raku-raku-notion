@@ -104,27 +104,36 @@ case 'new-screen':
 
 ```typescript
 const STORAGE_KEYS = {
-  FORMS: 'raku-forms',
   CLIPBOARDS: 'raku-clipboards',
+  NOTION_CONFIG: 'raku-notion-config',
+  UI_SIMPLIFY_CONFIG: 'raku-ui-simplify-config',
+  LANGUAGE_CONFIG: 'raku-language-config',
   NEW_DATA: 'raku-new-data', // 追加
-  // ...
 }
 ```
 
 2. 対応する getter/setter メソッドを追加
 
 ```typescript
-export const StorageService = {
+export class StorageService {
   // ...
-  async getNewData(): Promise<NewData[]> {
-    const result = await chrome.storage.local.get(STORAGE_KEYS.NEW_DATA)
-    return result[STORAGE_KEYS.NEW_DATA] || []
-  },
+  static async getNewData(): Promise<NewData[]> {
+    try {
+      const result = await chrome.storage.local.get(STORAGE_KEYS.NEW_DATA)
+      return result[STORAGE_KEYS.NEW_DATA] || []
+    } catch (error) {
+      console.error('Failed to get new data:', error)
+      return []
+    }
+  }
 
-  async saveNewData(data: NewData[]): Promise<void> {
-    await chrome.storage.local.set({
-      [STORAGE_KEYS.NEW_DATA]: data
-    })
+  static async saveNewData(data: NewData[]): Promise<void> {
+    try {
+      await chrome.storage.local.set({ [STORAGE_KEYS.NEW_DATA]: data })
+    } catch (error) {
+      console.error('Failed to save new data:', error)
+      throw error
+    }
   }
 }
 ```
@@ -139,24 +148,48 @@ export interface NewData {
 }
 ```
 
-### モックデータを更新
+### ユーティリティ関数を追加
 
-1. `src/services/storage.ts` の `MOCK_FORMS` を編集
+共通のヘルパー関数は `src/utils/` 配下に配置し、DRY原則に従って重複を避けます。
+
+1. 新しいユーティリティファイルを作成（例: `src/utils/validation.ts`）
 
 ```typescript
-const MOCK_FORMS: Form[] = [
-  {
-    id: 'mock-1',
-    name: '新しいモック',
-    createdAt: new Date(),
-    targetUrl: 'https://example.com',
-    isMock: true
+/**
+ * 検証ユーティリティ
+ */
+
+export function isValidUrl(url: string): boolean {
+  try {
+    new URL(url)
+    return true
+  } catch {
+    return false
   }
-]
+}
+
+export function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email)
+}
 ```
 
-2. 開発者ツールで `chrome.storage.local.clear()` を実行
-3. 拡張機能を更新
+2. 必要な箇所でimport
+
+```typescript
+import { isValidUrl, isValidEmail } from "~utils/validation"
+
+// 使用例
+if (isValidUrl(inputUrl)) {
+  // 処理
+}
+```
+
+**既存のユーティリティ:**
+- `oauth.ts`: OAuth認証関連
+- `youtube.ts`: YouTube URL/サムネイル処理
+- `uuid.ts`: UUID生成・変換
+- `content-extraction.ts`: ページコンテンツ抽出
 
 ### Background Service Workerにメッセージハンドラを追加
 
