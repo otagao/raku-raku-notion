@@ -404,27 +404,68 @@ export class NotionService {
    * Webクリップをデータベースに追加する
    */
   async createWebClip(data: WebClipData): Promise<string> {
-    const { title, url, content, thumbnail, icon, memo, databaseId } = data
+    const { title, url, content, thumbnail, images, videos, icon, memo, databaseId } = data
 
     try {
       const children: any[] = []
 
-      // サムネイルがある場合は画像ブロックとして追加
-      if (thumbnail) {
+      const imageUrls = images && images.length > 0 ? images : (thumbnail ? [thumbnail] : [])
+      const bodyImages = imageUrls ? imageUrls.slice(0, 10) : []
+      const coverUrl = videos?.[0]?.poster || imageUrls?.[0] || thumbnail
+      let hostname = ''
+      try {
+        hostname = new URL(url).hostname
+      } catch {
+        hostname = ''
+      }
+      const isTwitter = hostname.includes('twitter.com') || hostname.includes('x.com')
+
+      // X/Twitterの場合は埋め込みカードのみを置く（画像ブロックは追加しない）
+      if (isTwitter) {
+        children.length = 0
         children.push({
           object: "block",
-          type: "image",
-          image: {
-            type: "external",
-            external: {
-              url: thumbnail
-            }
+          type: "embed",
+          embed: {
+            url
           }
         })
+      } else {
+        // 動画ブロックを追加（最大3件程度）
+        if (videos && videos.length > 0) {
+          videos.slice(0, 3).forEach(video => {
+            children.push({
+              object: "block",
+              type: "video",
+              video: {
+                type: "external",
+                external: {
+                  url: video.url
+                }
+              }
+            })
+          })
+        }
+
+        // 本文用に画像ブロックを追加（カバーも含めて最大5件）
+        if (bodyImages.length > 0) {
+          bodyImages.forEach(imgUrl => {
+            children.push({
+              object: "block",
+              type: "image",
+              image: {
+                type: "external",
+                external: {
+                  url: imgUrl
+                }
+              }
+            })
+          })
+        }
       }
 
       // 本文がある場合は段落ブロックとして追加
-      if (content) {
+      if (content && !isTwitter) {
         // 長いテキストは2000文字ごとに分割（Notion APIの制限）
         const chunks = content.match(/.{1,2000}/g) || []
         chunks.forEach(chunk => {
@@ -449,7 +490,7 @@ export class NotionService {
             url: url
           }
         },
-        // サムネイルとテキストはページコンテンツ（children）として保存
+        // 画像やテキストはページコンテンツ（children）として保存
         children: children.length > 0 ? children : undefined
       }
 
@@ -473,6 +514,16 @@ export class NotionService {
           type: "external",
           external: {
             url: icon
+          }
+        }
+      }
+
+      // カバーに先頭画像を設定（あれば）
+      if (coverUrl) {
+        pageData.cover = {
+          type: "external",
+          external: {
+            url: coverUrl
           }
         }
       }
