@@ -80,7 +80,13 @@ chrome.storage.local.clear()
 ```
 src/
 ├── popup.tsx              # メインエントリーポイント
-├── screens/               # 画面コンポーネント（HomeScreen, SettingsScreenなど）
+├── screens/               # 画面コンポーネント
+│   ├── HomeScreen.tsx     # ホーム画面
+│   ├── CreateClipboardScreen.tsx # クリップボード作成画面
+│   ├── ClipboardListScreen.tsx # クリップボード一覧画面
+│   ├── SelectClipboardScreen.tsx # クリップボード選択画面
+│   ├── ClippingProgressScreen.tsx # クリップ進行状況画面
+│   └── SettingsScreen.tsx # 設定画面
 ├── components/            # 再利用可能コンポーネント
 ├── contents/              # Content Scripts
 │   ├── extract-content.ts # ページコンテンツ抽出
@@ -89,13 +95,20 @@ src/
 ├── services/              # ビジネスロジック層
 │   ├── storage.ts         # Chrome Storage API ラッパー
 │   ├── notion.ts          # Notion 公式API (v1) クライアント
-│   └── internal-notion.ts # Notion 内部API (v3) クライアント（非推奨・参考用）
-├── background/            # Service Worker（OAuth + API呼び出し + Content Script管理）
-├── utils/                 # ユーティリティ（oauth.ts）
+│   └── internal-notion.ts # Notion 内部API (v3) クライアント（参考用）
+├── background/            # Service Worker
+│   └── index.ts           # OAuth + API呼び出し + Content Script管理
+├── utils/                 # ユーティリティ
+│   ├── oauth.ts           # OAuth認証ヘルパー
+│   ├── youtube.ts         # YouTube関連ヘルパー
+│   ├── uuid.ts            # UUID生成・変換ヘルパー
+│   └── content-extraction.ts # コンテンツ抽出ヘルパー
 ├── styles/                # スタイルシート
 │   ├── global.css         # グローバルスタイル
 │   └── notion-custom.css  # Notion UI簡略化用CSS
 └── types/                 # TypeScript型定義
+    ├── index.ts           # メイン型定義
+    └── internal-notion.ts # 内部API型定義
 
 assets/
 ├── oauth-callback.html    # 拡張機能内OAuthコールバックページ
@@ -127,8 +140,8 @@ workers/                   # Cloudflare Workers OAuth バックエンド
 {
   'raku-clipboards': Clipboard[],           // クリップボードリスト
   'raku-notion-config': NotionConfig,       // Notion設定
-  'raku-initialized': boolean,              // 初期化フラグ
-  'raku-ui-simplify-config': UISimplifyConfig // UI簡略化設定
+  'raku-ui-simplify-config': UISimplifyConfig, // UI簡略化設定
+  'raku-language-config': LanguageConfig    // 言語設定（ja/en）
 }
 ```
 
@@ -137,33 +150,36 @@ workers/                   # Cloudflare Workers OAuth バックエンド
 詳細は [src/types/index.ts](src/types/index.ts) を参照。
 
 主要な型:
+- `Screen`: 画面タイプ（'home' | 'create-clipboard' | 'clipboard-list' | 'select-clipboard' | 'settings'）
 - `Clipboard`: クリップボード定義
 - `NotionConfig`: Notion認証設定 (OAuth/手動トークン両対応)
 - `WebClipData`: Webクリップデータ
+- `VideoData`: 動画データ（URL + ポスター）
 - `NotionDatabaseSummary`: 既存データベースの要約情報（タイトル、URL、アイコンなど）
 - `UISimplifyConfig`: UI簡略化設定（有効/無効フラグ）
+- `LanguageConfig`: 言語設定（ja/en）
 
 ### 3. 画面遷移フロー
 
 ```
-HomeScreen
-  ├─> 📎 このページをクリップ
-  │     ├─> (クリップボードが0個) → CreateClipboardScreen
-  │     ├─> (クリップボードが1個) → MemoDialog → ClippingProgressScreen → 完了
-  │     └─> (クリップボードが複数) → SelectClipboardScreen → MemoDialog → ClippingProgressScreen → 完了
-  ├─> ClipboardListScreen (クリップボード一覧を見る)
-  │     ├─> 登録済みクリップボード一覧表示
-  │     └─> Notionの既存データベース一覧表示（未登録のもののみ）
-  │           └─> クリップボードに追加可能
-  └─> SettingsScreen (⚙️設定アイコン)
-        ├─> Notion UI簡略化（有効/無効切り替え）
-        ├─> OAuth認証フロー
-        └─> 手動トークン入力
+HomeScreen（起点）
+  ├─ 📎 このページをクリップ（メモ入力可能）
+  │   ├─ (0個) → CreateClipboardScreen
+  │   ├─ (1個) → ClippingProgressScreen → 完了
+  │   └─ (複数) → SelectClipboardScreen → ClippingProgressScreen → 完了
+  ├─ ClipboardListScreen（クリップボード一覧）
+  │   ├─ 登録済みクリップボード表示・削除
+  │   └─ 既存データベース取り込み
+  └─ SettingsScreen（⚙️設定）
+      ├─ Notion UI簡略化（有効/無効切り替え）
+      ├─ OAuth認証フロー
+      ├─ 手動トークン入力
+      └─ 内部APIテスト（開発用）
 ```
 
 **クリップ実行フロー**:
 1. ユーザーがクリップボードを選択（または自動選択）
-2. MemoDialogでメモを入力（省略可能）
+2. HomeScreen上でメモを入力（省略可能）
 3. ClippingProgressScreenで進行状況を表示
    - 「クリップの準備をしています...」
    - 「ページの情報を取得中...」
