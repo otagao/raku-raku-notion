@@ -8,10 +8,16 @@ interface HomeScreenProps {
   onClipPage?: () => void
   language: Language
   onToggleLanguage: () => void
+  memo: string
+  onMemoChange: (value: string) => void
+  onOpenTutorial: () => void
 }
 
 const translations: Record<Language, {
   saving: string
+  tutorial: string
+  memoLabel: string
+  memoPlaceholder: string
   clipButton: string
   listButton: string
   createButton: string
@@ -21,6 +27,9 @@ const translations: Record<Language, {
 }> = {
   ja: {
     saving: 'ウェブページをNotionに簡単保存',
+    tutorial: 'チュートリアル',
+    memoLabel: 'メモ（任意）',
+    memoPlaceholder: 'ページについてのメモを入力できます',
     clipButton: '📎 このページを保存',
     listButton: '保存先データベース一覧を見る',
     createButton: '+ 新しい保存先データベースを作成',
@@ -30,6 +39,9 @@ const translations: Record<Language, {
   },
   en: {
     saving: 'Save web pages to Notion easily',
+    tutorial: 'Tutorial',
+    memoLabel: 'Memo (optional)',
+    memoPlaceholder: 'Add a note about this page',
     clipButton: '📎 Save this page',
     listButton: 'View destination databases',
     createButton: '+ Create a new destination database',
@@ -39,7 +51,7 @@ const translations: Record<Language, {
   }
 }
 
-const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage, language, onToggleLanguage }) => {
+const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage, language, onToggleLanguage, memo, onMemoChange, onOpenTutorial }) => {
   const t = translations[language]
   const [isConnected, setIsConnected] = useState<boolean>(false)
   const [workspaceName, setWorkspaceName] = useState<string>('')
@@ -103,6 +115,20 @@ const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage, language, onT
       <div className="header" style={{ position: 'relative' }}>
         <h1>Raku Raku Notion</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={onOpenTutorial}
+            style={{
+              background: 'transparent',
+              border: '1px solid #ddd',
+              fontSize: '12px',
+              cursor: 'pointer',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              color: '#666'
+            }}
+          >
+            {t.tutorial}
+          </button>
           <button
             onClick={onToggleLanguage}
             style={{
@@ -169,10 +195,30 @@ const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage, language, onT
         )}
       </div>
 
-      <div className="empty-state">
-        <div className="empty-state-icon">📝</div>
-        <div className="empty-state-text">
+      <div className="empty-state" style={{ alignItems: 'stretch' }}>
+        <div className="empty-state-text" style={{ textAlign: 'left' }}>
           {t.saving}
+        </div>
+
+        <div style={{ marginTop: '12px', textAlign: 'left' }}>
+          <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+            {t.memoLabel}
+          </label>
+          <textarea
+            value={memo}
+            onChange={(e) => onMemoChange(e.target.value)}
+            placeholder={t.memoPlaceholder}
+            style={{
+              width: '100%',
+              minHeight: '80px',
+              border: '1px solid #ddd',
+              borderRadius: '6px',
+              padding: '8px',
+              fontSize: '14px',
+              resize: 'vertical',
+              boxSizing: 'border-box'
+            }}
+          />
         </div>
 
         <button
