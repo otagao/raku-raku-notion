@@ -12,7 +12,7 @@ import { StorageService } from "~services/storage"
 import { generateOAuthUrl, generateState } from "~utils/oauth"
 import { extractYouTubeVideoId, getYouTubeThumb } from "~utils/youtube"
 import { isIgnoredImage, collectImagesFromDoc, collectVideosFromDoc, extractTextFromElement } from "~utils/content-extraction"
-import type { NotionPageData, NotionOAuthConfig, WebClipData } from "~types"
+import type { NotionOAuthConfig, WebClipData } from "~types"
 
 // メッセージリスナー
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -92,10 +92,6 @@ async function handleMessage(
 ) {
   try {
     switch (message.type) {
-      case "send-to-notion":
-        await handleSendToNotion(message.data, sendResponse)
-        break
-
       case "test-notion-connection":
         await handleTestConnection(sendResponse)
         break
@@ -136,48 +132,6 @@ async function handleMessage(
     sendResponse({
       success: false,
       error: error instanceof Error ? error.message : "Unknown error"
-    })
-  }
-}
-
-/**
- * Notionにページを送信
- */
-async function handleSendToNotion(
-  data: NotionPageData,
-  sendResponse: (response?: any) => void
-) {
-  try {
-    const config = await StorageService.getNotionConfig()
-
-    if (!config.apiKey && !config.accessToken) {
-      sendResponse({
-        success: false,
-        error: "Notion API key or access token is not configured"
-      })
-      return
-    }
-
-    if (!config.databaseId) {
-      sendResponse({
-        success: false,
-        error: "Notion database ID is not configured"
-      })
-      return
-    }
-
-    const notionClient = createNotionClient(config)
-    const pageId = await notionClient.createPage(data)
-
-    sendResponse({
-      success: true,
-      pageId
-    })
-  } catch (error) {
-    console.error("Failed to send to Notion:", error)
-    sendResponse({
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to create page"
     })
   }
 }

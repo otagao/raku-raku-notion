@@ -1,74 +1,13 @@
-import type { Form, NotionConfig, CurrentTabInfo, Clipboard, UISimplifyConfig, LanguageConfig } from "~types"
+import type { NotionConfig, CurrentTabInfo, Clipboard, UISimplifyConfig, LanguageConfig } from "~types"
 
 const STORAGE_KEYS = {
-  FORMS: 'raku-forms',
   CLIPBOARDS: 'raku-clipboards',
   NOTION_CONFIG: 'raku-notion-config',
-  INITIALIZED: 'raku-initialized',
   UI_SIMPLIFY_CONFIG: 'raku-ui-simplify-config',
   LANGUAGE_CONFIG: 'raku-language-config'
 } as const
 
-const MOCK_FORMS: Form[] = [
-  {
-    id: 'mock-1',
-    name: 'モックフォーム - Notion公式サイト',
-    createdAt: new Date('2024-01-01'),
-    targetUrl: 'https://www.notion.so',
-    isMock: true
-  }
-]
-
 export class StorageService {
-  static async getForms(): Promise<Form[]> {
-    try {
-      const result = await chrome.storage.local.get(STORAGE_KEYS.FORMS)
-      return result[STORAGE_KEYS.FORMS] || []
-    } catch (error) {
-      console.error('Failed to get forms:', error)
-      return []
-    }
-  }
-
-  static async initializeMockData(): Promise<void> {
-    try {
-      const result = await chrome.storage.local.get(STORAGE_KEYS.INITIALIZED)
-      if (!result[STORAGE_KEYS.INITIALIZED]) {
-        await this.saveForms(MOCK_FORMS)
-        await chrome.storage.local.set({ [STORAGE_KEYS.INITIALIZED]: true })
-      }
-    } catch (error) {
-      console.error('Failed to initialize mock data:', error)
-    }
-  }
-
-  static async saveForms(forms: Form[]): Promise<void> {
-    try {
-      await chrome.storage.local.set({ [STORAGE_KEYS.FORMS]: forms })
-    } catch (error) {
-      console.error('Failed to save forms:', error)
-      throw error
-    }
-  }
-
-  static async addForm(form: Omit<Form, 'id' | 'createdAt'>): Promise<Form> {
-    const forms = await this.getForms()
-    const newForm: Form = {
-      ...form,
-      id: crypto.randomUUID(),
-      createdAt: new Date()
-    }
-    forms.push(newForm)
-    await this.saveForms(forms)
-    return newForm
-  }
-
-  static async deleteForm(formId: string): Promise<void> {
-    const forms = await this.getForms()
-    const filteredForms = forms.filter(form => form.id !== formId)
-    await this.saveForms(filteredForms)
-  }
-
   static async getNotionConfig(): Promise<NotionConfig> {
     try {
       const result = await chrome.storage.local.get(STORAGE_KEYS.NOTION_CONFIG)
