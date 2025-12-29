@@ -54,23 +54,6 @@ function getIcon(): string | undefined {
   }
 }
 
-/**
- * OGP画像またはfaviconを取得
- */
-function isIgnoredImage(url?: string | null): boolean {
-  if (!url) return false
-  const emoji = url.includes('/emoji/') || url.includes('twemoji') || url.includes('twimg.com/emoji') || url.includes('abs-0.twimg.com/emoji') || url.includes('abs.twimg.com/emoji') || (url.endsWith('.svg') && url.includes('emoji'))
-  const twitterOgPlaceholder = url.includes('abs.twimg.com/rweb/ssr/default/v2/og/image.png')
-  const youtubePlaceholder = url.includes('youtube.com/img/desktop/yt_1200.png')
-  return emoji || twitterOgPlaceholder || youtubePlaceholder
-}
-
-function getYouTubeThumb(videoId?: string | null): string | undefined {
-  if (!videoId) return undefined
-  // maxresdefault は無い場合もあるので、最低でも hqdefault を返す
-  return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
-}
-
 function getThumbnail(): string | undefined {
   // OG:image を優先
   const ogImage = document.querySelector('meta[property="og:image"]')
@@ -271,25 +254,6 @@ function getPageText(): string {
   })
 
   return extractTextFromElement(body)
-}
-
-/**
- * HTML要素からテキストを抽出（スクリプト・スタイルタグを除外）
- */
-function extractTextFromElement(element: Element): string {
-  const clone = element.cloneNode(true) as HTMLElement
-
-  // スクリプトとスタイルを削除
-  clone.querySelectorAll('script, style, noscript').forEach(el => el.remove())
-
-  // テキストを取得して整形
-  const text = clone.textContent || ''
-
-  // 連続する空白・改行を整理
-  return text
-    .replace(/\s+/g, ' ')
-    .trim()
-    .substring(0, 5000) // 最大5000文字（Notion APIの制限を考慮）
 }
 
 /**
