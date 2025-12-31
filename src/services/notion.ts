@@ -421,9 +421,10 @@ export class NotionService {
       const isTwitter = hostname.includes('twitter.com') || hostname.includes('x.com')
       const isYouTube = hostname.includes('youtube.com') || hostname.includes('youtu.be')
 
-      // X/Twitterの場合は埋め込みカードのみを置く（画像ブロックは追加しない）
+      // X/Twitterの場合は埋め込みカードに加え、元投稿のメディアも保存する
       if (isTwitter) {
         children.length = 0
+        // 元投稿へのリンク（埋め込みカード）
         children.push({
           object: "block",
           type: "embed",
@@ -431,6 +432,21 @@ export class NotionService {
             url
           }
         })
+        // 元投稿の画像も保存（動画は別途検討）
+        if (bodyImages.length > 0) {
+          bodyImages.forEach(imgUrl => {
+            children.push({
+              object: "block",
+              type: "image",
+              image: {
+                type: "external",
+                external: {
+                  url: imgUrl
+                }
+              }
+            })
+          })
+        }
       } else {
         // 動画ブロックを追加（最大3件程度）
         if (videos && videos.length > 0) {

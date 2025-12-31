@@ -24,6 +24,40 @@ export interface ExtractedContent {
 }
 
 /**
+ * X/TwitterのURLからステータスIDを抽出
+ */
+function getTwitterStatusId(): string | undefined {
+  try {
+    const u = new URL(window.location.href)
+    const parts = u.pathname.split('/')
+    const idx = parts.findIndex(p => p === 'status')
+    if (idx >= 0 && parts[idx + 1]) {
+      return parts[idx + 1]
+    }
+  } catch {
+    return undefined
+  }
+  return undefined
+}
+
+/**
+ * X/Twitterのメイン投稿のarticle要素を取得
+ */
+function getMainTweetElement(): HTMLElement | null {
+  const statusId = getTwitterStatusId()
+  const articles = Array.from(document.querySelectorAll('article[data-testid="tweet"]')) as HTMLElement[]
+  if (!statusId) {
+    return articles[0] || null
+  }
+  // statusId を含むリンクを持つarticleを探す
+  const match = articles.find(article => {
+    const links = Array.from(article.querySelectorAll('a[href*="/status/"]')) as HTMLAnchorElement[]
+    return links.some(link => link.href.includes(`/status/${statusId}`))
+  })
+  return match || articles[0] || null
+}
+
+/**
  * ページのアイコン（favicon）を取得
  */
 function getIcon(): string | undefined {
@@ -86,6 +120,39 @@ function getThumbnail(): string | undefined {
  */
 function getImages(): string[] | undefined {
   const urls: string[] = []
+  let hostname = ''
+  try {
+    hostname = new URL(window.location.href).hostname
+  } catch {
+    hostname = ''
+  }
+  const isTwitter = hostname.includes('twitter.com') || hostname.includes('x.com')
+  const mainTweet = isTwitter ? getMainTweetElement() : null
+
+  // X/Twitterはメイン投稿のDOMに限定して拾う
+  if (isTwitter) {
+    if (mainTweet) {
+      const imgs = Array.from(mainTweet.querySelectorAll('img'))
+      imgs.forEach(img => {
+        if (urls.length >= 20) return
+        const width = img.naturalWidth || parseInt(img.getAttribute('width') || '0', 10)
+        const height = img.naturalHeight || parseInt(img.getAttribute('height') || '0', 10)
+        if (width < 120 || height < 120) return
+        const candidate = img.currentSrc || img.src || ''
+        if (candidate && !isIgnoredImage(candidate) && !urls.includes(candidate)) {
+          urls.push(candidate)
+        }
+      })
+    }
+    // メイン投稿で取れなかった場合のみ OGPをフォールバック
+    if (urls.length === 0) {
+      const og = document.querySelector('meta[property="og:image"]')?.getAttribute('content')
+      if (og && !isIgnoredImage(og)) urls.push(og)
+      const tw = document.querySelector('meta[name="twitter:image"]')?.getAttribute('content')
+      if (tw && !isIgnoredImage(tw) && !urls.includes(tw)) urls.push(tw)
+    }
+    return urls.length > 0 ? urls.slice(0, 20) : undefined
+  }
 
   const og = document.querySelector('meta[property="og:image"]')?.getAttribute('content')
   if (og) urls.push(og)
@@ -151,6 +218,8 @@ function getVideos(): { url: string; poster?: string }[] | undefined {
     hostname = ''
   }
   const max = (hostname.includes('twitter.com') || hostname.includes('x.com')) ? 4 : 1
+  const isTwitter = hostname.includes('twitter.com') || hostname.includes('x.com')
+  const mainTweet = isTwitter ? getMainTweetElement() : null
   let youtubeVideoId: string | undefined
   try {
     const u = new URL(window.location.href)
@@ -172,7 +241,9 @@ function getVideos(): { url: string; poster?: string }[] | undefined {
   })()
 
   const videos = Array.from(document.querySelectorAll('video'))
-  videos.forEach(video => {
+  const videoSources = isTwitter && mainTweet ? Array.from(mainTweet.querySelectorAll('video')) : videos
+  const videoIter = isTwitter ? videoSources : videos
+  videoIter.forEach(video => {
     if (urls.length >= max) return
     const sources = Array.from(video.querySelectorAll('source'))
     let candidate = video.getAttribute('src') || ''
@@ -310,9 +381,7 @@ export function extractContent(): ExtractedContent {
   // X/Twitterの場合は1枚目を破棄する（プレースホルダを避けるため）
   const filteredImages = (() => {
     if (!imagesWithYouTube || imagesWithYouTube.length === 0) return imagesWithYouTube
-    if (hostname.includes('twitter.com') || hostname.includes('x.com')) {
-      return imagesWithYouTube.slice(1)
-    }
+    // X/Twitterも含め、元投稿で抽出した順をそのまま使う
     return imagesWithYouTube
   })()
 
