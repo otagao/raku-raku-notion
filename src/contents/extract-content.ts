@@ -129,7 +129,7 @@ function getImages(): string[] | undefined {
   const isTwitter = hostname.includes('twitter.com') || hostname.includes('x.com')
   const mainTweet = isTwitter ? getMainTweetElement() : null
 
-  // X/Twitterはメイン投稿のDOMに限定して拾う
+  // X/Twitterはメイン投稿のDOMに限定して拾う（他の投稿の画像は除外）
   if (isTwitter) {
     if (mainTweet) {
       const imgs = Array.from(mainTweet.querySelectorAll('img'))
@@ -217,8 +217,8 @@ function getVideos(): { url: string; poster?: string }[] | undefined {
   } catch {
     hostname = ''
   }
-  const max = (hostname.includes('twitter.com') || hostname.includes('x.com')) ? 4 : 1
   const isTwitter = hostname.includes('twitter.com') || hostname.includes('x.com')
+  const max = isTwitter ? 1 : 1
   const mainTweet = isTwitter ? getMainTweetElement() : null
   let youtubeVideoId: string | undefined
   try {
@@ -268,6 +268,18 @@ function getVideos(): { url: string; poster?: string }[] | undefined {
     if (ogVideo && !urls.find(v => v.url === ogVideo)) {
       const poster = youtubeThumb || ogPoster
       urls.push({ url: ogVideo, poster })
+    }
+  }
+
+  // X/Twitterで動画らしき要素があるのにURLが取れなかった場合のフォールバック
+  if (isTwitter && urls.length === 0) {
+    const hasVideoElement = !!(mainTweet && (mainTweet.querySelector('video') || mainTweet.querySelector('[data-testid="videoPlayer"]')))
+    const ogVideoMeta = document.querySelector('meta[property="og:video"]')?.getAttribute('content')
+    if (hasVideoElement || ogVideoMeta) {
+      urls.push({
+        url: ogVideoMeta || window.location.href,
+        poster: ogPoster
+      })
     }
   }
 
