@@ -41,12 +41,24 @@ export function extractTextFromElement(element: Element): string {
  */
 export function collectImagesFromDoc(doc: Document): string[] | undefined {
   const urls: string[] = []
+  let hostname = ''
+  try {
+    hostname = new URL(doc.URL).hostname
+  } catch {
+    hostname = ''
+  }
+  const isTwitter = hostname.includes('twitter.com') || hostname.includes('x.com')
 
   // og/twitter
   const og = doc.querySelector('meta[property="og:image"]')?.getAttribute('content')
   if (og && !isIgnoredImage(og)) urls.push(og)
   const tw = doc.querySelector('meta[name="twitter:image"]')?.getAttribute('content')
   if (tw && !isIgnoredImage(tw) && !urls.includes(tw)) urls.push(tw)
+
+  // Twitter/XはOGPのみ返し、本文内からは拾わない（返信や関連投稿を避けるため）
+  if (isTwitter) {
+    return urls.length > 0 ? urls : undefined
+  }
 
   // imgタグ
   const imgs = Array.from(doc.querySelectorAll('img'))
