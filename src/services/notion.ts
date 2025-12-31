@@ -418,9 +418,6 @@ export class NotionService {
         }
       })
 
-      const imageUrls = images && images.length > 0 ? images : (thumbnail ? [thumbnail] : [])
-      const bodyImages = imageUrls ? imageUrls.slice(0, 10) : []
-      const coverUrl = normalizedVideos?.[0]?.poster || imageUrls?.[0] || thumbnail
       let hostname = ''
       try {
         hostname = new URL(url).hostname
@@ -428,10 +425,18 @@ export class NotionService {
         hostname = ''
       }
       const isTwitter = hostname.includes('twitter.com') || hostname.includes('x.com')
+      const isYouTube = hostname.includes('youtube.com') || hostname.includes('youtu.be')
+      const imageUrls = images && images.length > 0 ? images : (thumbnail ? [thumbnail] : [])
+      const bodyImages = imageUrls ? imageUrls.slice(0, 10) : []
+      const hasVideo = normalizedVideos && normalizedVideos.length > 0
+      const hasImages = bodyImages.length > 0
+      const isTextOnlyTwitter = isTwitter && !hasVideo && !hasImages
+      const coverUrl = isTextOnlyTwitter
+        ? undefined
+        : (normalizedVideos?.[0]?.poster || imageUrls?.[0] || thumbnail)
 
       // X/Twitterの場合は埋め込みカードを必ず作成し、動画投稿ならカードのみ
       if (isTwitter) {
-        const isSingleVideo = normalizedVideos && normalizedVideos.length === 1
         children.length = 0
         // 元投稿へのリンク（埋め込みカード）
         children.push({
@@ -442,7 +447,6 @@ export class NotionService {
           }
         })
         // 動画投稿は埋め込みカードのみ、画像投稿なら画像を保存
-        const hasVideo = normalizedVideos && normalizedVideos.length > 0
         if (!hasVideo && bodyImages.length > 0) {
           bodyImages.forEach(imgUrl => {
             children.push({
