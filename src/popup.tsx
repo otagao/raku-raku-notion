@@ -15,6 +15,7 @@ function IndexPopup() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('home')
   const [clipboards, setClipboards] = useState<Clipboard[]>([])
   const [selectedClipboardId, setSelectedClipboardId] = useState<string | undefined>()
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [isClipping, setIsClipping] = useState(false)
   const [clipProgress, setClipProgress] = useState("")
   const [internalTestResult, setInternalTestResult] = useState<string>("")
@@ -426,7 +427,8 @@ function IndexPopup() {
           url: tabInfo.url,
           databaseId,
           tabId: tabInfo.tabId, // Content Scriptからコンテンツを抽出するためのタブID
-          memo: memo || undefined // メモがあれば含める
+          memo: memo || undefined, // メモがあれば含める
+          tags: selectedTags.length > 0 ? selectedTags : undefined
         }
       });
     }).catch(error => {
@@ -451,6 +453,9 @@ function IndexPopup() {
             clipboards={clipboards}
             selectedClipboardId={selectedClipboardId}
             onSelectClipboardId={setSelectedClipboardId}
+            selectedTags={selectedTags}
+            onAddTag={(tag) => setSelectedTags(prev => prev.includes(tag) ? prev : [...prev, tag])}
+            onRemoveTag={(tag) => setSelectedTags(prev => prev.filter(t => t !== tag))}
           />
         )
       case 'create-clipboard':
@@ -559,6 +564,11 @@ function IndexPopup() {
             memo={memoDraft}
             onMemoChange={setMemoDraft}
             onOpenTutorial={handleOpenTutorial}
+            clipboards={clipboards}
+            selectedClipboardId={selectedClipboardId}
+            onSelectClipboardId={setSelectedClipboardId}
+            selectedTags={selectedTags}
+            onAddTag={(tag) => setSelectedTags(prev => prev.includes(tag) ? prev : [...prev, tag])}
           />
         )
     }

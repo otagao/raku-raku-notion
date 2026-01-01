@@ -14,6 +14,9 @@ interface HomeScreenProps {
   clipboards: Clipboard[]
   selectedClipboardId?: string
   onSelectClipboardId: (id: string) => void
+  selectedTags: string[]
+  onAddTag: (tag: string) => void
+  onRemoveTag: (tag: string) => void
 }
 
 const translations: Record<Language, {
@@ -60,11 +63,26 @@ const translations: Record<Language, {
   }
 }
 
-const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage, language, onToggleLanguage, memo, onMemoChange, onOpenTutorial, clipboards, selectedClipboardId, onSelectClipboardId }) => {
+const HomeScreen: FC<HomeScreenProps> = ({
+  onNavigate,
+  onClipPage,
+  language,
+  onToggleLanguage,
+  memo,
+  onMemoChange,
+  onOpenTutorial,
+  clipboards,
+  selectedClipboardId,
+  onSelectClipboardId,
+  selectedTags,
+  onAddTag,
+  onRemoveTag
+}) => {
   const t = translations[language]
   const [isConnected, setIsConnected] = useState<boolean>(false)
   const [workspaceName, setWorkspaceName] = useState<string>('')
   const [isCheckingConnection, setIsCheckingConnection] = useState<boolean>(true)
+  const [pendingTag, setPendingTag] = useState<string>('') // 未選択スタート
 
   useEffect(() => {
     checkConnection()
@@ -204,8 +222,49 @@ const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage, language, onT
         )}
       </div>
 
-      {/* 保存先ドロップダウン（幅を半分にして右寄せ） */}
-      <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'flex-end' }}>
+      {/* 左: タグ付与UI、右: 保存先ドロップダウン（幅50%） */}
+      <div style={{ marginBottom: '12px', display: 'flex', gap: '12px' }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+              タグ付与
+            </label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <select
+                value={pendingTag}
+                onChange={(e) => setPendingTag(e.target.value)}
+                style={{
+                  width: '60%',
+                  minWidth: '100px',
+                  padding: '8px',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  backgroundColor: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="">（選択なし）</option>
+                <option value="new">新規タグ</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+              </select>
+              <button
+                className="button button-secondary"
+                onClick={() => pendingTag !== '' && pendingTag !== 'new' && onAddTag(pendingTag)}
+                disabled={pendingTag === '' || pendingTag === 'new'}
+                style={{
+                  padding: '8px 12px',
+                  whiteSpace: 'nowrap',
+                  opacity: pendingTag === '' || pendingTag === 'new' ? 0.6 : 1,
+                  cursor: pendingTag === '' || pendingTag === 'new' ? 'not-allowed' : 'pointer'
+                }}
+              >
+                付与
+              </button>
+            </div>
+          </div>
+        </div>
         <div style={{ width: '50%', minWidth: '220px', textAlign: 'left' }}>
           <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
             {t.destinationLabel}
@@ -233,6 +292,47 @@ const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage, language, onT
           </select>
         </div>
       </div>
+
+      {/* 付与予定のタグ表示 */}
+      {selectedTags.length > 0 && (
+        <div style={{ marginBottom: '8px', textAlign: 'left' }}>
+          <span style={{ fontWeight: 600, fontSize: '13px', color: '#444' }}>付与タグ:</span>{' '}
+          {selectedTags.map((tag, idx) => (
+            <span
+              key={tag}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 8px',
+                marginLeft: idx === 0 ? 8 : 4,
+                background: '#eef4ff',
+                borderRadius: '12px',
+                fontSize: '12px',
+                color: '#334'
+              }}
+            >
+              {tag}
+              <button
+                onClick={() => onRemoveTag(tag)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#556',
+                  cursor: 'pointer',
+                  padding: 0,
+                  fontSize: '12px',
+                  lineHeight: 1
+                }}
+                aria-label={`${tag} を除外`}
+                title="削除"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
 
       <div className="empty-state" style={{ alignItems: 'stretch' }}>
         <div className="empty-state-text" style={{ textAlign: 'left' }}>

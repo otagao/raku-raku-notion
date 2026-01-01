@@ -352,6 +352,9 @@ export class NotionService {
             "メモ": {
               rich_text: {}
             },
+            "タグ": {
+              multi_select: {}
+            },
             "作成日時": {
               created_time: {}
             }
@@ -404,7 +407,7 @@ export class NotionService {
    * Webクリップをデータベースに追加する
    */
   async createWebClip(data: WebClipData): Promise<string> {
-    const { title, url, content, thumbnail, images, videos, icon, memo, databaseId } = data
+    const { title, url, content, thumbnail, images, videos, icon, memo, tags, databaseId } = data
 
     try {
       const children: any[] = []
@@ -537,6 +540,13 @@ export class NotionService {
             }
           ]
         }
+      }
+
+      // タグ（マルチセレクト）を追加（タグA/B固定の簡易実験）
+      if (tags && tags.length > 0) {
+        const multiSelectValue = tags.map(name => ({ name }))
+        // デフォルトで作成している「タグ」プロパティにのみ付与する
+        pageData.properties["タグ"] = { multi_select: multiSelectValue }
       }
 
       // アイコンがある場合はページアイコンとして設定

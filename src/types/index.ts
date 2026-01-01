@@ -84,6 +84,7 @@ export interface WebClipData {
   videos?: VideoData[]   // 動画URLとポスター
   icon?: string          // ページアイコン（favicon）URL
   memo?: string          // ユーザーメモ
+  tags?: string[]        // 付与するタグ（マルチセレクト想定）
   databaseId: string     // 保存先データベースID
 }
 

@@ -293,7 +293,7 @@ async function handleCompleteOAuth(
  * Webページをクリップ（データベースにページを追加）
  */
 async function handleClipPage(
-  data: { title: string; url: string; databaseId: string; tabId?: number; content?: string; thumbnail?: string; memo?: string },
+  data: { title: string; url: string; databaseId: string; tabId?: number; content?: string; thumbnail?: string; memo?: string; tags?: string[] },
   sender: chrome.runtime.MessageSender,
   sendResponse: (response?: any) => void
 ) {
@@ -384,7 +384,8 @@ async function handleClipPage(
       images: (extractedContent.images && extractedContent.images.length > 0 ? extractedContent.images : fallbackContent?.images) || undefined,
       videos: (extractedContent.videos && extractedContent.videos.length > 0 ? extractedContent.videos : fallbackContent?.videos) || undefined,
       icon: extractedContent.icon,
-      memo: data.memo
+      memo: data.memo,
+      tags: data.tags
     }
 
     sendProgress('Notionにクリップ中...');
