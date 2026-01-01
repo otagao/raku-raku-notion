@@ -89,9 +89,23 @@ function IndexPopup() {
     await loadLanguage()
   }
 
+  // クリップボードリストが変わったときに選択状態を同期
+  useEffect(() => {
+    if (clipboards.length === 0) {
+      setSelectedClipboardId(undefined)
+      return
+    }
+    if (!selectedClipboardId || !clipboards.find(cb => cb.notionDatabaseId === selectedClipboardId)) {
+      setSelectedClipboardId(clipboards[0].notionDatabaseId)
+    }
+  }, [clipboards, selectedClipboardId])
+
   const loadClipboards = async () => {
     const loadedClipboards = await StorageService.getClipboards()
     setClipboards(loadedClipboards)
+    if (loadedClipboards.length > 0 && !selectedClipboardId) {
+      setSelectedClipboardId(loadedClipboards[0].notionDatabaseId)
+    }
   }
 
   const loadLanguage = async () => {
@@ -385,14 +399,8 @@ function IndexPopup() {
       return
     }
 
-    // 保存先データベースが1つだけの場合は自動選択してクリップ実行
-    if (clipboards.length === 1) {
-      await performClip(clipboards[0].notionDatabaseId, memoDraft || undefined)
-      return
-    }
-
-    // 複数ある場合は選択UIを表示
-    handleNavigate('select-clipboard')
+    const targetId = selectedClipboardId || clipboards[0].notionDatabaseId
+    await performClip(targetId, memoDraft || undefined)
   }
 
   const handleSelectClipboard = async (databaseId: string) => {
@@ -440,6 +448,9 @@ function IndexPopup() {
             memo={memoDraft}
             onMemoChange={setMemoDraft}
             onOpenTutorial={handleOpenTutorial}
+            clipboards={clipboards}
+            selectedClipboardId={selectedClipboardId}
+            onSelectClipboardId={setSelectedClipboardId}
           />
         )
       case 'create-clipboard':
