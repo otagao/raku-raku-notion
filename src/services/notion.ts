@@ -421,7 +421,7 @@ export class NotionService {
       const isTwitter = hostname.includes('twitter.com') || hostname.includes('x.com')
       const isYouTube = hostname.includes('youtube.com') || hostname.includes('youtu.be')
 
-      // X/Twitterの場合は埋め込みカードを必ず作成し、動画投稿ならカードのみ
+      // X/Twitterの場合は埋め込みカードに加え、元投稿のメディアも保存する
       if (isTwitter) {
         const isSingleVideo = videos && videos.length === 1
         children.length = 0
@@ -433,9 +433,31 @@ export class NotionService {
             url
           }
         })
-        // 動画投稿は埋め込みカードのみ、画像投稿なら画像を保存
-        const hasVideo = videos && videos.length > 0
-        if (!hasVideo && bodyImages.length > 0) {
+        // 単一動画かどうかの目印
+        if (isSingleVideo) {
+          children.push({
+            object: "block",
+            type: "paragraph",
+            paragraph: {
+              rich_text: [{ text: { content: "1動画" } }]
+            }
+          })
+        }
+        // 元投稿の動画があれば動画ブロック、なければ画像を保存
+        if (isSingleVideo && videos) {
+          videos.slice(0, 1).forEach(video => {
+            children.push({
+              object: "block",
+              type: "video",
+              video: {
+                type: "external",
+                external: {
+                  url: video.url
+                }
+              }
+            })
+          })
+        } else if (bodyImages.length > 0) {
           bodyImages.forEach(imgUrl => {
             children.push({
               object: "block",

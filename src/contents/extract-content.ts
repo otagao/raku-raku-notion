@@ -220,11 +220,6 @@ function getVideos(): { url: string; poster?: string }[] | undefined {
   const isTwitter = hostname.includes('twitter.com') || hostname.includes('x.com')
   const max = isTwitter ? 1 : 1
   const mainTweet = isTwitter ? getMainTweetElement() : null
-  const mainTweetFirstImage = (() => {
-    if (!mainTweet) return undefined
-    const img = mainTweet.querySelector('img') as HTMLImageElement | null
-    return img?.currentSrc || img?.src || undefined
-  })()
   let youtubeVideoId: string | undefined
   try {
     const u = new URL(window.location.href)
@@ -255,14 +250,14 @@ function getVideos(): { url: string; poster?: string }[] | undefined {
     if (!candidate && sources.length > 0) {
       candidate = sources[0]?.getAttribute('src') || ''
     }
+    if (candidate && candidate.startsWith('blob:')) {
+      candidate = ''
+    }
     const isAdLike = candidate.includes('ads') || candidate.includes('imasdk') || candidate.includes('ad-delivery') || candidate.includes('doubleclick')
     if (candidate && !isAdLike) {
-      const posterFallback = isTwitter
-        ? (video.getAttribute('poster') || mainTweetFirstImage || ogPoster)
-        : (video.getAttribute('poster') || youtubeThumb || ogPoster)
       urls.push({
         url: candidate,
-        poster: posterFallback || undefined
+        poster: video.getAttribute('poster') || youtubeThumb || ogPoster || undefined
       })
     }
   })
@@ -271,7 +266,7 @@ function getVideos(): { url: string; poster?: string }[] | undefined {
   if (urls.length < max) {
     const ogVideo = document.querySelector('meta[property="og:video"]')?.getAttribute('content')
     if (ogVideo && !urls.find(v => v.url === ogVideo)) {
-      const poster = isTwitter ? (mainTweetFirstImage || ogPoster) : (youtubeThumb || ogPoster)
+      const poster = youtubeThumb || ogPoster
       urls.push({ url: ogVideo, poster })
     }
   }
@@ -283,7 +278,7 @@ function getVideos(): { url: string; poster?: string }[] | undefined {
     if (hasVideoElement || ogVideoMeta) {
       urls.push({
         url: ogVideoMeta || window.location.href,
-        poster: mainTweetFirstImage || ogPoster
+        poster: ogPoster
       })
     }
   }
