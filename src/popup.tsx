@@ -17,6 +17,7 @@ function IndexPopup() {
   const [selectedClipboardId, setSelectedClipboardId] = useState<string | undefined>()
   const [tagOptions, setTagOptions] = useState<string[]>([])
   const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const tagFetchSeq = useState({ current: 0 })[0] // フェッチの競合防止用
   const [isClipping, setIsClipping] = useState(false)
   const [clipProgress, setClipProgress] = useState("")
   const [internalTestResult, setInternalTestResult] = useState<string>("")
@@ -125,6 +126,7 @@ function IndexPopup() {
         setTagOptions([])
         return
       }
+      const seq = ++tagFetchSeq.current
 
       // 1) まずローカルキャッシュを表示
       const cached = await StorageService.getTagOptionsForDatabase(selectedClipboardId)
@@ -142,12 +144,28 @@ function IndexPopup() {
       }
       try {
         const notionClient = createNotionClient(config)
-        const tags = await notionClient.getTagOptions(selectedClipboardId)
-        setTagOptions(tags)
-        await StorageService.saveTagOptionsForDatabase(selectedClipboardId, tags)
+        const attemptFetch = async (retries = 1): Promise<string[]> => {
+          try {
+            return await notionClient.getTagOptions(selectedClipboardId)
+          } catch (err) {
+            if (retries > 0) {
+              await new Promise(res => setTimeout(res, 500))
+              return attemptFetch(retries - 1)
+            }
+            throw err
+          }
+        }
+        const tags = await attemptFetch(1)
+        // 最新リクエストのみ反映
+        if (seq === tagFetchSeq.current) {
+          setTagOptions(tags)
+          await StorageService.saveTagOptionsForDatabase(selectedClipboardId, tags)
+        }
       } catch (err) {
         console.warn('Failed to load tag options:', err)
-        setTagOptions(cached || [])
+        if (seq === tagFetchSeq.current) {
+          setTagOptions(cached || [])
+        }
       }
     }
     fetchTags()
@@ -489,6 +507,20 @@ function IndexPopup() {
     });
   }
 
+  const addTagAndPersist = (tag: string) => {
+    const trimmed = tag.trim()
+    if (!trimmed) return
+    setSelectedTags(prev => (prev.includes(trimmed) ? prev : [...prev, trimmed]))
+    setTagOptions(prev => {
+      if (prev.includes(trimmed)) return prev
+      const merged = [...prev, trimmed]
+      if (selectedClipboardId) {
+        StorageService.saveTagOptionsForDatabase(selectedClipboardId, merged).catch(() => {})
+      }
+      return merged
+    })
+  }
+
   const renderScreen = () => {
     switch (currentScreen) {
       case 'home':
@@ -505,7 +537,7 @@ function IndexPopup() {
             selectedClipboardId={selectedClipboardId}
             onSelectClipboardId={setSelectedClipboardId}
             selectedTags={selectedTags}
-            onAddTag={(tag) => setSelectedTags(prev => prev.includes(tag) ? prev : [...prev, tag])}
+            onAddTag={addTagAndPersist}
             onRemoveTag={(tag) => setSelectedTags(prev => prev.filter(t => t !== tag))}
             existingTags={tagOptions}
           />
