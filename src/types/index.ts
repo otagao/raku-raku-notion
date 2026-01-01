@@ -109,3 +109,9 @@ export type Language = 'ja' | 'en'
 export interface LanguageConfig {
   language: Language
 }
+
+// 既存タグの候補
+export interface TagOption {
+  name: string
+  sourceDatabaseId?: string
+}
