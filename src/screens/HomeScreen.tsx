@@ -83,6 +83,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
   const [workspaceName, setWorkspaceName] = useState<string>('')
   const [isCheckingConnection, setIsCheckingConnection] = useState<boolean>(true)
   const [pendingTag, setPendingTag] = useState<string>('') // 未選択スタート
+  const [newTagName, setNewTagName] = useState<string>('') // 新規タグ名
 
   useEffect(() => {
     checkConnection()
@@ -222,74 +223,115 @@ const HomeScreen: FC<HomeScreenProps> = ({
         )}
       </div>
 
-      {/* 左: タグ付与UI、右: 保存先ドロップダウン（幅50%） */}
-      <div style={{ marginBottom: '12px', display: 'flex', gap: '12px' }}>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
-          <div style={{ flex: 1 }}>
-            <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
-              タグ付与
-            </label>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <select
-                value={pendingTag}
-                onChange={(e) => setPendingTag(e.target.value)}
-                style={{
-                  width: '60%',
-                  minWidth: '100px',
-                  padding: '8px',
-                  border: '1px solid #ddd',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  backgroundColor: 'white',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="">（選択なし）</option>
-                <option value="new">新規タグ</option>
-                <option value="A">A</option>
-                <option value="B">B</option>
-              </select>
-              <button
-                className="button button-secondary"
-                onClick={() => pendingTag !== '' && pendingTag !== 'new' && onAddTag(pendingTag)}
-                disabled={pendingTag === '' || pendingTag === 'new'}
-                style={{
-                  padding: '8px 12px',
-                  whiteSpace: 'nowrap',
-                  opacity: pendingTag === '' || pendingTag === 'new' ? 0.6 : 1,
-                  cursor: pendingTag === '' || pendingTag === 'new' ? 'not-allowed' : 'pointer'
-                }}
-              >
-                付与
-              </button>
-            </div>
-          </div>
-        </div>
-        <div style={{ width: '50%', minWidth: '220px', textAlign: 'left' }}>
-          <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
-            {t.destinationLabel}
-          </label>
+      {/* 保存先ドロップダウン */}
+      <div style={{ marginBottom: '12px', textAlign: 'left' }}>
+        <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+          {t.destinationLabel}
+        </label>
+        <select
+          value={selectedClipboardId || ''}
+          onChange={(e) => onSelectClipboardId(e.target.value)}
+          disabled={!isConnected || clipboards.length === 0}
+          style={{
+            width: '100%',
+            padding: '8px',
+            border: '1px solid #ddd',
+            borderRadius: '6px',
+            fontSize: '14px',
+            backgroundColor: !isConnected || clipboards.length === 0 ? '#f5f5f5' : 'white',
+            cursor: !isConnected || clipboards.length === 0 ? 'not-allowed' : 'pointer'
+          }}
+        >
+          <option value="" disabled>{t.destinationPlaceholder}</option>
+          {clipboards.map(cb => (
+            <option key={cb.id} value={cb.notionDatabaseId}>
+              {cb.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* タグ付与UI */}
+      <div style={{ marginBottom: '8px', textAlign: 'left' }}>
+        <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+          タグ付与
+        </label>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <select
-            value={selectedClipboardId || ''}
-            onChange={(e) => onSelectClipboardId(e.target.value)}
-            disabled={!isConnected || clipboards.length === 0}
+            value={pendingTag}
+            onChange={(e) => {
+              setPendingTag(e.target.value)
+              if (e.target.value !== 'new') {
+                setNewTagName('')
+              }
+            }}
             style={{
-              width: '100%',
+              width: '40%',
+              minWidth: '100px',
               padding: '8px',
               border: '1px solid #ddd',
               borderRadius: '6px',
               fontSize: '14px',
-              backgroundColor: !isConnected || clipboards.length === 0 ? '#f5f5f5' : 'white',
-              cursor: !isConnected || clipboards.length === 0 ? 'not-allowed' : 'pointer'
+              backgroundColor: 'white',
+              cursor: 'pointer'
             }}
           >
-            <option value="" disabled>{t.destinationPlaceholder}</option>
-            {clipboards.map(cb => (
-              <option key={cb.id} value={cb.notionDatabaseId}>
-                {cb.name}
-              </option>
-            ))}
+            <option value="">（選択なし）</option>
+            <option value="new">新規タグ</option>
+            <option value="A">A</option>
+            <option value="B">B</option>
           </select>
+          {pendingTag === 'new' && (
+            <input
+              type="text"
+              value={newTagName}
+              onChange={(e) => setNewTagName(e.target.value)}
+              placeholder="タグ名を入力"
+              style={{
+                flex: 1,
+                minWidth: '120px',
+                padding: '8px',
+                border: '1px solid #ddd',
+                borderRadius: '6px',
+                fontSize: '14px'
+              }}
+            />
+          )}
+          <button
+            className="button button-secondary"
+            onClick={() => {
+              if (pendingTag === 'new') {
+                const trimmed = newTagName.trim()
+                if (trimmed) {
+                  onAddTag(trimmed)
+                  setNewTagName('')
+                  setPendingTag('')
+                }
+              } else if (pendingTag !== '') {
+                onAddTag(pendingTag)
+              }
+            }}
+            disabled={
+              pendingTag === '' ||
+              (pendingTag === 'new' && newTagName.trim().length === 0)
+            }
+            style={{
+              padding: '8px 12px',
+              whiteSpace: 'nowrap',
+              opacity:
+                pendingTag === '' ||
+                (pendingTag === 'new' && newTagName.trim().length === 0)
+                  ? 0.6
+                  : 1,
+              cursor:
+                pendingTag === '' ||
+                (pendingTag === 'new' && newTagName.trim().length === 0)
+                  ? 'not-allowed'
+                  : 'pointer'
+            }}
+          >
+            付与
+          </button>
         </div>
       </div>
 

@@ -104,8 +104,16 @@ function IndexPopup() {
   const loadClipboards = async () => {
     const loadedClipboards = await StorageService.getClipboards()
     setClipboards(loadedClipboards)
-    if (loadedClipboards.length > 0 && !selectedClipboardId) {
-      setSelectedClipboardId(loadedClipboards[0].notionDatabaseId)
+    if (loadedClipboards.length > 0) {
+      const storedId = await StorageService.getSelectedClipboardId()
+      const fallbackId = loadedClipboards[0].notionDatabaseId
+      setSelectedClipboardId(
+        storedId && loadedClipboards.find(cb => cb.notionDatabaseId === storedId)
+          ? storedId
+          : fallbackId
+      )
+    } else {
+      setSelectedClipboardId(undefined)
     }
   }
 
@@ -407,6 +415,13 @@ function IndexPopup() {
   const handleSelectClipboard = async (databaseId: string) => {
     await performClip(databaseId, memoDraft || undefined)
   }
+
+  // 選択した保存先を保存（ポップアップ再オープン時に復元）
+  useEffect(() => {
+    if (selectedClipboardId) {
+      StorageService.saveSelectedClipboardId(selectedClipboardId)
+    }
+  }, [selectedClipboardId])
 
   const performClip = (databaseId: string, memo?: string) => {
     setIsClipping(true);

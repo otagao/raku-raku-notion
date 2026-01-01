@@ -4,7 +4,8 @@ const STORAGE_KEYS = {
   CLIPBOARDS: 'raku-clipboards',
   NOTION_CONFIG: 'raku-notion-config',
   UI_SIMPLIFY_CONFIG: 'raku-ui-simplify-config',
-  LANGUAGE_CONFIG: 'raku-language-config'
+  LANGUAGE_CONFIG: 'raku-language-config',
+  SELECTED_CLIPBOARD_ID: 'raku-selected-clipboard-id'
 } as const
 
 export class StorageService {
@@ -214,6 +215,26 @@ export class StorageService {
       await chrome.storage.local.set({ [STORAGE_KEYS.LANGUAGE_CONFIG]: config })
     } catch (error) {
       console.error('Failed to save language config:', error)
+      throw error
+    }
+  }
+
+  // ========== 選択中クリップボード ==========
+  static async getSelectedClipboardId(): Promise<string | undefined> {
+    try {
+      const result = await chrome.storage.local.get(STORAGE_KEYS.SELECTED_CLIPBOARD_ID)
+      return result[STORAGE_KEYS.SELECTED_CLIPBOARD_ID]
+    } catch (error) {
+      console.error('Failed to get selected clipboard id:', error)
+      return undefined
+    }
+  }
+
+  static async saveSelectedClipboardId(id: string): Promise<void> {
+    try {
+      await chrome.storage.local.set({ [STORAGE_KEYS.SELECTED_CLIPBOARD_ID]: id })
+    } catch (error) {
+      console.error('Failed to save selected clipboard id:', error)
       throw error
     }
   }
