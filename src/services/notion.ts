@@ -409,18 +409,9 @@ export class NotionService {
     try {
       const children: any[] = []
 
-      // blob: は再生不可のため、動画URLを正規化（blob のときは元ページURLをセット）
-      const normalizedVideos = videos?.map(v => {
-        const isBlob = v.url.startsWith('blob:')
-        return {
-          ...v,
-          url: isBlob ? url : v.url
-        }
-      })
-
       const imageUrls = images && images.length > 0 ? images : (thumbnail ? [thumbnail] : [])
       const bodyImages = imageUrls ? imageUrls.slice(0, 10) : []
-      const coverUrl = normalizedVideos?.[0]?.poster || imageUrls?.[0] || thumbnail
+      const coverUrl = videos?.[0]?.poster || imageUrls?.[0] || thumbnail
       let hostname = ''
       try {
         hostname = new URL(url).hostname
@@ -432,7 +423,7 @@ export class NotionService {
 
       // X/Twitterの場合は埋め込みカードを必ず作成し、動画投稿ならカードのみ
       if (isTwitter) {
-        const isSingleVideo = normalizedVideos && normalizedVideos.length === 1
+        const isSingleVideo = videos && videos.length === 1
         children.length = 0
         // 元投稿へのリンク（埋め込みカード）
         children.push({
@@ -443,7 +434,7 @@ export class NotionService {
           }
         })
         // 動画投稿は埋め込みカードのみ、画像投稿なら画像を保存
-        const hasVideo = normalizedVideos && normalizedVideos.length > 0
+        const hasVideo = videos && videos.length > 0
         if (!hasVideo && bodyImages.length > 0) {
           bodyImages.forEach(imgUrl => {
             children.push({
@@ -460,8 +451,8 @@ export class NotionService {
         }
       } else {
         // 動画ブロックを追加（最大3件程度）
-        if (normalizedVideos && normalizedVideos.length > 0) {
-          normalizedVideos.slice(0, 3).forEach(video => {
+        if (videos && videos.length > 0) {
+          videos.slice(0, 3).forEach(video => {
             children.push({
               object: "block",
               type: "video",
