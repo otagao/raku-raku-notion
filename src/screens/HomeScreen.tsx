@@ -204,32 +204,34 @@ const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage, language, onT
         )}
       </div>
 
-      {/* 保存先ドロップダウン */}
-      <div style={{ marginBottom: '12px', textAlign: 'left' }}>
-        <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
-          {t.destinationLabel}
-        </label>
-        <select
-          value={selectedClipboardId || ''}
-          onChange={(e) => onSelectClipboardId(e.target.value)}
-          disabled={!isConnected || clipboards.length === 0}
-          style={{
-            width: '100%',
-            padding: '8px',
-            border: '1px solid #ddd',
-            borderRadius: '6px',
-            fontSize: '14px',
-            backgroundColor: !isConnected || clipboards.length === 0 ? '#f5f5f5' : 'white',
-            cursor: !isConnected || clipboards.length === 0 ? 'not-allowed' : 'pointer'
-          }}
-        >
-          <option value="" disabled>{t.destinationPlaceholder}</option>
-          {clipboards.map(cb => (
-            <option key={cb.id} value={cb.notionDatabaseId}>
-              {cb.name}
-            </option>
-          ))}
-        </select>
+      {/* 保存先ドロップダウン（幅を半分にして右寄せ） */}
+      <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ width: '50%', minWidth: '220px', textAlign: 'left' }}>
+          <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+            {t.destinationLabel}
+          </label>
+          <select
+            value={selectedClipboardId || ''}
+            onChange={(e) => onSelectClipboardId(e.target.value)}
+            disabled={!isConnected || clipboards.length === 0}
+            style={{
+              width: '100%',
+              padding: '8px',
+              border: '1px solid #ddd',
+              borderRadius: '6px',
+              fontSize: '14px',
+              backgroundColor: !isConnected || clipboards.length === 0 ? '#f5f5f5' : 'white',
+              cursor: !isConnected || clipboards.length === 0 ? 'not-allowed' : 'pointer'
+            }}
+          >
+            <option value="" disabled>{t.destinationPlaceholder}</option>
+            {clipboards.map(cb => (
+              <option key={cb.id} value={cb.notionDatabaseId}>
+                {cb.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="empty-state" style={{ alignItems: 'stretch' }}>
