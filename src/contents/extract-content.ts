@@ -112,40 +112,6 @@ function getThumbnail(): string | undefined {
   return undefined
 }
 
-function getYouTubeDescription(): string | undefined {
-  const grabText = (el: Element | null) => el ? (el.textContent || '').trim() : ''
-
-  // ytInitialPlayerResponse の shortDescription を最優先で使用（全文が入る）
-  const scriptText = Array.from(document.querySelectorAll('script'))
-    .map(s => s.textContent || '')
-    .find(t => t.includes('ytInitialPlayerResponse'))
-  if (scriptText) {
-    try {
-      const jsonPart = scriptText.split('ytInitialPlayerResponse =')[1]?.split('};')[0]
-      if (jsonPart) {
-        const parsed = JSON.parse(jsonPart + '}')
-        const desc = parsed?.videoDetails?.shortDescription
-        if (typeof desc === 'string' && desc.trim()) {
-          return desc.trim()
-        }
-      }
-    } catch {
-      // ignore parse errors
-    }
-  }
-
-  const selectors = ['#description', '#description-inline-expander', 'ytd-text-inline-expander']
-  for (const sel of selectors) {
-    const text = grabText(document.querySelector(sel))
-    if (text) return text
-  }
-
-  const metaDesc = document.querySelector('meta[name="description"]')?.getAttribute('content')
-  if (metaDesc && metaDesc.trim()) return metaDesc.trim()
-
-  return undefined
-}
-
 /**
  * 複数画像を収集（OGP/Twitterを優先し、ページ内の大きめ画像を最大5件）
  */
@@ -431,12 +397,13 @@ export function extractContent(): ExtractedContent {
 
   const firstImage = filteredImages?.[0]
   const firstVideoPoster = videos && videos.length > 0 ? videos[0].poster : undefined
-  const isTwitter = hostname.includes('twitter.com') || hostname.includes('x.com')
-  const text = (() => {
-    if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
-      return getYouTubeDescription() || getPageText()
+  const isTwitter = (() => {
+    try {
+      const h = new URL(window.location.href).hostname
+      return h.includes('twitter.com') || h.includes('x.com')
+    } catch {
+      return false
     }
-    return getPageText()
   })()
   const thumbnail = (() => {
     if (isTwitter && !firstVideoPoster && !firstImage) {
@@ -447,7 +414,7 @@ export function extractContent(): ExtractedContent {
   return {
     title: getPageTitle(),
     url: window.location.href,
-    text,
+    text: getPageText(),
     thumbnail,
     images: filteredImages,
     videos,
