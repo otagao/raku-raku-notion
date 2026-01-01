@@ -1,7 +1,7 @@
 import { type FC, useState, useEffect } from "react"
 import { StorageService } from "~services/storage"
 import { createNotionClient } from "~services/notion"
-import type { Language } from "~types"
+import type { Language, Clipboard } from "~types"
 
 interface HomeScreenProps {
   onNavigate: (screen: string) => void
@@ -11,6 +11,9 @@ interface HomeScreenProps {
   memo: string
   onMemoChange: (value: string) => void
   onOpenTutorial: () => void
+  clipboards: Clipboard[]
+  selectedClipboardId?: string
+  onSelectClipboardId: (id: string) => void
 }
 
 const translations: Record<Language, {
@@ -24,6 +27,8 @@ const translations: Record<Language, {
   checking: string
   connected: (name: string) => string
   disconnected: string
+  destinationLabel: string
+  destinationPlaceholder: string
 }> = {
   ja: {
     saving: 'ウェブページをNotionに簡単保存',
@@ -35,7 +40,9 @@ const translations: Record<Language, {
     createButton: '+ 新しい保存先データベースを作成',
     checking: '接続状態を確認中...',
     connected: (name) => `接続中: ${name || 'Notionワークスペース'}`,
-    disconnected: '設定からNotionに接続してください'
+    disconnected: '設定からNotionに接続してください',
+    destinationLabel: '保存先',
+    destinationPlaceholder: '保存先を選択してください'
   },
   en: {
     saving: 'Save web pages to Notion easily',
@@ -47,11 +54,13 @@ const translations: Record<Language, {
     createButton: '+ Create a new destination database',
     checking: 'Checking connection...',
     connected: (name) => `Connected: ${name || 'Notion workspace'}`,
-    disconnected: 'Connect to Notion in Settings'
+    disconnected: 'Connect to Notion in Settings',
+    destinationLabel: 'Destination',
+    destinationPlaceholder: 'Select a destination'
   }
 }
 
-const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage, language, onToggleLanguage, memo, onMemoChange, onOpenTutorial }) => {
+const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage, language, onToggleLanguage, memo, onMemoChange, onOpenTutorial, clipboards, selectedClipboardId, onSelectClipboardId }) => {
   const t = translations[language]
   const [isConnected, setIsConnected] = useState<boolean>(false)
   const [workspaceName, setWorkspaceName] = useState<string>('')
@@ -193,6 +202,34 @@ const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage, language, onT
             </button>
           </span>
         )}
+      </div>
+
+      {/* 保存先ドロップダウン */}
+      <div style={{ marginBottom: '12px', textAlign: 'left' }}>
+        <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+          {t.destinationLabel}
+        </label>
+        <select
+          value={selectedClipboardId || ''}
+          onChange={(e) => onSelectClipboardId(e.target.value)}
+          disabled={!isConnected || clipboards.length === 0}
+          style={{
+            width: '100%',
+            padding: '8px',
+            border: '1px solid #ddd',
+            borderRadius: '6px',
+            fontSize: '14px',
+            backgroundColor: !isConnected || clipboards.length === 0 ? '#f5f5f5' : 'white',
+            cursor: !isConnected || clipboards.length === 0 ? 'not-allowed' : 'pointer'
+          }}
+        >
+          <option value="" disabled>{t.destinationPlaceholder}</option>
+          {clipboards.map(cb => (
+            <option key={cb.id} value={cb.notionDatabaseId}>
+              {cb.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="empty-state" style={{ alignItems: 'stretch' }}>
