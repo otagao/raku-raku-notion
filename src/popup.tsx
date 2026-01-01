@@ -15,6 +15,7 @@ function IndexPopup() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('home')
   const [clipboards, setClipboards] = useState<Clipboard[]>([])
   const [selectedClipboardId, setSelectedClipboardId] = useState<string | undefined>()
+  const [tagOptions, setTagOptions] = useState<string[]>([])
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [isClipping, setIsClipping] = useState(false)
   const [clipProgress, setClipProgress] = useState("")
@@ -116,6 +117,41 @@ function IndexPopup() {
       setSelectedClipboardId(undefined)
     }
   }
+
+  // 選択中DBのタグを取得
+  useEffect(() => {
+    const fetchTags = async () => {
+      if (!selectedClipboardId) {
+        setTagOptions([])
+        return
+      }
+
+      // 1) まずローカルキャッシュを表示
+      const cached = await StorageService.getTagOptionsForDatabase(selectedClipboardId)
+      if (cached) {
+        setTagOptions(cached)
+      } else {
+        setTagOptions([])
+      }
+
+      // 2) その後APIで最新取得（成功時のみ上書き＋キャッシュ保存）
+      const config = await StorageService.getNotionConfig()
+      if (!config.accessToken && !config.apiKey) {
+        setTagOptions(cached || [])
+        return
+      }
+      try {
+        const notionClient = createNotionClient(config)
+        const tags = await notionClient.getTagOptions(selectedClipboardId)
+        setTagOptions(tags)
+        await StorageService.saveTagOptionsForDatabase(selectedClipboardId, tags)
+      } catch (err) {
+        console.warn('Failed to load tag options:', err)
+        setTagOptions(cached || [])
+      }
+    }
+    fetchTags()
+  }, [selectedClipboardId])
 
   const loadLanguage = async () => {
     const config = await StorageService.getLanguageConfig()
@@ -471,6 +507,7 @@ function IndexPopup() {
             selectedTags={selectedTags}
             onAddTag={(tag) => setSelectedTags(prev => prev.includes(tag) ? prev : [...prev, tag])}
             onRemoveTag={(tag) => setSelectedTags(prev => prev.filter(t => t !== tag))}
+            existingTags={tagOptions}
           />
         )
       case 'create-clipboard':

@@ -17,6 +17,7 @@ interface HomeScreenProps {
   selectedTags: string[]
   onAddTag: (tag: string) => void
   onRemoveTag: (tag: string) => void
+  existingTags?: string[]
 }
 
 const translations: Record<Language, {
@@ -76,7 +77,8 @@ const HomeScreen: FC<HomeScreenProps> = ({
   onSelectClipboardId,
   selectedTags,
   onAddTag,
-  onRemoveTag
+  onRemoveTag,
+  existingTags = []
 }) => {
   const t = translations[language]
   const [isConnected, setIsConnected] = useState<boolean>(false)
@@ -278,8 +280,9 @@ const HomeScreen: FC<HomeScreenProps> = ({
           >
             <option value="">（選択なし）</option>
             <option value="new">新規タグ</option>
-            <option value="A">A</option>
-            <option value="B">B</option>
+            {existingTags.map(tag => (
+              <option key={tag} value={tag}>{tag}</option>
+            ))}
           </select>
           {pendingTag === 'new' && (
             <input

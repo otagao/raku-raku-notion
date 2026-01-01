@@ -594,6 +594,38 @@ export class NotionService {
       throw error
     }
   }
+
+  /**
+   * 指定したデータベースの「タグ」マルチセレクトプロパティから選択肢を取得
+   */
+  async getTagOptions(databaseId: string): Promise<string[]> {
+    try {
+      const response = await fetch(`${NOTION_API_BASE}/databases/${databaseId}`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${this.getAuthToken()}`,
+          "Notion-Version": NOTION_VERSION
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || response.statusText)
+      }
+
+      const result = await response.json()
+      const tagProp = result.properties?.["タグ"]
+      if (tagProp?.type === "multi_select" && Array.isArray(tagProp.multi_select?.options)) {
+        return tagProp.multi_select.options
+          .map((opt: any) => opt?.name)
+          .filter((name: any): name is string => typeof name === 'string' && name.trim().length > 0)
+      }
+      return []
+    } catch (error) {
+      console.error('Failed to fetch tag options:', error)
+      return []
+    }
+  }
 }
 
 /**
