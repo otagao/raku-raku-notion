@@ -419,7 +419,6 @@ export class NotionService {
         hostname = ''
       }
       const isTwitter = hostname.includes('twitter.com') || hostname.includes('x.com')
-      const isYouTube = hostname.includes('youtube.com') || hostname.includes('youtu.be')
 
       // X/Twitterの場合は埋め込みカードのみを置く（画像ブロックは追加しない）
       if (isTwitter) {
@@ -448,8 +447,8 @@ export class NotionService {
           })
         }
 
-        // YouTube以外のみ画像ブロックを追加（最大5件）
-        if (!isYouTube && bodyImages.length > 0) {
+        // 本文用に画像ブロックを追加（カバーも含めて最大5件）
+        if (bodyImages.length > 0) {
           bodyImages.forEach(imgUrl => {
             children.push({
               object: "block",
