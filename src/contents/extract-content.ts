@@ -45,13 +45,16 @@ function getTwitterStatusId(): string | undefined {
  */
 function getMainTweetElement(): HTMLElement | null {
   const statusId = getTwitterStatusId()
-  if (!statusId) return null
   const articles = Array.from(document.querySelectorAll('article[data-testid="tweet"]')) as HTMLElement[]
+  if (!statusId) {
+    return articles[0] || null
+  }
+  // statusId を含むリンクを持つarticleを探す
   const match = articles.find(article => {
     const links = Array.from(article.querySelectorAll('a[href*="/status/"]')) as HTMLAnchorElement[]
     return links.some(link => link.href.includes(`/status/${statusId}`))
   })
-  return match || null
+  return match || articles[0] || null
 }
 
 /**
@@ -128,19 +131,26 @@ function getImages(): string[] | undefined {
 
   // X/Twitterはメイン投稿のDOMに限定して拾う（他の投稿の画像は除外）
   if (isTwitter) {
-    if (!mainTweet) return undefined
-    const imgs = Array.from(mainTweet.querySelectorAll('img'))
-    imgs.forEach(img => {
-      if (urls.length >= 20) return
-      const width = img.naturalWidth || parseInt(img.getAttribute('width') || '0', 10)
-      const height = img.naturalHeight || parseInt(img.getAttribute('height') || '0', 10)
-      if (width < 120 || height < 120) return
-      const candidate = img.currentSrc || img.src || ''
-      if (candidate && !isIgnoredImage(candidate) && !urls.includes(candidate)) {
-        urls.push(candidate)
-      }
-    })
-    // メイン投稿のみを対象にするため、空なら何も返さず終了（リプ画像は拾わない）
+    if (mainTweet) {
+      const imgs = Array.from(mainTweet.querySelectorAll('img'))
+      imgs.forEach(img => {
+        if (urls.length >= 20) return
+        const width = img.naturalWidth || parseInt(img.getAttribute('width') || '0', 10)
+        const height = img.naturalHeight || parseInt(img.getAttribute('height') || '0', 10)
+        if (width < 120 || height < 120) return
+        const candidate = img.currentSrc || img.src || ''
+        if (candidate && !isIgnoredImage(candidate) && !urls.includes(candidate)) {
+          urls.push(candidate)
+        }
+      })
+    }
+    // メイン投稿で取れなかった場合のみ OGPをフォールバック
+    if (urls.length === 0) {
+      const og = document.querySelector('meta[property="og:image"]')?.getAttribute('content')
+      if (og && !isIgnoredImage(og)) urls.push(og)
+      const tw = document.querySelector('meta[name="twitter:image"]')?.getAttribute('content')
+      if (tw && !isIgnoredImage(tw) && !urls.includes(tw)) urls.push(tw)
+    }
     return urls.length > 0 ? urls.slice(0, 20) : undefined
   }
 
@@ -236,9 +246,6 @@ function getVideos(): { url: string; poster?: string }[] | undefined {
   })()
 
   const videos = Array.from(document.querySelectorAll('video'))
-  if (isTwitter && !mainTweet) {
-    return undefined
-  }
   const videoSources = isTwitter && mainTweet ? Array.from(mainTweet.querySelectorAll('video')) : videos
   const videoIter = isTwitter ? videoSources : videos
   videoIter.forEach(video => {
@@ -397,25 +404,11 @@ export function extractContent(): ExtractedContent {
 
   const firstImage = filteredImages?.[0]
   const firstVideoPoster = videos && videos.length > 0 ? videos[0].poster : undefined
-  const isTwitter = (() => {
-    try {
-      const h = new URL(window.location.href).hostname
-      return h.includes('twitter.com') || h.includes('x.com')
-    } catch {
-      return false
-    }
-  })()
-  const thumbnail = (() => {
-    if (isTwitter && !firstVideoPoster && !firstImage) {
-      return undefined
-    }
-    return firstVideoPoster || firstImage || getThumbnail()
-  })()
   return {
     title: getPageTitle(),
     url: window.location.href,
     text: getPageText(),
-    thumbnail,
+    thumbnail: firstVideoPoster || firstImage || getThumbnail(),
     images: filteredImages,
     videos,
     icon: getIcon()
