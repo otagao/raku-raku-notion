@@ -10,27 +10,9 @@
 import { createNotionClient } from "~services/notion"
 import { StorageService } from "~services/storage"
 import { generateOAuthUrl, generateState } from "~utils/oauth"
-import type { NotionPageData, NotionOAuthConfig, WebClipData } from "~types"
-
-// YouTube専用ヘルパー
-function extractYouTubeVideoId(urlStr: string): string | undefined {
-  try {
-    const u = new URL(urlStr)
-    if (u.hostname.includes('youtube.com')) {
-      return u.searchParams.get('v') || undefined
-    }
-    if (u.hostname.includes('youtu.be')) {
-      return u.pathname.replace('/', '') || undefined
-    }
-  } catch {
-    return undefined
-  }
-}
-
-function getYouTubeThumb(videoId?: string | null): string | undefined {
-  if (!videoId) return undefined
-  return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
-}
+import { extractYouTubeVideoId, getYouTubeThumb } from "~utils/youtube"
+import { isIgnoredImage, collectImagesFromDoc, collectVideosFromDoc, extractTextFromElement } from "~utils/content-extraction"
+import type { NotionOAuthConfig, WebClipData } from "~types"
 
 // メッセージリスナー
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -110,10 +92,6 @@ async function handleMessage(
 ) {
   try {
     switch (message.type) {
-      case "send-to-notion":
-        await handleSendToNotion(message.data, sendResponse)
-        break
-
       case "test-notion-connection":
         await handleTestConnection(sendResponse)
         break
@@ -154,48 +132,6 @@ async function handleMessage(
     sendResponse({
       success: false,
       error: error instanceof Error ? error.message : "Unknown error"
-    })
-  }
-}
-
-/**
- * Notionにページを送信
- */
-async function handleSendToNotion(
-  data: NotionPageData,
-  sendResponse: (response?: any) => void
-) {
-  try {
-    const config = await StorageService.getNotionConfig()
-
-    if (!config.apiKey && !config.accessToken) {
-      sendResponse({
-        success: false,
-        error: "Notion API key or access token is not configured"
-      })
-      return
-    }
-
-    if (!config.databaseId) {
-      sendResponse({
-        success: false,
-        error: "Notion database ID is not configured"
-      })
-      return
-    }
-
-    const notionClient = createNotionClient(config)
-    const pageId = await notionClient.createPage(data)
-
-    sendResponse({
-      success: true,
-      pageId
-    })
-  } catch (error) {
-    console.error("Failed to send to Notion:", error)
-    sendResponse({
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to create page"
     })
   }
 }
@@ -747,7 +683,7 @@ async function fetchContentFallback(url: string): Promise<{ text?: string; image
     doc.body
   ].filter(Boolean) as Element[]
 
-  const text = candidates.length > 0 ? extractTextFromDoc(candidates[0]) : undefined
+  const text = candidates.length > 0 ? extractTextFromElement(candidates[0]) : undefined
   let images = collectImagesFromDoc(doc) || []
   let videos = collectVideosFromDoc(doc) || []
 
@@ -791,111 +727,6 @@ async function fetchContentFallback(url: string): Promise<{ text?: string; image
     videos: videos.length > 0 ? videos : undefined,
     thumbnail
   }
-}
-
-function extractTextFromDoc(element: Element): string {
-  const clone = element.cloneNode(true) as HTMLElement
-  clone.querySelectorAll('script, style, noscript').forEach(el => el.remove())
-  const text = clone.textContent || ''
-  return text.replace(/\s+/g, ' ').trim().substring(0, 5000)
-}
-
-function collectImagesFromDoc(doc: Document): string[] | undefined {
-  const urls: string[] = []
-
-  // og/twitter
-  const og = doc.querySelector('meta[property="og:image"]')?.getAttribute('content')
-    if (og && !isIgnoredImage(og)) urls.push(og)
-  const tw = doc.querySelector('meta[name="twitter:image"]')?.getAttribute('content')
-  if (tw && !isIgnoredImage(tw) && !urls.includes(tw)) urls.push(tw)
-
-  // imgタグ
-  const imgs = Array.from(doc.querySelectorAll('img'))
-  imgs.forEach(img => {
-    if (urls.length >= 20) return
-    const width = parseInt(img.getAttribute('width') || '0', 10) || img.naturalWidth
-    const height = parseInt(img.getAttribute('height') || '0', 10) || img.naturalHeight
-    const isLargeEnough = (width || 0) >= 50 && (height || 0) >= 50
-    const srcset = img.getAttribute('srcset') || img.getAttribute('data-srcset')
-    let candidate = img.getAttribute('src') || ''
-    if (!candidate && srcset) {
-      const first = srcset.split(',')[0]?.trim().split(' ')[0]
-      if (first) candidate = first
-    }
-    if (!candidate) {
-      candidate = img.getAttribute('data-src') || img.getAttribute('data-original') || img.getAttribute('data-lazy') || ''
-    }
-    if (candidate && isLargeEnough && !isIgnoredImage(candidate) && !urls.includes(candidate)) {
-      urls.push(candidate)
-    }
-  })
-
-  // picture/source
-  const sources = Array.from(doc.querySelectorAll('picture source'))
-  sources.forEach(src => {
-    if (urls.length >= 20) return
-    const srcset = src.getAttribute('srcset') || ''
-    const first = srcset.split(',')[0]?.trim().split(' ')[0]
-    if (first && !isIgnoredImage(first) && !urls.includes(first)) {
-      urls.push(first)
-    }
-  })
-
-  // CSS背景
-  const elemsWithBg = Array.from(doc.querySelectorAll('*'))
-  elemsWithBg.forEach(el => {
-    if (urls.length >= 20) return
-    const style = (el as HTMLElement).getAttribute('style') || ''
-    let bg = ''
-    if (style.includes('background')) {
-      bg = style
-    } else {
-      const computed = (el as HTMLElement).style.backgroundImage
-      bg = computed || ''
-    }
-    if (bg && bg.includes('url(')) {
-      const match = bg.match(/url\(["']?(.*?)["']?\)/)
-      const url = match?.[1]
-      if (url && !isIgnoredImage(url) && !urls.includes(url) && url !== 'about:blank') {
-        urls.push(url)
-      }
-    }
-  })
-
-  return urls.length > 0 ? urls.slice(0, 20) : undefined
-}
-
-function collectVideosFromDoc(doc: Document): { url: string; poster?: string }[] | undefined {
-  const urls: { url: string; poster?: string }[] = []
-  let hostname = ''
-  try {
-    hostname = new URL(doc.URL).hostname
-  } catch {
-    hostname = ''
-  }
-  const max = (hostname.includes('twitter.com') || hostname.includes('x.com')) ? 4 : 1
-
-  const videos = Array.from(doc.querySelectorAll('video'))
-  videos.forEach(video => {
-    if (urls.length >= max) return
-    const sources = Array.from(video.querySelectorAll('source'))
-    let candidate = video.getAttribute('src') || ''
-    if (!candidate && sources.length > 0) {
-      candidate = sources[0]?.getAttribute('src') || ''
-    }
-    if (candidate && candidate.startsWith('blob:')) {
-      candidate = ''
-    }
-    const isAdLike = candidate.includes('ads') || candidate.includes('imasdk') || candidate.includes('ad-delivery') || candidate.includes('doubleclick')
-    if (candidate && !isAdLike) {
-      urls.push({
-        url: candidate,
-        poster: video.getAttribute('poster') || undefined
-      })
-    }
-  })
-
-  return urls.length > 0 ? urls : undefined
 }
 
 console.log("Raku Raku Notion background service worker loaded")
