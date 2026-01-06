@@ -1,4 +1,4 @@
-export type Screen = 'home' | 'create-clipboard' | 'clipboard-list' | 'select-clipboard' | 'demo' | 'settings'
+export type Screen = 'home' | 'create-clipboard' | 'clipboard-list' | 'select-clipboard' | 'settings'
 
 // クリップボード: Notionのデータベースに紐づく
 export interface Clipboard {
@@ -19,23 +19,6 @@ export interface NotionDatabaseSummary {
   iconEmoji?: string
   lastEditedTime?: string
   createdTime?: string
-}
-
-// 後方互換性のため残す（削除予定）
-export interface Form {
-  id: string
-  name: string
-  createdAt: Date
-  targetUrl?: string
-  isMock?: boolean
-  fields?: FormField[]
-}
-
-export interface FormField {
-  id: string
-  name: string
-  type: 'text' | 'textarea' | 'select' | 'checkbox'
-  required: boolean
 }
 
 export interface NavigationState {

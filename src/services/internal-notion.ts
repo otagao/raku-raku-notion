@@ -1,20 +1,5 @@
 import type { LoadUserContentResponse, NotionUser, NotionSpace } from "~types/internal-notion"
-
-// 型定義は types/internal-notion.ts にあるが、uuidが必要
-// 拡張機能内で 'uuid' パッケージが使えるか確認が必要だが、なければ簡易実装する
-// ここでは簡易的なUUID生成関数を使用（依存関係を増やさないため）
-// 32桁のIDをハイフン付きUUID形式に変換する
-function formatUUID(id: string): string {
-    if (id.includes("-")) return id
-    return `${id.slice(0, 8)}-${id.slice(8, 12)}-${id.slice(12, 16)}-${id.slice(16, 20)}-${id.slice(20)}`
-}
-
-function generateUUID() {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
-    });
-}
+import { generateUUID, formatUUID } from "~utils/uuid"
 
 const NOTION_API_V3_BASE = "https://www.notion.so/api/v3"
 

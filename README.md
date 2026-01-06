@@ -59,46 +59,8 @@ npm run dev
 - [使い方ガイド](docs/USAGE.md) - 基本的な使い方
 - [開発ガイド](docs/DEVELOPMENT.md) - コーディング規約と開発タスク
 - [プロジェクト構造](docs/ARCHITECTURE.md) - アーキテクチャの詳細
-- [変更履歴](docs/CHANGELOG.md) - リリースノート
 - [OAuth設定ガイド](docs/OAUTH_SETUP_GUIDE.md) - OAuth認証の詳細設定
-
-## 🗓️ ロードマップ
-
-### ✅ Phase 1-4: 完了
-
-- [x] 基本UI構造
-- [x] Notion OAuth認証（静的サイトホスティング対応）
-- [x] Webクリップ機能
-- [x] 複数クリップボード選択
-- [x] ページ本文の自動抽出（Content Script）
-- [x] サムネイル画像・アイコンの自動取得（OGP対応）
-- [x] メモ機能（IME対応）
-- [x] stateパラメータから拡張機能IDを自動抽出
-- [x] ギャラリービュー自動設定（Notion内部API使用、Content Script経由で実装）
-- [x] 既存データベース取り込み機能
-- [x] クリップ進行状況表示
-- [x] 内部API権限エラー対策（ユーザーID取得方法の改善）
-- [x] Notion UI簡略化機能
-
-### 🔜 Phase 5: カスタマイズ機能
-
-**目標**: ユーザーごとのニーズに対応
-
-- [ ] フォームフィールドのカスタマイズ
-- [ ] タグ・カテゴリ管理
-- [ ] ショートカットキー対応
-- [ ] クリップボードのエクスポート/インポート
-
-### 🔮 Phase 6: Chrome Web Store公開
-
-**目標**: 一般ユーザーが利用可能に
-
-- [ ] 本番環境用ビルド最適化
-- [ ] プライバシーポリシー・利用規約の準備（完了）
-- [ ] Chrome Web Storeへの申請
-- [ ] ユーザーサポート体制の構築
-
-詳細なロードマップは [docs/CHANGELOG.md](docs/CHANGELOG.md) を参照してください。
+- [Workersセットアップ](docs/WORKERS_SETUP_GUIDE.md) - Cloudflare Workers設定
 
 ## 📁 プロジェクト構造
 
@@ -213,8 +175,3 @@ ISC License
 ## 📞 お問い合わせ
 
 質問やフィードバックは、GitHubのIssueでお願いします。
-
----
-
-**バージョン**: 1.0.4 (ギャラリービュー自動設定機能強化 - Content Script経由実装)
-**最終更新**: 2025-12-19
