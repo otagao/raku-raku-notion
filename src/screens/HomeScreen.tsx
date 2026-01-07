@@ -39,7 +39,7 @@ const translations: Record<Language, {
     tutorial: 'チュートリアル',
     memoLabel: 'メモ（任意）',
     memoPlaceholder: 'ページについてのメモを入力できます',
-    clipButton: '📎 このページを保存',
+    clipButton: 'このページを保存',
     listButton: '保存先データベース一覧を見る',
     createButton: '+ 新しい保存先データベースを作成',
     checking: '接続状態を確認中...',
@@ -53,7 +53,7 @@ const translations: Record<Language, {
     tutorial: 'Tutorial',
     memoLabel: 'Memo (optional)',
     memoPlaceholder: 'Add a note about this page',
-    clipButton: '📎 Save this page',
+    clipButton: 'Save this page',
     listButton: 'View destination databases',
     createButton: '+ Create a new destination database',
     checking: 'Checking connection...',
@@ -361,6 +361,9 @@ const HomeScreen: FC<HomeScreenProps> = ({
             style={{
               padding: '8px 12px',
               whiteSpace: 'nowrap',
+              backgroundColor: '#1976d2',
+              borderColor: '#1976d2',
+              color: 'white',
               opacity:
                 pendingTag === '' ||
                 (pendingTag === 'new' && newTagName.trim().length === 0)
