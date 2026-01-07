@@ -13,20 +13,26 @@ interface TooltipIconProps {
 export const TooltipIcon: FC<TooltipIconProps> = ({ text, style = {} }) => {
   const [showTooltip, setShowTooltip] = useState<boolean>(false)
   const [tooltipPosition, setTooltipPosition] = useState<'right' | 'left'>('right')
+  const [maxWidth, setMaxWidth] = useState<number>(280)
   const iconRef = useRef<HTMLSpanElement>(null)
   const tooltipRef = useRef<HTMLSpanElement>(null)
 
   useEffect(() => {
-    if (showTooltip && iconRef.current && tooltipRef.current) {
+    if (showTooltip && iconRef.current) {
       const iconRect = iconRef.current.getBoundingClientRect()
-      const tooltipRect = tooltipRef.current.getBoundingClientRect()
       const viewportWidth = window.innerWidth
 
-      // ツールチップが右端からはみ出る場合は左側に表示
-      if (iconRect.right + tooltipRect.width > viewportWidth - 10) {
+      // 利用可能なスペースを計算
+      const spaceOnRight = viewportWidth - iconRect.right - 24 - 10 // 24pxはアイコンとの距離、10pxはマージン
+      const spaceOnLeft = iconRect.left - 24 - 10
+
+      // より広いスペースがある方向に表示
+      if (spaceOnLeft > spaceOnRight) {
         setTooltipPosition('left')
+        setMaxWidth(Math.min(280, Math.max(150, spaceOnLeft)))
       } else {
         setTooltipPosition('right')
+        setMaxWidth(Math.min(280, Math.max(150, spaceOnRight)))
       }
     }
   }, [showTooltip])
@@ -70,11 +76,14 @@ export const TooltipIcon: FC<TooltipIconProps> = ({ text, style = {} }) => {
             padding: '6px 8px',
             borderRadius: '4px',
             fontSize: '11px',
+            lineHeight: '1.4',
             zIndex: 10000,
             pointerEvents: 'none',
-            maxWidth: '280px',
+            maxWidth: `${maxWidth}px`,
+            minWidth: '100px',
             whiteSpace: 'normal',
-            wordBreak: 'break-word'
+            wordBreak: 'break-word',
+            overflowWrap: 'break-word'
           }}
         >
           {text}
