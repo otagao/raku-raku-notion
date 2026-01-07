@@ -86,6 +86,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
   const [isCheckingConnection, setIsCheckingConnection] = useState<boolean>(true)
   const [pendingTag, setPendingTag] = useState<string>('') // 未選択スタート
   const [newTagName, setNewTagName] = useState<string>('') // 新規タグ名
+  const [showDestinationTip, setShowDestinationTip] = useState<boolean>(false)
 
   useEffect(() => {
     checkConnection()
@@ -227,8 +228,47 @@ const HomeScreen: FC<HomeScreenProps> = ({
 
       {/* 保存先ドロップダウン */}
       <div style={{ marginBottom: '12px', textAlign: 'left' }}>
-        <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
           {t.destinationLabel}
+          <span
+            onMouseEnter={() => setShowDestinationTip(true)}
+            onMouseLeave={() => setShowDestinationTip(false)}
+            style={{
+              position: 'relative',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '16px',
+              height: '16px',
+              border: '1px solid #bbb',
+              borderRadius: '50%',
+              fontSize: '11px',
+              color: '#666',
+              cursor: 'help',
+              userSelect: 'none'
+            }}
+          >
+            i
+            {showDestinationTip && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '24px',
+                  transform: 'translateY(-50%)',
+                  background: '#333',
+                  color: '#fff',
+                  padding: '6px 8px',
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  whiteSpace: 'nowrap',
+                  zIndex: 10
+                }}
+              >
+                保存先説明ですよ
+              </span>
+            )}
+          </span>
         </label>
         <select
           value={selectedClipboardId || ''}
