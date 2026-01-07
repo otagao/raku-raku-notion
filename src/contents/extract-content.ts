@@ -112,20 +112,32 @@ function getThumbnail(): string | undefined {
   return undefined
 }
 
-function getYouTubeDescription(): string | undefined {
-  const grabText = (el: Element | null) => el ? (el.textContent || '').trim() : ''
-
-  let currentVideoId: string | undefined
+function getYouTubeCurrentVideoId(): string | undefined {
   try {
     const url = new URL(window.location.href)
     if (url.hostname.includes('youtube.com')) {
-      currentVideoId = url.searchParams.get('v') || undefined
-    } else if (url.hostname.includes('youtu.be')) {
-      currentVideoId = url.pathname.replace('/', '') || undefined
+      if (url.pathname.startsWith('/shorts/')) {
+        const id = url.pathname.split('/shorts/')[1]?.split(/[?/]/)[0]
+        return id || undefined
+      }
+      return url.searchParams.get('v') || undefined
+    }
+    if (url.hostname.includes('youtu.be')) {
+      return url.pathname.replace('/', '') || undefined
     }
   } catch {
-    currentVideoId = undefined
+    // ignore
   }
+
+  const activeShort = document.querySelector('ytd-reel-video-renderer[is-active]')
+  const domId = activeShort?.getAttribute('video-id') || (activeShort as any)?.dataset?.videoId
+  return domId || undefined
+}
+
+function getYouTubeDescription(): string | undefined {
+  const grabText = (el: Element | null) => el ? (el.textContent || '').trim() : ''
+
+  const currentVideoId = getYouTubeCurrentVideoId()
 
   // window.ytInitialPlayerResponse の shortDescription を最優先（現在の動画IDと一致する場合のみ）
   try {
@@ -138,6 +150,13 @@ function getYouTubeDescription(): string | undefined {
     }
   } catch {
     // ignore
+  }
+
+  // Shortsのアクティブ要素内から説明を優先取得
+  const activeShort = document.querySelector('ytd-reel-video-renderer[is-active]')
+  if (activeShort) {
+    const shortText = grabText(activeShort.querySelector('#description, #description-inline-expander, ytd-text-inline-expander'))
+    if (shortText) return shortText
   }
 
   // DOM内の説明テキストを取得（SPA更新に追随しやすい要素から）
@@ -267,7 +286,11 @@ function getVideos(): { url: string; poster?: string }[] | undefined {
   try {
     const u = new URL(window.location.href)
     if (u.hostname.includes('youtube.com')) {
-      youtubeVideoId = u.searchParams.get('v') || undefined
+      if (u.pathname.startsWith('/shorts/')) {
+        youtubeVideoId = u.pathname.split('/shorts/')[1]?.split(/[?/]/)[0] || undefined
+      } else {
+        youtubeVideoId = u.searchParams.get('v') || undefined
+      }
     } else if (u.hostname.includes('youtu.be')) {
       youtubeVideoId = u.pathname.replace('/', '') || undefined
     }
@@ -417,7 +440,11 @@ export function extractContent(): ExtractedContent {
   try {
     const u = new URL(window.location.href)
     if (u.hostname.includes('youtube.com')) {
-      youtubeVideoId = u.searchParams.get('v') || undefined
+      if (u.pathname.startsWith('/shorts/')) {
+        youtubeVideoId = u.pathname.split('/shorts/')[1]?.split(/[?/]/)[0] || undefined
+      } else {
+        youtubeVideoId = u.searchParams.get('v') || undefined
+      }
     } else if (u.hostname.includes('youtu.be')) {
       youtubeVideoId = u.pathname.replace('/', '') || undefined
     }
@@ -453,6 +480,12 @@ export function extractContent(): ExtractedContent {
     return getPageText()
   })()
   const thumbnail = (() => {
+    const isYouTube = hostname.includes('youtube.com') || hostname.includes('youtu.be')
+    const currentVideoId = isYouTube ? getYouTubeCurrentVideoId() : undefined
+    const youtubeThumb = currentVideoId ? getYouTubeThumb(currentVideoId) : undefined
+    if (isYouTube && youtubeThumb) {
+      return youtubeThumb
+    }
     if (isTwitter && !firstVideoPoster && !firstImage) {
       return undefined
     }
