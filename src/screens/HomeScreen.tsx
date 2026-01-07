@@ -18,6 +18,7 @@ interface HomeScreenProps {
   onAddTag: (tag: string) => void
   onRemoveTag: (tag: string) => void
   existingTags?: string[]
+  isYouTubeTab?: boolean
 }
 
 const translations: Record<Language, {
@@ -78,7 +79,8 @@ const HomeScreen: FC<HomeScreenProps> = ({
   selectedTags,
   onAddTag,
   onRemoveTag,
-  existingTags = []
+  existingTags = [],
+  isYouTubeTab = false
 }) => {
   const t = translations[language]
   const [isConnected, setIsConnected] = useState<boolean>(false)
@@ -448,19 +450,49 @@ const HomeScreen: FC<HomeScreenProps> = ({
           />
         </div>
 
-        <button
-          className="button"
-          onClick={onClipPage}
-          disabled={!isConnected}
-          style={{
-            marginTop: '12px',
-            opacity: !isConnected ? 0.5 : 1,
-            cursor: !isConnected ? 'not-allowed' : 'pointer'
-          }}
-          title={!isConnected ? 'Notionに接続してください' : ''}
-        >
-          {t.clipButton}
-        </button>
+        {isYouTubeTab ? (
+          <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+            <button
+              className="button"
+              onClick={onClipPage}
+              disabled={!isConnected}
+              style={{
+                flex: 1,
+                opacity: !isConnected ? 0.5 : 1,
+                cursor: !isConnected ? 'not-allowed' : 'pointer'
+              }}
+              title={!isConnected ? 'Notionに接続してください' : ''}
+            >
+              {t.clipButton}
+            </button>
+            <button
+              className="button button-secondary"
+              disabled
+              style={{
+                flex: 1,
+                opacity: 0.6,
+                cursor: 'not-allowed'
+              }}
+              title="後で実装"
+            >
+              今保存
+            </button>
+          </div>
+        ) : (
+          <button
+            className="button"
+            onClick={onClipPage}
+            disabled={!isConnected}
+            style={{
+              marginTop: '12px',
+              opacity: !isConnected ? 0.5 : 1,
+              cursor: !isConnected ? 'not-allowed' : 'pointer'
+            }}
+            title={!isConnected ? 'Notionに接続してください' : ''}
+          >
+            {t.clipButton}
+          </button>
+        )}
 
         <div style={{
           marginTop: '24px',
