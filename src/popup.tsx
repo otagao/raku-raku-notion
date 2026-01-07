@@ -485,7 +485,7 @@ function IndexPopup() {
     }
   }, [selectedClipboardId])
 
-  const performClip = (databaseId: string, memo?: string) => {
+  const performClip = (databaseId: string, memo?: string, overrideUrl?: string) => {
     setIsClipping(true);
     setClipProgress('クリップの準備をしています...');
 
@@ -501,7 +501,7 @@ function IndexPopup() {
         type: 'clip-page',
         data: {
           title: tabInfo.title,
-          url: tabInfo.url,
+          url: overrideUrl || tabInfo.url,
           databaseId,
           tabId: tabInfo.tabId, // Content Scriptからコンテンツを抽出するためのタブID
           memo: memo || undefined, // メモがあれば含める
@@ -513,6 +513,34 @@ function IndexPopup() {
       alert(`エラーが発生しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
       setIsClipping(false);
     });
+  }
+
+  const handleClipNow = async () => {
+    if (clipboards.length === 0) {
+      alert('保存先データベースを先に作成してください')
+      handleNavigate('create-clipboard')
+      return
+    }
+    const tabInfo = await StorageService.getCurrentTabInfo()
+    if (!tabInfo) {
+      alert('ページ情報を取得できませんでした')
+      return
+    }
+
+    let urlToSave = tabInfo.url
+    try {
+      const response = await chrome.tabs.sendMessage(tabInfo.tabId, { type: 'get-youtube-time' })
+      if (response?.success && typeof response.currentTime === 'number' && response.currentTime > 0) {
+        const u = new URL(tabInfo.url)
+        u.searchParams.set('t', `${response.currentTime}s`)
+        urlToSave = u.toString()
+      }
+    } catch (error) {
+      console.warn('[handleClipNow] Failed to get YouTube time:', error)
+    }
+
+    const targetId = selectedClipboardId || clipboards[0].notionDatabaseId
+    await performClip(targetId, memoDraft || undefined, urlToSave)
   }
 
   const addTagAndPersist = (tag: string) => {
@@ -549,6 +577,7 @@ function IndexPopup() {
             onRemoveTag={(tag) => setSelectedTags(prev => prev.filter(t => t !== tag))}
             existingTags={tagOptions}
             isYouTubeTab={isYouTubeTab}
+            onClipNow={handleClipNow}
           />
         )
       case 'create-clipboard':
@@ -665,6 +694,7 @@ function IndexPopup() {
             onRemoveTag={(tag) => setSelectedTags(prev => prev.filter(t => t !== tag))}
             existingTags={tagOptions}
             isYouTubeTab={isYouTubeTab}
+            onClipNow={handleClipNow}
           />
         )
     }

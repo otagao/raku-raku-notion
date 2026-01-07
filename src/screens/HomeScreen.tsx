@@ -19,6 +19,7 @@ interface HomeScreenProps {
   onRemoveTag: (tag: string) => void
   existingTags?: string[]
   isYouTubeTab?: boolean
+  onClipNow?: () => void
 }
 
 const translations: Record<Language, {
@@ -80,7 +81,8 @@ const HomeScreen: FC<HomeScreenProps> = ({
   onAddTag,
   onRemoveTag,
   existingTags = [],
-  isYouTubeTab = false
+  isYouTubeTab = false,
+  onClipNow
 }) => {
   const t = translations[language]
   const [isConnected, setIsConnected] = useState<boolean>(false)
@@ -424,13 +426,14 @@ const HomeScreen: FC<HomeScreenProps> = ({
             </button>
             <button
               className="button button-secondary"
-              disabled
+              onClick={onClipNow}
+              disabled={!isConnected || !onClipNow}
               style={{
                 flex: 1,
-                opacity: 0.6,
-                cursor: 'not-allowed'
+                opacity: !isConnected || !onClipNow ? 0.6 : 1,
+                cursor: !isConnected || !onClipNow ? 'not-allowed' : 'pointer'
               }}
-              title="後で実装"
+              title={!isConnected ? 'Notionに接続してください' : '現在の再生位置で保存'}
             >
               今保存
             </button>
