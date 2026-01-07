@@ -478,8 +478,8 @@ export class NotionService {
           })
         }
 
-        // 本文用に画像ブロックを追加（カバーも含めて最大5件）
-        if (bodyImages.length > 0) {
+        // YouTube以外のみ画像ブロックを追加（最大5件）
+        if (!isYouTube && bodyImages.length > 0) {
           bodyImages.forEach(imgUrl => {
             children.push({
               object: "block",
