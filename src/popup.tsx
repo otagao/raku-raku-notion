@@ -17,6 +17,7 @@ function IndexPopup() {
   const [selectedClipboardId, setSelectedClipboardId] = useState<string | undefined>()
   const [tagOptions, setTagOptions] = useState<string[]>([])
   const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [isYouTubeTab, setIsYouTubeTab] = useState(false)
   const tagFetchSeq = useState({ current: 0 })[0] // フェッチの競合防止用
   const [isClipping, setIsClipping] = useState(false)
   const [clipProgress, setClipProgress] = useState("")
@@ -90,6 +91,7 @@ function IndexPopup() {
     await loadClipboards()
     await refreshAvailableDatabases({ silent: true })
     await loadLanguage()
+    await loadCurrentTab()
   }
 
   // クリップボードリストが変わったときに選択状態を同期
@@ -174,6 +176,12 @@ function IndexPopup() {
   const loadLanguage = async () => {
     const config = await StorageService.getLanguageConfig()
     setLanguage(config.language || 'ja')
+  }
+
+  const loadCurrentTab = async () => {
+    const tabInfo = await StorageService.getCurrentTabInfo()
+    const url = tabInfo?.url || ''
+    setIsYouTubeTab(url.includes('youtube.com') || url.includes('youtu.be'))
   }
 
   const toggleLanguage = async () => {
@@ -540,6 +548,7 @@ function IndexPopup() {
             onAddTag={addTagAndPersist}
             onRemoveTag={(tag) => setSelectedTags(prev => prev.filter(t => t !== tag))}
             existingTags={tagOptions}
+            isYouTubeTab={isYouTubeTab}
           />
         )
       case 'create-clipboard':
@@ -652,7 +661,10 @@ function IndexPopup() {
             selectedClipboardId={selectedClipboardId}
             onSelectClipboardId={setSelectedClipboardId}
             selectedTags={selectedTags}
-            onAddTag={(tag) => setSelectedTags(prev => prev.includes(tag) ? prev : [...prev, tag])}
+            onAddTag={addTagAndPersist}
+            onRemoveTag={(tag) => setSelectedTags(prev => prev.filter(t => t !== tag))}
+            existingTags={tagOptions}
+            isYouTubeTab={isYouTubeTab}
           />
         )
     }
