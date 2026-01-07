@@ -513,6 +513,11 @@ export class NotionService {
         })
       }
 
+      // Notion APIの上限（children <= 100）に合わせて切り詰める
+      if (children.length > 100) {
+        children.splice(100)
+      }
+
       // ページオブジェクトの構築
       const pageData: any = {
         parent: { database_id: databaseId },

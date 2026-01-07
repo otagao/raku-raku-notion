@@ -115,31 +115,45 @@ function getThumbnail(): string | undefined {
 function getYouTubeDescription(): string | undefined {
   const grabText = (el: Element | null) => el ? (el.textContent || '').trim() : ''
 
-  // ytInitialPlayerResponse の shortDescription を最優先で使用（全文が入る）
-  const scriptText = Array.from(document.querySelectorAll('script'))
-    .map(s => s.textContent || '')
-    .find(t => t.includes('ytInitialPlayerResponse'))
-  if (scriptText) {
-    try {
-      const jsonPart = scriptText.split('ytInitialPlayerResponse =')[1]?.split('};')[0]
-      if (jsonPart) {
-        const parsed = JSON.parse(jsonPart + '}')
-        const desc = parsed?.videoDetails?.shortDescription
-        if (typeof desc === 'string' && desc.trim()) {
-          return desc.trim()
-        }
-      }
-    } catch {
-      // ignore parse errors
+  let currentVideoId: string | undefined
+  try {
+    const url = new URL(window.location.href)
+    if (url.hostname.includes('youtube.com')) {
+      currentVideoId = url.searchParams.get('v') || undefined
+    } else if (url.hostname.includes('youtu.be')) {
+      currentVideoId = url.pathname.replace('/', '') || undefined
     }
+  } catch {
+    currentVideoId = undefined
   }
 
-  const selectors = ['#description', '#description-inline-expander', 'ytd-text-inline-expander']
+  // window.ytInitialPlayerResponse の shortDescription を最優先（現在の動画IDと一致する場合のみ）
+  try {
+    const win = window as any
+    const resp = win?.ytInitialPlayerResponse
+    const videoId = resp?.videoDetails?.videoId
+    const desc = resp?.videoDetails?.shortDescription
+    if ((!currentVideoId || videoId === currentVideoId) && typeof desc === 'string' && desc.trim()) {
+      return desc.trim()
+    }
+  } catch {
+    // ignore
+  }
+
+  // DOM内の説明テキストを取得（SPA更新に追随しやすい要素から）
+  const selectors = [
+    'ytd-watch-metadata #description',
+    'ytd-watch-metadata #description-inline-expander',
+    '#description',
+    '#description-inline-expander',
+    'ytd-text-inline-expander'
+  ]
   for (const sel of selectors) {
     const text = grabText(document.querySelector(sel))
     if (text) return text
   }
 
+  // 最後の保険: meta description（古い可能性がある）
   const metaDesc = document.querySelector('meta[name="description"]')?.getAttribute('content')
   if (metaDesc && metaDesc.trim()) return metaDesc.trim()
 
