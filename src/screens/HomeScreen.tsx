@@ -11,7 +11,6 @@ interface HomeScreenProps {
   onToggleLanguage: () => void
   memo: string
   onMemoChange: (value: string) => void
-  onOpenTutorial: () => void
   clipboards: Clipboard[]
   selectedClipboardId?: string
   onSelectClipboardId: (id: string) => void
@@ -23,7 +22,6 @@ interface HomeScreenProps {
 
 const translations: Record<Language, {
   saving: string
-  tutorial: string
   memoLabel: string
   memoPlaceholder: string
   clipButton: string
@@ -42,7 +40,6 @@ const translations: Record<Language, {
 }> = {
   ja: {
     saving: 'ウェブページをNotionに簡単保存',
-    tutorial: 'チュートリアル',
     memoLabel: 'メモ（任意）',
     memoPlaceholder: 'ページについてのメモを入力できます',
     clipButton: '📎 このページを保存',
@@ -61,7 +58,6 @@ const translations: Record<Language, {
   },
   en: {
     saving: 'Save web pages to Notion easily',
-    tutorial: 'Tutorial',
     memoLabel: 'Memo (optional)',
     memoPlaceholder: 'Add a note about this page',
     clipButton: '📎 Save this page',
@@ -87,7 +83,6 @@ const HomeScreen: FC<HomeScreenProps> = ({
   onToggleLanguage,
   memo,
   onMemoChange,
-  onOpenTutorial,
   clipboards,
   selectedClipboardId,
   onSelectClipboardId,
@@ -161,20 +156,6 @@ const HomeScreen: FC<HomeScreenProps> = ({
       <div className="header" style={{ position: 'relative' }}>
         <h1>Raku Raku Notion</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            onClick={onOpenTutorial}
-            style={{
-              background: 'transparent',
-              border: '1px solid #ddd',
-              fontSize: '12px',
-              cursor: 'pointer',
-              padding: '4px 8px',
-              borderRadius: '4px',
-              color: '#666'
-            }}
-          >
-            {t.tutorial}
-          </button>
           <button
             onClick={onToggleLanguage}
             style={{
