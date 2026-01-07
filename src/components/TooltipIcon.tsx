@@ -1,4 +1,4 @@
-import { type FC, useState } from "react"
+import { type FC, useState, useRef, useEffect } from "react"
 
 interface TooltipIconProps {
   /** ツールチップに表示するテキスト */
@@ -12,9 +12,28 @@ interface TooltipIconProps {
  */
 export const TooltipIcon: FC<TooltipIconProps> = ({ text, style = {} }) => {
   const [showTooltip, setShowTooltip] = useState<boolean>(false)
+  const [tooltipPosition, setTooltipPosition] = useState<'right' | 'left'>('right')
+  const iconRef = useRef<HTMLSpanElement>(null)
+  const tooltipRef = useRef<HTMLSpanElement>(null)
+
+  useEffect(() => {
+    if (showTooltip && iconRef.current && tooltipRef.current) {
+      const iconRect = iconRef.current.getBoundingClientRect()
+      const tooltipRect = tooltipRef.current.getBoundingClientRect()
+      const viewportWidth = window.innerWidth
+
+      // ツールチップが右端からはみ出る場合は左側に表示
+      if (iconRect.right + tooltipRect.width > viewportWidth - 10) {
+        setTooltipPosition('left')
+      } else {
+        setTooltipPosition('right')
+      }
+    }
+  }, [showTooltip])
 
   return (
     <span
+      ref={iconRef}
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
       style={{
@@ -37,19 +56,25 @@ export const TooltipIcon: FC<TooltipIconProps> = ({ text, style = {} }) => {
       i
       {showTooltip && (
         <span
+          ref={tooltipRef}
           style={{
             position: 'absolute',
             top: '50%',
-            left: '24px',
+            ...(tooltipPosition === 'right'
+              ? { left: '24px' }
+              : { right: '24px' }
+            ),
             transform: 'translateY(-50%)',
             background: '#333',
             color: '#fff',
             padding: '6px 8px',
             borderRadius: '4px',
             fontSize: '11px',
-            whiteSpace: 'nowrap',
-            zIndex: 10,
-            pointerEvents: 'none'
+            zIndex: 10000,
+            pointerEvents: 'none',
+            maxWidth: '280px',
+            whiteSpace: 'normal',
+            wordBreak: 'break-word'
           }}
         >
           {text}
