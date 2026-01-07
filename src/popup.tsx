@@ -414,11 +414,6 @@ function IndexPopup() {
     }
   }
 
-  const handleOpenTutorial = () => {
-    const url = chrome.runtime.getURL('assets/tutorial.html')
-    chrome.tabs.create({ url })
-  }
-
 
   const handleAddGalleryView = async () => {
     if (!testDatabaseId) {
@@ -532,7 +527,6 @@ function IndexPopup() {
             onToggleLanguage={toggleLanguage}
             memo={memoDraft}
             onMemoChange={setMemoDraft}
-            onOpenTutorial={handleOpenTutorial}
             clipboards={clipboards}
             selectedClipboardId={selectedClipboardId}
             onSelectClipboardId={setSelectedClipboardId}
@@ -647,7 +641,6 @@ function IndexPopup() {
             onToggleLanguage={toggleLanguage}
             memo={memoDraft}
             onMemoChange={setMemoDraft}
-            onOpenTutorial={handleOpenTutorial}
             clipboards={clipboards}
             selectedClipboardId={selectedClipboardId}
             onSelectClipboardId={setSelectedClipboardId}
