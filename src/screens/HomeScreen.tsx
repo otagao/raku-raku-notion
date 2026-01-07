@@ -2,6 +2,7 @@ import { type FC, useState, useEffect } from "react"
 import { StorageService } from "~services/storage"
 import { createNotionClient } from "~services/notion"
 import type { Language, Clipboard } from "~types"
+import { TooltipIcon } from "~components/TooltipIcon"
 
 interface HomeScreenProps {
   onNavigate: (screen: string) => void
@@ -33,6 +34,11 @@ const translations: Record<Language, {
   disconnected: string
   destinationLabel: string
   destinationPlaceholder: string
+  tagLabel: string
+  addedTagsLabel: string
+  tooltipDestination: string
+  tooltipWorkspace: string
+  tooltipTag: string
 }> = {
   ja: {
     saving: 'ウェブページをNotionに簡単保存',
@@ -46,7 +52,12 @@ const translations: Record<Language, {
     connected: (name) => `接続中: ${name || 'Notionワークスペース'}`,
     disconnected: '設定からNotionに接続してください',
     destinationLabel: '保存先',
-    destinationPlaceholder: '保存先を選択してください'
+    destinationPlaceholder: '保存先を選択してください',
+    tagLabel: 'タグ付与',
+    addedTagsLabel: '付与タグ',
+    tooltipDestination: 'ページの保存先となるNotionデータベースを選択します',
+    tooltipWorkspace: 'Notion上のワークスペース（チームまたは個人アカウント）',
+    tooltipTag: 'ページに追加するタグ。既存タグから選択、または新規作成できます'
   },
   en: {
     saving: 'Save web pages to Notion easily',
@@ -60,7 +71,12 @@ const translations: Record<Language, {
     connected: (name) => `Connected: ${name || 'Notion workspace'}`,
     disconnected: 'Connect to Notion in Settings',
     destinationLabel: 'Destination',
-    destinationPlaceholder: 'Select a destination'
+    destinationPlaceholder: 'Select a destination',
+    tagLabel: 'Add tags',
+    addedTagsLabel: 'Tags to add',
+    tooltipDestination: 'Select a Notion database where pages will be saved',
+    tooltipWorkspace: 'A workspace in Notion (team or personal account)',
+    tooltipTag: 'Tags to add to the page. Choose from existing tags or create new ones'
   }
 }
 
@@ -86,7 +102,6 @@ const HomeScreen: FC<HomeScreenProps> = ({
   const [isCheckingConnection, setIsCheckingConnection] = useState<boolean>(true)
   const [pendingTag, setPendingTag] = useState<string>('') // 未選択スタート
   const [newTagName, setNewTagName] = useState<string>('') // 新規タグ名
-  const [showDestinationTip, setShowDestinationTip] = useState<boolean>(false)
 
   useEffect(() => {
     checkConnection()
@@ -230,45 +245,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
       <div style={{ marginBottom: '12px', textAlign: 'left' }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
           {t.destinationLabel}
-          <span
-            onMouseEnter={() => setShowDestinationTip(true)}
-            onMouseLeave={() => setShowDestinationTip(false)}
-            style={{
-              position: 'relative',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '16px',
-              height: '16px',
-              border: '1px solid #bbb',
-              borderRadius: '50%',
-              fontSize: '11px',
-              color: '#666',
-              cursor: 'help',
-              userSelect: 'none'
-            }}
-          >
-            i
-            {showDestinationTip && (
-              <span
-                style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '24px',
-                  transform: 'translateY(-50%)',
-                  background: '#333',
-                  color: '#fff',
-                  padding: '6px 8px',
-                  borderRadius: '4px',
-                  fontSize: '11px',
-                  whiteSpace: 'nowrap',
-                  zIndex: 10
-                }}
-              >
-                保存先説明ですよ
-              </span>
-            )}
-          </span>
+          <TooltipIcon text={t.tooltipDestination} style={{ marginLeft: 0 }} />
         </label>
         <select
           value={selectedClipboardId || ''}
@@ -295,8 +272,9 @@ const HomeScreen: FC<HomeScreenProps> = ({
 
       {/* タグ付与UI */}
       <div style={{ marginBottom: '8px', textAlign: 'left' }}>
-        <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
-          タグ付与
+        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+          {t.tagLabel}
+          <TooltipIcon text={t.tooltipTag} style={{ marginLeft: 0 }} />
         </label>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <select
@@ -381,7 +359,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
       {/* 付与予定のタグ表示 */}
       {selectedTags.length > 0 && (
         <div style={{ marginBottom: '8px', textAlign: 'left' }}>
-          <span style={{ fontWeight: 600, fontSize: '13px', color: '#444' }}>付与タグ:</span>{' '}
+          <span style={{ fontWeight: 600, fontSize: '13px', color: '#444' }}>{t.addedTagsLabel}:</span>{' '}
           {selectedTags.map((tag, idx) => (
             <span
               key={tag}
