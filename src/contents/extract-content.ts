@@ -24,37 +24,6 @@ export interface ExtractedContent {
 }
 
 /**
- * X/TwitterのURLからステータスIDを抽出
- */
-function getTwitterStatusId(): string | undefined {
-  try {
-    const u = new URL(window.location.href)
-    const parts = u.pathname.split('/')
-    const idx = parts.findIndex(p => p === 'status')
-    if (idx >= 0 && parts[idx + 1]) {
-      return parts[idx + 1]
-    }
-  } catch {
-    return undefined
-  }
-  return undefined
-}
-
-/**
- * X/Twitterのメイン投稿のarticle要素を取得
- */
-function getMainTweetElement(): HTMLElement | null {
-  const statusId = getTwitterStatusId()
-  if (!statusId) return null
-  const articles = Array.from(document.querySelectorAll('article[data-testid="tweet"]')) as HTMLElement[]
-  const match = articles.find(article => {
-    const links = Array.from(article.querySelectorAll('a[href*="/status/"]')) as HTMLAnchorElement[]
-    return links.some(link => link.href.includes(`/status/${statusId}`))
-  })
-  return match || null
-}
-
-/**
  * ページのアイコン（favicon）を取得
  */
 function getIcon(): string | undefined {
@@ -160,37 +129,12 @@ function getYouTubeDescription(): string | undefined {
   return undefined
 }
 
+
 /**
  * 複数画像を収集（OGP/Twitterを優先し、ページ内の大きめ画像を最大5件）
  */
 function getImages(): string[] | undefined {
   const urls: string[] = []
-  let hostname = ''
-  try {
-    hostname = new URL(window.location.href).hostname
-  } catch {
-    hostname = ''
-  }
-  const isTwitter = hostname.includes('twitter.com') || hostname.includes('x.com')
-  const mainTweet = isTwitter ? getMainTweetElement() : null
-
-  // X/Twitterはメイン投稿のDOMに限定して拾う（他の投稿の画像は除外）
-  if (isTwitter) {
-    if (!mainTweet) return undefined
-    const imgs = Array.from(mainTweet.querySelectorAll('img'))
-    imgs.forEach(img => {
-      if (urls.length >= 20) return
-      const width = img.naturalWidth || parseInt(img.getAttribute('width') || '0', 10)
-      const height = img.naturalHeight || parseInt(img.getAttribute('height') || '0', 10)
-      if (width < 120 || height < 120) return
-      const candidate = img.currentSrc || img.src || ''
-      if (candidate && !isIgnoredImage(candidate) && !urls.includes(candidate)) {
-        urls.push(candidate)
-      }
-    })
-    // メイン投稿のみを対象にするため、空なら何も返さず終了（リプ画像は拾わない）
-    return urls.length > 0 ? urls.slice(0, 20) : undefined
-  }
 
   const og = document.querySelector('meta[property="og:image"]')?.getAttribute('content')
   if (og) urls.push(og)
@@ -255,14 +199,7 @@ function getVideos(): { url: string; poster?: string }[] | undefined {
   } catch {
     hostname = ''
   }
-  const isTwitter = hostname.includes('twitter.com') || hostname.includes('x.com')
-  const max = isTwitter ? 1 : 1
-  const mainTweet = isTwitter ? getMainTweetElement() : null
-  const mainTweetFirstImage = (() => {
-    if (!mainTweet) return undefined
-    const img = mainTweet.querySelector('img') as HTMLImageElement | null
-    return img?.currentSrc || img?.src || undefined
-  })()
+  const max = (hostname.includes('twitter.com') || hostname.includes('x.com')) ? 4 : 1
   let youtubeVideoId: string | undefined
   try {
     const u = new URL(window.location.href)
@@ -284,26 +221,21 @@ function getVideos(): { url: string; poster?: string }[] | undefined {
   })()
 
   const videos = Array.from(document.querySelectorAll('video'))
-  if (isTwitter && !mainTweet) {
-    return undefined
-  }
-  const videoSources = isTwitter && mainTweet ? Array.from(mainTweet.querySelectorAll('video')) : videos
-  const videoIter = isTwitter ? videoSources : videos
-  videoIter.forEach(video => {
+  videos.forEach(video => {
     if (urls.length >= max) return
     const sources = Array.from(video.querySelectorAll('source'))
     let candidate = video.getAttribute('src') || ''
     if (!candidate && sources.length > 0) {
       candidate = sources[0]?.getAttribute('src') || ''
     }
+    if (candidate && candidate.startsWith('blob:')) {
+      candidate = ''
+    }
     const isAdLike = candidate.includes('ads') || candidate.includes('imasdk') || candidate.includes('ad-delivery') || candidate.includes('doubleclick')
     if (candidate && !isAdLike) {
-      const posterFallback = isTwitter
-        ? (video.getAttribute('poster') || mainTweetFirstImage || ogPoster)
-        : (video.getAttribute('poster') || youtubeThumb || ogPoster)
       urls.push({
         url: candidate,
-        poster: posterFallback || undefined
+        poster: video.getAttribute('poster') || youtubeThumb || ogPoster || undefined
       })
     }
   })
@@ -312,20 +244,8 @@ function getVideos(): { url: string; poster?: string }[] | undefined {
   if (urls.length < max) {
     const ogVideo = document.querySelector('meta[property="og:video"]')?.getAttribute('content')
     if (ogVideo && !urls.find(v => v.url === ogVideo)) {
-      const poster = isTwitter ? (mainTweetFirstImage || ogPoster) : (youtubeThumb || ogPoster)
+      const poster = youtubeThumb || ogPoster
       urls.push({ url: ogVideo, poster })
-    }
-  }
-
-  // X/Twitterで動画らしき要素があるのにURLが取れなかった場合のフォールバック
-  if (isTwitter && urls.length === 0) {
-    const hasVideoElement = !!(mainTweet && (mainTweet.querySelector('video') || mainTweet.querySelector('[data-testid="videoPlayer"]')))
-    const ogVideoMeta = document.querySelector('meta[property="og:video"]')?.getAttribute('content')
-    if (hasVideoElement || ogVideoMeta) {
-      urls.push({
-        url: ogVideoMeta || window.location.href,
-        poster: mainTweetFirstImage || ogPoster
-      })
     }
   }
 
@@ -439,30 +359,19 @@ export function extractContent(): ExtractedContent {
   // X/Twitterの場合は1枚目を破棄する（プレースホルダを避けるため）
   const filteredImages = (() => {
     if (!imagesWithYouTube || imagesWithYouTube.length === 0) return imagesWithYouTube
-    // X/Twitterも含め、元投稿で抽出した順をそのまま使う
+    if (hostname.includes('twitter.com') || hostname.includes('x.com')) {
+      return imagesWithYouTube.slice(1)
+    }
     return imagesWithYouTube
   })()
 
   const firstImage = filteredImages?.[0]
   const firstVideoPoster = videos && videos.length > 0 ? videos[0].poster : undefined
-  const isTwitter = hostname.includes('twitter.com') || hostname.includes('x.com')
-  const text = (() => {
-    if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
-      return getYouTubeDescription() || getPageText()
-    }
-    return getPageText()
-  })()
-  const thumbnail = (() => {
-    if (isTwitter && !firstVideoPoster && !firstImage) {
-      return undefined
-    }
-    return firstVideoPoster || firstImage || getThumbnail()
-  })()
   return {
     title: getPageTitle(),
     url: window.location.href,
-    text,
-    thumbnail,
+    text: getPageText(),
+    thumbnail: firstVideoPoster || firstImage || getThumbnail(),
     images: filteredImages,
     videos,
     icon: getIcon()
