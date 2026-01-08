@@ -15,6 +15,9 @@ function IndexPopup() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('home')
   const [clipboards, setClipboards] = useState<Clipboard[]>([])
   const [selectedClipboardId, setSelectedClipboardId] = useState<string | undefined>()
+  const [tagOptions, setTagOptions] = useState<string[]>([])
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const tagFetchSeq = useState({ current: 0 })[0] // フェッチの競合防止用
   const [isClipping, setIsClipping] = useState(false)
   const [clipProgress, setClipProgress] = useState("")
   const [internalTestResult, setInternalTestResult] = useState<string>("")
@@ -89,10 +92,84 @@ function IndexPopup() {
     await loadLanguage()
   }
 
+  // クリップボードリストが変わったときに選択状態を同期
+  useEffect(() => {
+    if (clipboards.length === 0) {
+      setSelectedClipboardId(undefined)
+      return
+    }
+    if (!selectedClipboardId || !clipboards.find(cb => cb.notionDatabaseId === selectedClipboardId)) {
+      setSelectedClipboardId(clipboards[0].notionDatabaseId)
+    }
+  }, [clipboards, selectedClipboardId])
+
   const loadClipboards = async () => {
     const loadedClipboards = await StorageService.getClipboards()
     setClipboards(loadedClipboards)
+    if (loadedClipboards.length > 0) {
+      const storedId = await StorageService.getSelectedClipboardId()
+      const fallbackId = loadedClipboards[0].notionDatabaseId
+      setSelectedClipboardId(
+        storedId && loadedClipboards.find(cb => cb.notionDatabaseId === storedId)
+          ? storedId
+          : fallbackId
+      )
+    } else {
+      setSelectedClipboardId(undefined)
+    }
   }
+
+  // 選択中DBのタグを取得
+  useEffect(() => {
+    const fetchTags = async () => {
+      if (!selectedClipboardId) {
+        setTagOptions([])
+        return
+      }
+      const seq = ++tagFetchSeq.current
+
+      // 1) まずローカルキャッシュを表示
+      const cached = await StorageService.getTagOptionsForDatabase(selectedClipboardId)
+      if (cached) {
+        setTagOptions(cached)
+      } else {
+        setTagOptions([])
+      }
+
+      // 2) その後APIで最新取得（成功時のみ上書き＋キャッシュ保存）
+      const config = await StorageService.getNotionConfig()
+      if (!config.accessToken && !config.apiKey) {
+        setTagOptions(cached || [])
+        return
+      }
+      try {
+        const notionClient = createNotionClient(config)
+        const attemptFetch = async (retries = 1): Promise<string[]> => {
+          try {
+            return await notionClient.getTagOptions(selectedClipboardId)
+          } catch (err) {
+            if (retries > 0) {
+              await new Promise(res => setTimeout(res, 500))
+              return attemptFetch(retries - 1)
+            }
+            throw err
+          }
+        }
+        const tags = await attemptFetch(1)
+        // 最新リクエストのみ反映
+        if (seq === tagFetchSeq.current) {
+          setTagOptions(tags)
+          await StorageService.saveTagOptionsForDatabase(selectedClipboardId, tags)
+        }
+      } catch (err) {
+        console.warn('Failed to load tag options:', err)
+        if (seq === tagFetchSeq.current) {
+          setTagOptions(cached || [])
+        }
+      }
+    }
+    fetchTags()
+  }, [selectedClipboardId])
 
   const loadLanguage = async () => {
     const config = await StorageService.getLanguageConfig()
@@ -385,19 +462,20 @@ function IndexPopup() {
       return
     }
 
-    // 保存先データベースが1つだけの場合は自動選択してクリップ実行
-    if (clipboards.length === 1) {
-      await performClip(clipboards[0].notionDatabaseId, memoDraft || undefined)
-      return
-    }
-
-    // 複数ある場合は選択UIを表示
-    handleNavigate('select-clipboard')
+    const targetId = selectedClipboardId || clipboards[0].notionDatabaseId
+    await performClip(targetId, memoDraft || undefined)
   }
 
   const handleSelectClipboard = async (databaseId: string) => {
     await performClip(databaseId, memoDraft || undefined)
   }
+
+  // 選択した保存先を保存（ポップアップ再オープン時に復元）
+  useEffect(() => {
+    if (selectedClipboardId) {
+      StorageService.saveSelectedClipboardId(selectedClipboardId)
+    }
+  }, [selectedClipboardId])
 
   const performClip = (databaseId: string, memo?: string) => {
     setIsClipping(true);
@@ -418,7 +496,8 @@ function IndexPopup() {
           url: tabInfo.url,
           databaseId,
           tabId: tabInfo.tabId, // Content Scriptからコンテンツを抽出するためのタブID
-          memo: memo || undefined // メモがあれば含める
+          memo: memo || undefined, // メモがあれば含める
+          tags: selectedTags.length > 0 ? selectedTags : undefined
         }
       });
     }).catch(error => {
@@ -426,6 +505,20 @@ function IndexPopup() {
       alert(`エラーが発生しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
       setIsClipping(false);
     });
+  }
+
+  const addTagAndPersist = (tag: string) => {
+    const trimmed = tag.trim()
+    if (!trimmed) return
+    setSelectedTags(prev => (prev.includes(trimmed) ? prev : [...prev, trimmed]))
+    setTagOptions(prev => {
+      if (prev.includes(trimmed)) return prev
+      const merged = [...prev, trimmed]
+      if (selectedClipboardId) {
+        StorageService.saveTagOptionsForDatabase(selectedClipboardId, merged).catch(() => {})
+      }
+      return merged
+    })
   }
 
   const renderScreen = () => {
@@ -440,6 +533,13 @@ function IndexPopup() {
             memo={memoDraft}
             onMemoChange={setMemoDraft}
             onOpenTutorial={handleOpenTutorial}
+            clipboards={clipboards}
+            selectedClipboardId={selectedClipboardId}
+            onSelectClipboardId={setSelectedClipboardId}
+            selectedTags={selectedTags}
+            onAddTag={addTagAndPersist}
+            onRemoveTag={(tag) => setSelectedTags(prev => prev.filter(t => t !== tag))}
+            existingTags={tagOptions}
           />
         )
       case 'create-clipboard':
@@ -548,6 +648,11 @@ function IndexPopup() {
             memo={memoDraft}
             onMemoChange={setMemoDraft}
             onOpenTutorial={handleOpenTutorial}
+            clipboards={clipboards}
+            selectedClipboardId={selectedClipboardId}
+            onSelectClipboardId={setSelectedClipboardId}
+            selectedTags={selectedTags}
+            onAddTag={(tag) => setSelectedTags(prev => prev.includes(tag) ? prev : [...prev, tag])}
           />
         )
     }

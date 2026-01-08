@@ -1,7 +1,7 @@
 import { type FC, useState, useEffect } from "react"
 import { StorageService } from "~services/storage"
 import { createNotionClient } from "~services/notion"
-import type { Language } from "~types"
+import type { Language, Clipboard } from "~types"
 
 interface HomeScreenProps {
   onNavigate: (screen: string) => void
@@ -11,6 +11,13 @@ interface HomeScreenProps {
   memo: string
   onMemoChange: (value: string) => void
   onOpenTutorial: () => void
+  clipboards: Clipboard[]
+  selectedClipboardId?: string
+  onSelectClipboardId: (id: string) => void
+  selectedTags: string[]
+  onAddTag: (tag: string) => void
+  onRemoveTag: (tag: string) => void
+  existingTags?: string[]
 }
 
 const translations: Record<Language, {
@@ -24,6 +31,8 @@ const translations: Record<Language, {
   checking: string
   connected: (name: string) => string
   disconnected: string
+  destinationLabel: string
+  destinationPlaceholder: string
 }> = {
   ja: {
     saving: 'ウェブページをNotionに簡単保存',
@@ -35,7 +44,9 @@ const translations: Record<Language, {
     createButton: '+ 新しい保存先データベースを作成',
     checking: '接続状態を確認中...',
     connected: (name) => `接続中: ${name || 'Notionワークスペース'}`,
-    disconnected: '設定からNotionに接続してください'
+    disconnected: '設定からNotionに接続してください',
+    destinationLabel: '保存先',
+    destinationPlaceholder: '保存先を選択してください'
   },
   en: {
     saving: 'Save web pages to Notion easily',
@@ -47,15 +58,34 @@ const translations: Record<Language, {
     createButton: '+ Create a new destination database',
     checking: 'Checking connection...',
     connected: (name) => `Connected: ${name || 'Notion workspace'}`,
-    disconnected: 'Connect to Notion in Settings'
+    disconnected: 'Connect to Notion in Settings',
+    destinationLabel: 'Destination',
+    destinationPlaceholder: 'Select a destination'
   }
 }
 
-const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage, language, onToggleLanguage, memo, onMemoChange, onOpenTutorial }) => {
+const HomeScreen: FC<HomeScreenProps> = ({
+  onNavigate,
+  onClipPage,
+  language,
+  onToggleLanguage,
+  memo,
+  onMemoChange,
+  onOpenTutorial,
+  clipboards,
+  selectedClipboardId,
+  onSelectClipboardId,
+  selectedTags,
+  onAddTag,
+  onRemoveTag,
+  existingTags = []
+}) => {
   const t = translations[language]
   const [isConnected, setIsConnected] = useState<boolean>(false)
   const [workspaceName, setWorkspaceName] = useState<string>('')
   const [isCheckingConnection, setIsCheckingConnection] = useState<boolean>(true)
+  const [pendingTag, setPendingTag] = useState<string>('') // 未選択スタート
+  const [newTagName, setNewTagName] = useState<string>('') // 新規タグ名
 
   useEffect(() => {
     checkConnection()
@@ -194,6 +224,160 @@ const HomeScreen: FC<HomeScreenProps> = ({ onNavigate, onClipPage, language, onT
           </span>
         )}
       </div>
+
+      {/* 保存先ドロップダウン */}
+      <div style={{ marginBottom: '12px', textAlign: 'left' }}>
+        <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+          {t.destinationLabel}
+        </label>
+        <select
+          value={selectedClipboardId || ''}
+          onChange={(e) => onSelectClipboardId(e.target.value)}
+          disabled={!isConnected || clipboards.length === 0}
+          style={{
+            width: '100%',
+            padding: '8px',
+            border: '1px solid #ddd',
+            borderRadius: '6px',
+            fontSize: '14px',
+            backgroundColor: !isConnected || clipboards.length === 0 ? '#f5f5f5' : 'white',
+            cursor: !isConnected || clipboards.length === 0 ? 'not-allowed' : 'pointer'
+          }}
+        >
+          <option value="" disabled>{t.destinationPlaceholder}</option>
+          {clipboards.map(cb => (
+            <option key={cb.id} value={cb.notionDatabaseId}>
+              {cb.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* タグ付与UI */}
+      <div style={{ marginBottom: '8px', textAlign: 'left' }}>
+        <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+          タグ付与
+        </label>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <select
+            value={pendingTag}
+            onChange={(e) => {
+              setPendingTag(e.target.value)
+              if (e.target.value !== 'new') {
+                setNewTagName('')
+              }
+            }}
+            style={{
+              width: '40%',
+              minWidth: '100px',
+              padding: '8px',
+              border: '1px solid #ddd',
+              borderRadius: '6px',
+              fontSize: '14px',
+              backgroundColor: 'white',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="">（選択なし）</option>
+            <option value="new">新規タグ</option>
+            {existingTags.map(tag => (
+              <option key={tag} value={tag}>{tag}</option>
+            ))}
+          </select>
+          {pendingTag === 'new' && (
+            <input
+              type="text"
+              value={newTagName}
+              onChange={(e) => setNewTagName(e.target.value)}
+              placeholder="タグ名を入力"
+              style={{
+                flex: 1,
+                minWidth: '120px',
+                padding: '8px',
+                border: '1px solid #ddd',
+                borderRadius: '6px',
+                fontSize: '14px'
+              }}
+            />
+          )}
+          <button
+            className="button button-secondary"
+            onClick={() => {
+              if (pendingTag === 'new') {
+                const trimmed = newTagName.trim()
+                if (trimmed) {
+                  onAddTag(trimmed)
+                  setNewTagName('')
+                  setPendingTag('')
+                }
+              } else if (pendingTag !== '') {
+                onAddTag(pendingTag)
+              }
+            }}
+            disabled={
+              pendingTag === '' ||
+              (pendingTag === 'new' && newTagName.trim().length === 0)
+            }
+            style={{
+              padding: '8px 12px',
+              whiteSpace: 'nowrap',
+              opacity:
+                pendingTag === '' ||
+                (pendingTag === 'new' && newTagName.trim().length === 0)
+                  ? 0.6
+                  : 1,
+              cursor:
+                pendingTag === '' ||
+                (pendingTag === 'new' && newTagName.trim().length === 0)
+                  ? 'not-allowed'
+                  : 'pointer'
+            }}
+          >
+            付与
+          </button>
+        </div>
+      </div>
+
+      {/* 付与予定のタグ表示 */}
+      {selectedTags.length > 0 && (
+        <div style={{ marginBottom: '8px', textAlign: 'left' }}>
+          <span style={{ fontWeight: 600, fontSize: '13px', color: '#444' }}>付与タグ:</span>{' '}
+          {selectedTags.map((tag, idx) => (
+            <span
+              key={tag}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 8px',
+                marginLeft: idx === 0 ? 8 : 4,
+                background: '#eef4ff',
+                borderRadius: '12px',
+                fontSize: '12px',
+                color: '#334'
+              }}
+            >
+              {tag}
+              <button
+                onClick={() => onRemoveTag(tag)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#556',
+                  cursor: 'pointer',
+                  padding: 0,
+                  fontSize: '12px',
+                  lineHeight: 1
+                }}
+                aria-label={`${tag} を除外`}
+                title="削除"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
 
       <div className="empty-state" style={{ alignItems: 'stretch' }}>
         <div className="empty-state-text" style={{ textAlign: 'left' }}>

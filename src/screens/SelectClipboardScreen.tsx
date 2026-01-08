@@ -36,7 +36,7 @@ const translations: Record<Language, {
     emptyTitle: 'No destination databases yet',
     createNew: 'Create new',
     instruction: 'Select a destination database to save this page',
-    createdByExtension: 'Created by extension',
+    createdByExtension: '',
     createdAt: 'Created',
     lastSaved: 'Last saved',
     addNew: '+ Add a new destination database'
@@ -93,19 +93,7 @@ const SelectClipboardScreen: FC<SelectClipboardScreenProps> = ({
             >
               <div className="list-item-title">
                 {clipboard.name}
-                {clipboard.createdByExtension && (
-                  <span style={{
-                    marginLeft: '8px',
-                    padding: '2px 8px',
-                    fontSize: '11px',
-                    backgroundColor: '#e3f2fd',
-                    color: '#1976d2',
-                    borderRadius: '4px',
-                    fontWeight: 'normal'
-                  }}>
-                    {t.createdByExtension}
-                  </span>
-                )}
+                
               </div>
               <div className="list-item-meta">
                 <div style={{ marginBottom: '4px' }}>
