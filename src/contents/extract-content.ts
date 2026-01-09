@@ -393,6 +393,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     return true // 非同期レスポンスを示す
   }
+
+  if (message.type === 'get-youtube-time') {
+    try {
+      const videos = Array.from(document.querySelectorAll('video'))
+      const activeVideo = videos.find(video => Number.isFinite(video.currentTime)) || videos[0]
+      const currentTime = activeVideo ? Math.floor(activeVideo.currentTime || 0) : 0
+      sendResponse({ success: true, currentTime })
+    } catch (error) {
+      console.error('[Content Script] Error getting YouTube time:', error)
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : '不明なエラー'
+      })
+    }
+    return true
+  }
 })
 
 console.log('[Content Script] Loaded: extract-content.ts')

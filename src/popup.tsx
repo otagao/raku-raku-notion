@@ -29,6 +29,7 @@ function IndexPopup() {
   const [language, setLanguage] = useState<Language>('ja')
   const [creationCountdown, setCreationCountdown] = useState(0)
   const [memoDraft, setMemoDraft] = useState<string>("")
+  const [isYouTubeTab, setIsYouTubeTab] = useState(false)
 
   const internalTestTexts = useMemo(() => ({
     ja: {
@@ -90,6 +91,7 @@ function IndexPopup() {
     await loadClipboards()
     await refreshAvailableDatabases({ silent: true })
     await loadLanguage()
+    await loadCurrentTab()
   }
 
   // クリップボードリストが変わったときに選択状態を同期
@@ -174,6 +176,24 @@ function IndexPopup() {
   const loadLanguage = async () => {
     const config = await StorageService.getLanguageConfig()
     setLanguage(config.language || 'ja')
+  }
+
+  const loadCurrentTab = async () => {
+    const tabInfo = await StorageService.getCurrentTabInfo()
+    if (!tabInfo?.url) {
+      setIsYouTubeTab(false)
+      return
+    }
+    setIsYouTubeTab(isYouTubeUrl(tabInfo.url))
+  }
+
+  const isYouTubeUrl = (url: string) => {
+    try {
+      const parsed = new URL(url)
+      return parsed.hostname.includes('youtube.com') || parsed.hostname.includes('youtu.be')
+    } catch {
+      return false
+    }
   }
 
   const toggleLanguage = async () => {
@@ -461,6 +481,17 @@ function IndexPopup() {
     await performClip(targetId, memoDraft || undefined)
   }
 
+  const handleClipNow = async () => {
+    if (clipboards.length === 0) {
+      alert('保存先データベースを先に作成してください')
+      handleNavigate('create-clipboard')
+      return
+    }
+
+    const targetId = selectedClipboardId || clipboards[0].notionDatabaseId
+    await performClipNow(targetId, memoDraft || undefined)
+  }
+
   const handleSelectClipboard = async (databaseId: string) => {
     await performClip(databaseId, memoDraft || undefined)
   }
@@ -502,6 +533,35 @@ function IndexPopup() {
     });
   }
 
+  const performClipNow = (databaseId: string, memo?: string) => {
+    setIsClipping(true);
+    setClipProgress('クリップの準備をしています...');
+
+    StorageService.getCurrentTabInfo().then(tabInfo => {
+      if (!tabInfo) {
+        alert('ページ情報を取得できませんでした');
+        setIsClipping(false);
+        return;
+      }
+
+      chrome.runtime.sendMessage({
+        type: 'clip-now-youtube',
+        data: {
+          title: tabInfo.title,
+          url: tabInfo.url,
+          databaseId,
+          tabId: tabInfo.tabId,
+          memo: memo || undefined,
+          tags: selectedTags.length > 0 ? selectedTags : undefined
+        }
+      });
+    }).catch(error => {
+      console.error('Clip now error:', error);
+      alert(`エラーが発生しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
+      setIsClipping(false);
+    });
+  }
+
   const addTagAndPersist = (tag: string) => {
     const trimmed = tag.trim()
     if (!trimmed) return
@@ -523,6 +583,8 @@ function IndexPopup() {
           <HomeScreen
             onNavigate={handleNavigate}
             onClipPage={handleClipPage}
+            onClipNow={handleClipNow}
+            isYouTubeTab={isYouTubeTab}
             language={language}
             onToggleLanguage={toggleLanguage}
             memo={memoDraft}

@@ -17,6 +17,54 @@ function extractViewIdFromUrl(url: string): string | undefined {
   }
 }
 
+function extractYouTubeIdFromUrl(url: string): string | undefined {
+  try {
+    const u = new URL(url)
+    if (u.hostname.includes('youtube.com')) {
+      if (u.pathname.startsWith('/shorts/')) {
+        return u.pathname.split('/shorts/')[1]?.split(/[?/]/)[0] || undefined
+      }
+      return u.searchParams.get('v') || undefined
+    }
+    if (u.hostname.includes('youtu.be')) {
+      return u.pathname.replace('/', '') || undefined
+    }
+  } catch {
+    return undefined
+  }
+  return undefined
+}
+
+function parseYouTubeStartSeconds(url: string): number | undefined {
+  try {
+    const u = new URL(url)
+    const t = u.searchParams.get('t') || u.searchParams.get('start')
+    if (!t) return undefined
+    if (/^\d+$/.test(t)) return parseInt(t, 10)
+    let total = 0
+    const re = /(\d+)(h|m|s)/g
+    let match: RegExpExecArray | null
+    while ((match = re.exec(t)) !== null) {
+      const value = parseInt(match[1], 10)
+      const unit = match[2]
+      if (unit === 'h') total += value * 3600
+      if (unit === 'm') total += value * 60
+      if (unit === 's') total += value
+    }
+    return total > 0 ? total : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function buildYouTubeEmbedUrl(videoId: string, startSeconds?: number): string {
+  const base = `https://www.youtube.com/embed/${videoId}`
+  if (startSeconds && startSeconds > 0) {
+    return `${base}?start=${startSeconds}`
+  }
+  return base
+}
+
 /**
  * Notion API service
  * Notion APIとの連携を実装するサービス層
@@ -454,9 +502,22 @@ export class NotionService {
     try {
       const children: any[] = []
 
+      const youtubeVideoId = extractYouTubeIdFromUrl(url)
+      const youtubeStart = parseYouTubeStartSeconds(url)
+      const youtubeEmbedUrl = youtubeVideoId ? buildYouTubeEmbedUrl(youtubeVideoId, youtubeStart) : undefined
+
+      const normalizedVideos = videos?.map(v => {
+        const isBlob = v.url.startsWith('blob:')
+        const isYouTubeUrl = v.url.includes('youtube.com') || v.url.includes('youtu.be')
+        if (youtubeEmbedUrl && (isBlob || isYouTubeUrl)) {
+          return { ...v, url: youtubeEmbedUrl }
+        }
+        return { ...v, url: isBlob ? url : v.url }
+      })
+
       const imageUrls = images && images.length > 0 ? images : (thumbnail ? [thumbnail] : [])
       const bodyImages = imageUrls ? imageUrls.slice(0, 10) : []
-      const coverUrl = videos?.[0]?.poster || imageUrls?.[0] || thumbnail
+      const coverUrl = normalizedVideos?.[0]?.poster || imageUrls?.[0] || thumbnail
       let hostname = ''
       try {
         hostname = new URL(url).hostname
@@ -477,8 +538,8 @@ export class NotionService {
         })
       } else {
         // 動画ブロックを追加（最大3件程度）
-        if (videos && videos.length > 0) {
-          videos.slice(0, 3).forEach(video => {
+        if (normalizedVideos && normalizedVideos.length > 0) {
+          normalizedVideos.slice(0, 3).forEach(video => {
             children.push({
               object: "block",
               type: "video",
