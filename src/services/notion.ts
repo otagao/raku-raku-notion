@@ -265,6 +265,21 @@ export class NotionService {
       .trim()
   }
 
+  private getTitlePropertyName(properties?: Record<string, any>): string | undefined {
+    if (!properties) return undefined
+    const entry = Object.entries(properties).find(([, value]) => value?.type === "title")
+    return entry?.[0]
+  }
+
+  private getPageTitleFromProperties(properties?: Record<string, any>, titlePropName?: string): string {
+    if (!properties) return ""
+    const name = titlePropName || this.getTitlePropertyName(properties)
+    if (!name) return ""
+    const prop = properties[name]
+    if (!prop || prop.type !== "title") return ""
+    return this.getPlainText(prop.title)
+  }
+
   /**
    * ワークスペース直下に新しいページを作成する
    */
@@ -305,6 +320,99 @@ export class NotionService {
     const result = await response.json()
     console.log('[NotionService.createWorkspacePage] Page created:', result.id)
     return result.id
+  }
+
+  private async findDatabaseIdByTitle(title: string, parentPageId?: string): Promise<string | undefined> {
+    const response = await fetch(`${NOTION_API_BASE}/search`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${this.getAuthToken()}`,
+        "Notion-Version": NOTION_VERSION,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        query: title,
+        filter: { property: "object", value: "database" },
+        page_size: 20
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      console.error('[NotionService.findDatabaseIdByTitle] Error:', errorData)
+      return undefined
+    }
+
+    const result = await response.json()
+    const databases = Array.isArray(result.results) ? result.results : []
+    const matched = databases.find((db: any) => {
+      const dbTitle = this.getPlainText(db?.title)
+      if (dbTitle !== title) return false
+      if (!parentPageId) return true
+      return db?.parent?.type === "page_id" && db?.parent?.page_id === parentPageId
+    })
+    return matched?.id
+  }
+
+  private async getOrCreateTagDatabaseId(parentPageId: string): Promise<string> {
+    const tagDbTitle = "Raku Raku Notion - タグ"
+    const existingId = await this.findDatabaseIdByTitle(tagDbTitle, parentPageId)
+    if (existingId) return existingId
+
+    const response = await fetch(`${NOTION_API_BASE}/databases`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${this.getAuthToken()}`,
+        "Notion-Version": NOTION_VERSION,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        parent: {
+          type: "page_id",
+          page_id: parentPageId
+        },
+        title: [
+          {
+            type: "text",
+            text: {
+              content: tagDbTitle
+            }
+          }
+        ],
+        properties: {
+          "名前": {
+            title: {}
+          },
+          "作成日時": {
+            created_time: {}
+          }
+        }
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      console.error('[NotionService.createTagDatabase] Error:', errorData)
+      throw new Error(`タグDBの作成に失敗しました: ${errorData.message || response.statusText}`)
+    }
+
+    const result = await response.json()
+    return result.id
+  }
+
+  private async fetchDatabase(databaseId: string): Promise<any> {
+    const response = await fetch(`${NOTION_API_BASE}/databases/${databaseId}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${this.getAuthToken()}`,
+        "Notion-Version": NOTION_VERSION
+      }
+    })
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.message || response.statusText)
+    }
+    return response.json()
   }
 
   /**
@@ -361,6 +469,7 @@ export class NotionService {
       console.log('[NotionService.createDatabase] Resolving shared container page...')
       const parentPageId = await this.getOrCreateContainerPageId(containerTitle)
       console.log('[NotionService.createDatabase] Container page id:', parentPageId)
+      const tagDatabaseId = await this.getOrCreateTagDatabaseId(parentPageId)
 
       // データベースを作成
       console.log('[NotionService.createDatabase] Creating database under page:', parentPageId)
@@ -395,7 +504,10 @@ export class NotionService {
               rich_text: {}
             },
             "タグ": {
-              multi_select: {}
+              relation: {
+                database_id: tagDatabaseId,
+                single_property: {}
+              }
             },
             "作成日時": {
               created_time: {}
@@ -558,11 +670,81 @@ export class NotionService {
         }
       }
 
-      // タグ（マルチセレクト）を追加（タグA/B固定の簡易実験）
+      // タグ付与（マルチセレクト / リレーション）
       if (tags && tags.length > 0) {
-        const multiSelectValue = tags.map(name => ({ name }))
-        // デフォルトで作成している「タグ」プロパティにのみ付与する
-        pageData.properties["タグ"] = { multi_select: multiSelectValue }
+        try {
+          const db = await this.fetchDatabase(databaseId)
+          const tagProp = db.properties?.["タグ"]
+          if (tagProp?.type === "multi_select") {
+            const multiSelectValue = tags.map(name => ({ name }))
+            pageData.properties["タグ"] = { multi_select: multiSelectValue }
+          } else if (tagProp?.type === "relation" && tagProp.relation?.database_id) {
+            const tagDbId = tagProp.relation.database_id
+            const tagDb = await this.fetchDatabase(tagDbId)
+            const titlePropName = this.getTitlePropertyName(tagDb?.properties)
+
+            const response = await fetch(`${NOTION_API_BASE}/databases/${tagDbId}/query`, {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${this.getAuthToken()}`,
+                "Notion-Version": NOTION_VERSION,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({ page_size: 100 })
+            })
+            if (!response.ok) {
+              const errorData = await response.json()
+              throw new Error(errorData.message || response.statusText)
+            }
+            const data = await response.json()
+            const pages = Array.isArray(data.results) ? data.results : []
+            const existingByName = new Map<string, string>()
+            pages.forEach((page: any) => {
+              const name = this.getPageTitleFromProperties(page?.properties, titlePropName).trim()
+              if (name) existingByName.set(name, page.id)
+            })
+
+            const relationIds: { id: string }[] = []
+            for (const raw of tags) {
+              const name = raw.trim()
+              if (!name) continue
+              const existingId = existingByName.get(name)
+              if (existingId) {
+                relationIds.push({ id: existingId })
+                continue
+              }
+              const createRes = await fetch(`${NOTION_API_BASE}/pages`, {
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${this.getAuthToken()}`,
+                  "Notion-Version": NOTION_VERSION,
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                  parent: { database_id: tagDbId },
+                  properties: {
+                    [titlePropName || "名前"]: {
+                      title: [{ text: { content: name } }]
+                    }
+                  }
+                })
+              })
+              if (!createRes.ok) {
+                const errorData = await createRes.json()
+                throw new Error(errorData.message || createRes.statusText)
+              }
+              const created = await createRes.json()
+              relationIds.push({ id: created.id })
+              existingByName.set(name, created.id)
+            }
+
+            if (relationIds.length > 0) {
+              pageData.properties["タグ"] = { relation: relationIds }
+            }
+          }
+        } catch (error) {
+          console.warn('Failed to set tag relation:', error)
+        }
       }
 
       // アイコンがある場合はページアイコンとして設定
@@ -612,29 +794,40 @@ export class NotionService {
   }
 
   /**
-   * 指定したデータベースの「タグ」マルチセレクトプロパティから選択肢を取得
+   * 指定したデータベースの「タグ」プロパティから選択肢を取得
+   * マルチセレクト/リレーション両対応
    */
   async getTagOptions(databaseId: string): Promise<string[]> {
     try {
-      const response = await fetch(`${NOTION_API_BASE}/databases/${databaseId}`, {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${this.getAuthToken()}`,
-          "Notion-Version": NOTION_VERSION
-        }
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || response.statusText)
-      }
-
-      const result = await response.json()
+      const result = await this.fetchDatabase(databaseId)
       const tagProp = result.properties?.["タグ"]
       if (tagProp?.type === "multi_select" && Array.isArray(tagProp.multi_select?.options)) {
         return tagProp.multi_select.options
           .map((opt: any) => opt?.name)
           .filter((name: any): name is string => typeof name === 'string' && name.trim().length > 0)
+      }
+      if (tagProp?.type === "relation" && tagProp.relation?.database_id) {
+        const tagDbId = tagProp.relation.database_id
+        const tagDb = await this.fetchDatabase(tagDbId)
+        const titlePropName = this.getTitlePropertyName(tagDb?.properties)
+        const response = await fetch(`${NOTION_API_BASE}/databases/${tagDbId}/query`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${this.getAuthToken()}`,
+            "Notion-Version": NOTION_VERSION,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ page_size: 100 })
+        })
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.message || response.statusText)
+        }
+        const data = await response.json()
+        const pages = Array.isArray(data.results) ? data.results : []
+        return pages
+          .map((page: any) => this.getPageTitleFromProperties(page?.properties, titlePropName))
+          .filter((name: any): name is string => typeof name === "string" && name.trim().length > 0)
       }
       return []
     } catch (error) {

@@ -17,6 +17,7 @@ function IndexPopup() {
   const [selectedClipboardId, setSelectedClipboardId] = useState<string | undefined>()
   const [tagOptions, setTagOptions] = useState<string[]>([])
   const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [isYouTubeTab, setIsYouTubeTab] = useState(false)
   const tagFetchSeq = useState({ current: 0 })[0] // フェッチの競合防止用
   const [isClipping, setIsClipping] = useState(false)
   const [clipProgress, setClipProgress] = useState("")
@@ -90,6 +91,7 @@ function IndexPopup() {
     await loadClipboards()
     await refreshAvailableDatabases({ silent: true })
     await loadLanguage()
+    await loadCurrentTab()
   }
 
   // クリップボードリストが変わったときに選択状態を同期
@@ -174,6 +176,12 @@ function IndexPopup() {
   const loadLanguage = async () => {
     const config = await StorageService.getLanguageConfig()
     setLanguage(config.language || 'ja')
+  }
+
+  const loadCurrentTab = async () => {
+    const tabInfo = await StorageService.getCurrentTabInfo()
+    const url = tabInfo?.url || ''
+    setIsYouTubeTab(url.includes('youtube.com') || url.includes('youtu.be'))
   }
 
   const toggleLanguage = async () => {
@@ -472,7 +480,7 @@ function IndexPopup() {
     }
   }, [selectedClipboardId])
 
-  const performClip = (databaseId: string, memo?: string) => {
+  const performClip = (databaseId: string, memo?: string, overrideUrl?: string) => {
     setIsClipping(true);
     setClipProgress('クリップの準備をしています...');
 
@@ -488,7 +496,7 @@ function IndexPopup() {
         type: 'clip-page',
         data: {
           title: tabInfo.title,
-          url: tabInfo.url,
+          url: overrideUrl || tabInfo.url,
           databaseId,
           tabId: tabInfo.tabId, // Content Scriptからコンテンツを抽出するためのタブID
           memo: memo || undefined, // メモがあれば含める
@@ -500,6 +508,34 @@ function IndexPopup() {
       alert(`エラーが発生しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
       setIsClipping(false);
     });
+  }
+
+  const handleClipNow = async () => {
+    if (clipboards.length === 0) {
+      alert('保存先データベースを先に作成してください')
+      handleNavigate('create-clipboard')
+      return
+    }
+    const tabInfo = await StorageService.getCurrentTabInfo()
+    if (!tabInfo) {
+      alert('ページ情報を取得できませんでした')
+      return
+    }
+
+    let urlToSave = tabInfo.url
+    try {
+      const response = await chrome.tabs.sendMessage(tabInfo.tabId, { type: 'get-youtube-time' })
+      if (response?.success && typeof response.currentTime === 'number' && response.currentTime > 0) {
+        const u = new URL(tabInfo.url)
+        u.searchParams.set('t', `${response.currentTime}s`)
+        urlToSave = u.toString()
+      }
+    } catch (error) {
+      console.warn('[handleClipNow] Failed to get YouTube time:', error)
+    }
+
+    const targetId = selectedClipboardId || clipboards[0].notionDatabaseId
+    await performClip(targetId, memoDraft || undefined, urlToSave)
   }
 
   const addTagAndPersist = (tag: string) => {
@@ -534,6 +570,8 @@ function IndexPopup() {
             onAddTag={addTagAndPersist}
             onRemoveTag={(tag) => setSelectedTags(prev => prev.filter(t => t !== tag))}
             existingTags={tagOptions}
+            isYouTubeTab={isYouTubeTab}
+            onClipNow={handleClipNow}
           />
         )
       case 'create-clipboard':
@@ -645,7 +683,11 @@ function IndexPopup() {
             selectedClipboardId={selectedClipboardId}
             onSelectClipboardId={setSelectedClipboardId}
             selectedTags={selectedTags}
-            onAddTag={(tag) => setSelectedTags(prev => prev.includes(tag) ? prev : [...prev, tag])}
+            onAddTag={addTagAndPersist}
+            onRemoveTag={(tag) => setSelectedTags(prev => prev.filter(t => t !== tag))}
+            existingTags={tagOptions}
+            isYouTubeTab={isYouTubeTab}
+            onClipNow={handleClipNow}
           />
         )
     }

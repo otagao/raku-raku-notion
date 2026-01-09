@@ -18,6 +18,8 @@ interface HomeScreenProps {
   onAddTag: (tag: string) => void
   onRemoveTag: (tag: string) => void
   existingTags?: string[]
+  isYouTubeTab?: boolean
+  onClipNow?: () => void
 }
 
 const translations: Record<Language, {
@@ -44,7 +46,7 @@ const translations: Record<Language, {
     saving: 'ウェブページをNotionに簡単保存',
     memoLabel: 'メモ（任意）',
     memoPlaceholder: 'ページについてのメモを入力できます',
-    clipButton: '📎 このページを保存',
+    clipButton: 'このページを保存',
     listButton: '保存先データベース一覧を見る',
     createButton: '+ 新しい保存先データベースを作成',
     checking: '接続状態を確認中...',
@@ -64,7 +66,7 @@ const translations: Record<Language, {
     saving: 'Save web pages to Notion easily',
     memoLabel: 'Memo (optional)',
     memoPlaceholder: 'Add a note about this page',
-    clipButton: '📎 Save this page',
+    clipButton: 'Save this page',
     listButton: 'View destination databases',
     createButton: '+ Create a new destination database',
     checking: 'Checking connection...',
@@ -95,7 +97,9 @@ const HomeScreen: FC<HomeScreenProps> = ({
   selectedTags,
   onAddTag,
   onRemoveTag,
-  existingTags = []
+  existingTags = [],
+  isYouTubeTab = false,
+  onClipNow
 }) => {
   const t = translations[language]
   const [isConnected, setIsConnected] = useState<boolean>(false)
@@ -326,6 +330,9 @@ const HomeScreen: FC<HomeScreenProps> = ({
             style={{
               padding: '8px 12px',
               whiteSpace: 'nowrap',
+              backgroundColor: '#1976d2',
+              borderColor: '#1976d2',
+              color: 'white',
               opacity:
                 pendingTag === '' ||
                 (pendingTag === 'new' && newTagName.trim().length === 0)
@@ -410,19 +417,50 @@ const HomeScreen: FC<HomeScreenProps> = ({
           />
         </div>
 
-        <button
-          className="button"
-          onClick={onClipPage}
-          disabled={!isConnected}
-          style={{
-            marginTop: '12px',
-            opacity: !isConnected ? 0.5 : 1,
-            cursor: !isConnected ? 'not-allowed' : 'pointer'
-          }}
-          title={!isConnected ? 'Notionに接続してください' : ''}
-        >
-          {t.clipButton}
-        </button>
+        {isYouTubeTab ? (
+          <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+            <button
+              className="button"
+              onClick={onClipPage}
+              disabled={!isConnected}
+              style={{
+                flex: 1,
+                opacity: !isConnected ? 0.5 : 1,
+                cursor: !isConnected ? 'not-allowed' : 'pointer'
+              }}
+              title={!isConnected ? 'Notionに接続してください' : ''}
+            >
+              {t.clipButton}
+            </button>
+            <button
+              className="button button-secondary"
+              onClick={onClipNow}
+              disabled={!isConnected || !onClipNow}
+              style={{
+                flex: 1,
+                opacity: !isConnected || !onClipNow ? 0.6 : 1,
+                cursor: !isConnected || !onClipNow ? 'not-allowed' : 'pointer'
+              }}
+              title={!isConnected ? 'Notionに接続してください' : '現在の再生位置で保存'}
+            >
+              今保存
+            </button>
+          </div>
+        ) : (
+          <button
+            className="button"
+            onClick={onClipPage}
+            disabled={!isConnected}
+            style={{
+              marginTop: '12px',
+              opacity: !isConnected ? 0.5 : 1,
+              cursor: !isConnected ? 'not-allowed' : 'pointer'
+            }}
+            title={!isConnected ? 'Notionに接続してください' : ''}
+          >
+            {t.clipButton}
+          </button>
+        )}
 
         <div style={{
           marginTop: '24px',
