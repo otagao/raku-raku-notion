@@ -43,17 +43,6 @@ const translations: Record<Language, {
   tooltipCreateButton: string
   oauthButtonIdle: string
   oauthButtonLoading: string
-  manualTokenLabel: string
-  manualPlaceholder: string
-  manualButtonIdle: string
-  manualButtonLoading: string
-  authMethodLabel: string
-  useOAuth: string
-  useManualToken: string
-  oauthDesc: string
-  manualDesc: string
-  errorMissingApiKey: string
-  errorConnectFailed: string
   successSaved: string
 }> = {
   ja: {
@@ -77,17 +66,6 @@ const translations: Record<Language, {
     tooltipCreateButton: 'Notion上に新しい保存先データベースを作成します',
     oauthButtonIdle: 'Notionで認証して接続',
     oauthButtonLoading: '処理中...',
-    manualTokenLabel: 'Notion Integration Token',
-    manualPlaceholder: 'secret_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-    manualButtonIdle: 'トークンを保存して接続',
-    manualButtonLoading: '接続テスト中...',
-    authMethodLabel: '認証方法を選択',
-    useOAuth: 'OAuth認証（推奨）',
-    useManualToken: '手動トークン入力',
-    oauthDesc: 'NotionのOAuth認証を使用してアクセス許可を付与します。',
-    manualDesc: 'Notion Integrationから作成したトークンを手動で入力します。',
-    errorMissingApiKey: 'APIキーを入力してください',
-    errorConnectFailed: 'Notion APIへの接続に失敗しました。APIキーを確認してください。',
     successSaved: '設定を保存しました'
   },
   en: {
@@ -111,17 +89,6 @@ const translations: Record<Language, {
     tooltipCreateButton: 'Create a new destination database in Notion',
     oauthButtonIdle: 'Connect with Notion',
     oauthButtonLoading: 'Processing...',
-    manualTokenLabel: 'Notion Integration Token',
-    manualPlaceholder: 'secret_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-    manualButtonIdle: 'Save token and connect',
-    manualButtonLoading: 'Testing connection...',
-    authMethodLabel: 'Choose authentication method',
-    useOAuth: 'OAuth (recommended)',
-    useManualToken: 'Manual token input',
-    oauthDesc: 'Use Notion OAuth to grant access.',
-    manualDesc: 'Manually enter a token created from Notion Integration.',
-    errorMissingApiKey: 'Please enter your API key',
-    errorConnectFailed: 'Failed to connect to Notion API. Please check your API key.',
     successSaved: 'Settings saved'
   }
 }
@@ -151,8 +118,6 @@ const HomeScreen: FC<HomeScreenProps> = ({
   const [newTagName, setNewTagName] = useState<string>('') // 新規タグ名
 
   // 認証UI用のステート
-  const [authMethod, setAuthMethod] = useState<'oauth' | 'manual'>('oauth')
-  const [apiKey, setApiKey] = useState<string>('')
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(false)
   const [authError, setAuthError] = useState<string>('')
   const [authSuccess, setAuthSuccess] = useState<string>('')
@@ -213,8 +178,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
       }
 
       // 認証情報が存在するかチェック
-      const hasAuth = (config.authMethod === 'oauth' && config.accessToken) ||
-                     (config.authMethod === 'manual' && config.apiKey)
+      const hasAuth = config.authMethod === 'oauth' && config.accessToken
 
       if (hasAuth) {
         // 接続テスト
@@ -264,39 +228,6 @@ const HomeScreen: FC<HomeScreenProps> = ({
       }, 100)
     } catch (err) {
       setAuthError(err instanceof Error ? err.message : 'OAuth認証に失敗しました')
-      setIsAuthLoading(false)
-    }
-  }
-
-  const handleManualSave = async () => {
-    setIsAuthLoading(true)
-    setAuthError('')
-    setAuthSuccess('')
-
-    try {
-      if (!apiKey.trim()) {
-        throw new Error(t.errorMissingApiKey)
-      }
-
-      const config = {
-        authMethod: 'manual' as const,
-        apiKey: apiKey.trim()
-      }
-
-      const client = createNotionClient(config)
-      const connected = await client.testConnection()
-
-      if (!connected) {
-        throw new Error(t.errorConnectFailed)
-      }
-
-      await StorageService.saveNotionConfig(config)
-      setIsConnected(true)
-      setAuthSuccess(t.successSaved)
-      setTimeout(() => setAuthSuccess(''), 3000)
-    } catch (err) {
-      setAuthError(err instanceof Error ? err.message : '設定の保存に失敗しました')
-    } finally {
       setIsAuthLoading(false)
     }
   }
@@ -385,115 +316,30 @@ const HomeScreen: FC<HomeScreenProps> = ({
       {/* 未接続時: 認証UI */}
       {!isConnected && !isCheckingConnection && (
         <div style={{ marginBottom: '24px' }}>
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, fontSize: '14px' }}>
-              {t.authMethodLabel}
-            </label>
-            <div style={{ display: 'flex', gap: '16px', marginBottom: '12px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                <input
-                  type="radio"
-                  value="oauth"
-                  checked={authMethod === 'oauth'}
-                  onChange={(e) => setAuthMethod(e.target.value as 'oauth')}
-                />
-                {t.useOAuth}
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                <input
-                  type="radio"
-                  value="manual"
-                  checked={authMethod === 'manual'}
-                  onChange={(e) => setAuthMethod(e.target.value as 'manual')}
-                />
-                {t.useManualToken}
-              </label>
-            </div>
-          </div>
-
-          {authMethod === 'oauth' ? (
-            <div>
-              <p style={{ marginBottom: '16px', color: '#666', fontSize: '14px' }}>
-                {t.oauthDesc}
-              </p>
-              <button
-                onClick={handleOAuthLogin}
-                disabled={isAuthLoading || !oauthClientId}
-                className="button"
-                style={{
-                  width: '100%',
-                  background: isAuthLoading || !oauthClientId ? undefined : '#0078d4',
-                  fontSize: '15px',
-                  fontWeight: '600',
-                  padding: '14px 16px'
-                }}
-              >
-                {isAuthLoading ? t.oauthButtonLoading : t.oauthButtonIdle}
-              </button>
-              {!oauthClientId && (
-                <div style={{
-                  padding: '12px',
-                  marginTop: '12px',
-                  backgroundColor: '#fff3cd',
-                  color: '#856404',
-                  borderRadius: '4px',
-                  fontSize: '14px'
-                }}>
-                  ⚠️ OAuth設定が未構成です。開発者に連絡してください。
-                </div>
-              )}
-            </div>
-          ) : (
-            <div>
-              <p style={{ marginBottom: '16px', color: '#666', fontSize: '14px' }}>
-                {t.manualDesc}
-              </p>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, fontSize: '14px' }}>
-                  {t.manualTokenLabel}
-                </label>
-                <input
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder={t.manualPlaceholder}
-                  disabled={isAuthLoading}
-                  style={{
-                    width: '100%',
-                    padding: '8px',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
-                    fontSize: '14px',
-                    boxSizing: 'border-box'
-                  }}
-                />
-                <small style={{ color: '#666', display: 'block', marginTop: '4px' }}>
-                  <a
-                    href="https://www.notion.so/my-integrations"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Notion Integration
-                  </a>
-                  {language === 'ja'
-                    ? ' から作成できます。'
-                    : ' provides the token.'}
-                </small>
-              </div>
-              <button
-                onClick={handleManualSave}
-                disabled={isAuthLoading || !apiKey.trim()}
-                className="button"
-                style={{
-                  width: '100%',
-                  background: isAuthLoading || !apiKey.trim() ? undefined : '#0078d4',
-                  fontSize: '15px',
-                  fontWeight: '600',
-                  padding: '14px 16px'
-                }}
-              >
-                {isAuthLoading ? t.manualButtonLoading : t.manualButtonIdle}
-              </button>
+          <button
+            onClick={handleOAuthLogin}
+            disabled={isAuthLoading || !oauthClientId}
+            className="button"
+            style={{
+              width: '100%',
+              background: isAuthLoading || !oauthClientId ? undefined : '#0078d4',
+              fontSize: '15px',
+              fontWeight: '600',
+              padding: '14px 16px'
+            }}
+          >
+            {isAuthLoading ? t.oauthButtonLoading : t.oauthButtonIdle}
+          </button>
+          {!oauthClientId && (
+            <div style={{
+              padding: '12px',
+              marginTop: '12px',
+              backgroundColor: '#fff3cd',
+              color: '#856404',
+              borderRadius: '4px',
+              fontSize: '14px'
+            }}>
+              ⚠️ {language === 'ja' ? 'OAuth設定が未構成です。開発者に連絡してください。' : 'OAuth is not configured. Please contact the developer.'}
             </div>
           )}
         </div>
