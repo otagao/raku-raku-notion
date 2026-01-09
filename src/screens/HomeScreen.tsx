@@ -2,6 +2,7 @@ import { type FC, useState, useEffect } from "react"
 import { StorageService } from "~services/storage"
 import { createNotionClient } from "~services/notion"
 import type { Language, Clipboard } from "~types"
+import { TooltipIcon } from "~components/TooltipIcon"
 
 interface HomeScreenProps {
   onNavigate: (screen: string) => void
@@ -10,7 +11,6 @@ interface HomeScreenProps {
   onToggleLanguage: () => void
   memo: string
   onMemoChange: (value: string) => void
-  onOpenTutorial: () => void
   clipboards: Clipboard[]
   selectedClipboardId?: string
   onSelectClipboardId: (id: string) => void
@@ -22,7 +22,6 @@ interface HomeScreenProps {
 
 const translations: Record<Language, {
   saving: string
-  tutorial: string
   memoLabel: string
   memoPlaceholder: string
   clipButton: string
@@ -33,10 +32,16 @@ const translations: Record<Language, {
   disconnected: string
   destinationLabel: string
   destinationPlaceholder: string
+  tagLabel: string
+  addedTagsLabel: string
+  tooltipDestination: string
+  tooltipWorkspace: string
+  tooltipTag: string
+  tooltipListButton: string
+  tooltipCreateButton: string
 }> = {
   ja: {
     saving: 'ウェブページをNotionに簡単保存',
-    tutorial: 'チュートリアル',
     memoLabel: 'メモ（任意）',
     memoPlaceholder: 'ページについてのメモを入力できます',
     clipButton: '📎 このページを保存',
@@ -46,11 +51,17 @@ const translations: Record<Language, {
     connected: (name) => `接続中: ${name || 'Notionワークスペース'}`,
     disconnected: '設定からNotionに接続してください',
     destinationLabel: '保存先',
-    destinationPlaceholder: '保存先を選択してください'
+    destinationPlaceholder: '保存先を選択してください',
+    tagLabel: 'タグ付与',
+    addedTagsLabel: '付与タグ',
+    tooltipDestination: 'ページの保存先となるNotionデータベースを選択します',
+    tooltipWorkspace: 'Notion上のワークスペース（チームまたは個人アカウント）',
+    tooltipTag: 'ページに追加するタグ。既存タグから選択、または新規作成できます',
+    tooltipListButton: '登録済みのデータベースを一覧表示・管理します',
+    tooltipCreateButton: 'Notion上に新しい保存先データベースを作成します'
   },
   en: {
     saving: 'Save web pages to Notion easily',
-    tutorial: 'Tutorial',
     memoLabel: 'Memo (optional)',
     memoPlaceholder: 'Add a note about this page',
     clipButton: '📎 Save this page',
@@ -60,7 +71,14 @@ const translations: Record<Language, {
     connected: (name) => `Connected: ${name || 'Notion workspace'}`,
     disconnected: 'Connect to Notion in Settings',
     destinationLabel: 'Destination',
-    destinationPlaceholder: 'Select a destination'
+    destinationPlaceholder: 'Select a destination',
+    tagLabel: 'Add tags',
+    addedTagsLabel: 'Tags to add',
+    tooltipDestination: 'Select a Notion database where pages will be saved',
+    tooltipWorkspace: 'A workspace in Notion (team or personal account)',
+    tooltipTag: 'Tags to add to the page. Choose from existing tags or create new ones',
+    tooltipListButton: 'View and manage your registered databases',
+    tooltipCreateButton: 'Create a new destination database in Notion'
   }
 }
 
@@ -71,7 +89,6 @@ const HomeScreen: FC<HomeScreenProps> = ({
   onToggleLanguage,
   memo,
   onMemoChange,
-  onOpenTutorial,
   clipboards,
   selectedClipboardId,
   onSelectClipboardId,
@@ -146,20 +163,6 @@ const HomeScreen: FC<HomeScreenProps> = ({
         <h1>Raku Raku Notion</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
-            onClick={onOpenTutorial}
-            style={{
-              background: 'transparent',
-              border: '1px solid #ddd',
-              fontSize: '12px',
-              cursor: 'pointer',
-              padding: '4px 8px',
-              borderRadius: '4px',
-              color: '#666'
-            }}
-          >
-            {t.tutorial}
-          </button>
-          <button
             onClick={onToggleLanguage}
             style={{
               background: 'transparent',
@@ -227,8 +230,9 @@ const HomeScreen: FC<HomeScreenProps> = ({
 
       {/* 保存先ドロップダウン */}
       <div style={{ marginBottom: '12px', textAlign: 'left' }}>
-        <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
           {t.destinationLabel}
+          <TooltipIcon text={t.tooltipDestination} style={{ marginLeft: 0 }} />
         </label>
         <select
           value={selectedClipboardId || ''}
@@ -255,8 +259,9 @@ const HomeScreen: FC<HomeScreenProps> = ({
 
       {/* タグ付与UI */}
       <div style={{ marginBottom: '8px', textAlign: 'left' }}>
-        <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
-          タグ付与
+        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+          {t.tagLabel}
+          <TooltipIcon text={t.tooltipTag} style={{ marginLeft: 0 }} />
         </label>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <select
@@ -341,7 +346,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
       {/* 付与予定のタグ表示 */}
       {selectedTags.length > 0 && (
         <div style={{ marginBottom: '8px', textAlign: 'left' }}>
-          <span style={{ fontWeight: 600, fontSize: '13px', color: '#444' }}>付与タグ:</span>{' '}
+          <span style={{ fontWeight: 600, fontSize: '13px', color: '#444' }}>{t.addedTagsLabel}:</span>{' '}
           {selectedTags.map((tag, idx) => (
             <span
               key={tag}
@@ -424,31 +429,56 @@ const HomeScreen: FC<HomeScreenProps> = ({
           paddingTop: '24px',
           borderTop: '1px solid #e9e9e7'
         }}>
-          <button
-            className="button button-secondary"
-            onClick={() => onNavigate('clipboard-list')}
-            disabled={!isConnected}
-            style={{
-              opacity: !isConnected ? 0.5 : 1,
-              cursor: !isConnected ? 'not-allowed' : 'pointer'
-            }}
-            title={!isConnected ? 'Notionに接続してください' : ''}
-          >
-            {t.listButton}
-          </button>
-          <button
-            className="button button-secondary"
-            onClick={() => onNavigate('create-clipboard')}
-            disabled={!isConnected}
-            style={{
-              marginTop: '12px',
-              opacity: !isConnected ? 0.5 : 1,
-              cursor: !isConnected ? 'not-allowed' : 'pointer'
-            }}
-            title={!isConnected ? 'Notionに接続してください' : ''}
-          >
-            {t.createButton}
-          </button>
+          <div style={{ position: 'relative' }}>
+            <button
+              className="button button-secondary"
+              onClick={() => onNavigate('clipboard-list')}
+              disabled={!isConnected}
+              style={{
+                opacity: !isConnected ? 0.5 : 1,
+                cursor: !isConnected ? 'not-allowed' : 'pointer',
+                width: '100%'
+              }}
+              title={!isConnected ? 'Notionに接続してください' : ''}
+            >
+              {t.listButton}
+            </button>
+            <TooltipIcon
+              text={t.tooltipListButton}
+              style={{
+                position: 'absolute',
+                right: '8px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                zIndex: 1
+              }}
+            />
+          </div>
+          <div style={{ position: 'relative', marginTop: '12px' }}>
+            <button
+              className="button button-secondary"
+              onClick={() => onNavigate('create-clipboard')}
+              disabled={!isConnected}
+              style={{
+                opacity: !isConnected ? 0.5 : 1,
+                cursor: !isConnected ? 'not-allowed' : 'pointer',
+                width: '100%'
+              }}
+              title={!isConnected ? 'Notionに接続してください' : ''}
+            >
+              {t.createButton}
+            </button>
+            <TooltipIcon
+              text={t.tooltipCreateButton}
+              style={{
+                position: 'absolute',
+                right: '8px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                zIndex: 1
+              }}
+            />
+          </div>
         </div>
       </div>
     </div>
