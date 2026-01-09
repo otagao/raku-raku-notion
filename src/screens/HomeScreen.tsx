@@ -42,8 +42,8 @@ const translations: Record<Language, {
     memoLabel: 'メモ（任意）',
     memoPlaceholder: 'ページについてのメモを入力できます',
     clipButton: '📎 このページを保存',
-    listButton: '保存先データベース一覧を見る',
-    createButton: '+ 新しい保存先データベースを作成',
+    listButton: '保存先一覧',
+    createButton: '保存先を作成',
     checking: '接続状態を確認中...',
     connected: (name) => `接続中: ${name || 'Notionワークスペース'}`,
     disconnected: '設定からNotionに接続してください',
@@ -56,8 +56,8 @@ const translations: Record<Language, {
     memoLabel: 'Memo (optional)',
     memoPlaceholder: 'Add a note about this page',
     clipButton: '📎 Save this page',
-    listButton: 'View destination databases',
-    createButton: '+ Create a new destination database',
+    listButton: 'Destinations',
+    createButton: 'Create destination',
     checking: 'Checking connection...',
     connected: (name) => `Connected: ${name || 'Notion workspace'}`,
     disconnected: 'Connect to Notion in Settings',
@@ -258,7 +258,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
       </div>
 
       {/* タグ付与UI */}
-      <div style={{ marginBottom: '8px', textAlign: 'left' }}>
+      <div style={{ marginBottom: '2px', textAlign: 'left' }}>
         <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
           タグ付与
         </label>
@@ -344,7 +344,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
 
       {/* 付与予定のタグ表示 */}
       {selectedTags.length > 0 && (
-        <div style={{ marginBottom: '8px', textAlign: 'left' }}>
+        <div style={{ marginBottom: '4px', textAlign: 'left' }}>
           <span style={{ fontWeight: 600, fontSize: '13px', color: '#444' }}>付与タグ:</span>{' '}
           {selectedTags.map((tag, idx) => (
             <span
@@ -384,11 +384,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
       )}
 
       <div className="empty-state" style={{ alignItems: 'stretch' }}>
-        <div className="empty-state-text" style={{ textAlign: 'left' }}>
-          {t.saving}
-        </div>
-
-        <div style={{ marginTop: '12px', textAlign: 'left' }}>
+        <div style={{ marginTop: selectedTags.length > 0 ? '4px' : '0px', textAlign: 'left' }}>
           <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
             {t.memoLabel}
           </label>
@@ -459,31 +455,34 @@ const HomeScreen: FC<HomeScreenProps> = ({
           paddingTop: '24px',
           borderTop: '1px solid #e9e9e7'
         }}>
-          <button
-            className="button button-secondary"
-            onClick={() => onNavigate('clipboard-list')}
-            disabled={!isConnected}
-            style={{
-              opacity: !isConnected ? 0.5 : 1,
-              cursor: !isConnected ? 'not-allowed' : 'pointer'
-            }}
-            title={!isConnected ? 'Notionに接続してください' : ''}
-          >
-            {t.listButton}
-          </button>
-          <button
-            className="button button-secondary"
-            onClick={() => onNavigate('create-clipboard')}
-            disabled={!isConnected}
-            style={{
-              marginTop: '12px',
-              opacity: !isConnected ? 0.5 : 1,
-              cursor: !isConnected ? 'not-allowed' : 'pointer'
-            }}
-            title={!isConnected ? 'Notionに接続してください' : ''}
-          >
-            {t.createButton}
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              className="button button-secondary"
+              onClick={() => onNavigate('clipboard-list')}
+              disabled={!isConnected}
+              style={{
+                flex: 1,
+                opacity: !isConnected ? 0.5 : 1,
+                cursor: !isConnected ? 'not-allowed' : 'pointer'
+              }}
+              title={!isConnected ? 'Notionに接続してください' : ''}
+            >
+              {t.listButton}
+            </button>
+            <button
+              className="button button-secondary"
+              onClick={() => onNavigate('create-clipboard')}
+              disabled={!isConnected}
+              style={{
+                flex: 1,
+                opacity: !isConnected ? 0.5 : 1,
+                cursor: !isConnected ? 'not-allowed' : 'pointer'
+              }}
+              title={!isConnected ? 'Notionに接続してください' : ''}
+            >
+              {t.createButton}
+            </button>
+          </div>
         </div>
       </div>
     </div>
