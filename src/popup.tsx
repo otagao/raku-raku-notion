@@ -347,6 +347,7 @@ function IndexPopup() {
       const visiblePropIds: string[] = []
       if (properties["URL"]) visiblePropIds.push(properties["URL"])
       if (properties["メモ"]) visiblePropIds.push(properties["メモ"])
+      if (properties["タグ"]) visiblePropIds.push(properties["タグ"])
 
       console.log('[handleCreateClipboard] Adding gallery view with properties:', visiblePropIds)
       console.log('[handleCreateClipboard] View to remove:', viewIdToRemove)
