@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import type { NotionConfig, NotionOAuthConfig, UISimplifyConfig, Language } from '~types'
 import { StorageService } from '~services/storage'
 import { createNotionClient } from '~services/notion'
+import { TooltipIcon } from '~components/TooltipIcon'
 
 interface SettingsScreenProps {
   onBack: () => void
@@ -46,6 +47,9 @@ const translations: Record<Language, {
   errorLoad: string
   errorMissingApiKey: string
   errorConnectFailed: string
+  tooltipUISimplify: string
+  tooltipOAuth: string
+  tooltipManualToken: string
 }> = {
   ja: {
     back: '← 戻る',
@@ -84,7 +88,10 @@ const translations: Record<Language, {
     errorDisconnect: '連携解除に失敗しました',
     errorLoad: '設定の読み込みに失敗しました',
     errorMissingApiKey: 'APIキーを入力してください',
-    errorConnectFailed: 'Notion APIへの接続に失敗しました。APIキーを確認してください。'
+    errorConnectFailed: 'Notion APIへの接続に失敗しました。APIキーを確認してください。',
+    tooltipUISimplify: 'Notion.so上でサイドバーやツールバーを非表示にし、シンプルな表示にします',
+    tooltipOAuth: 'Notionの公式認証方式。ブラウザでNotionにログインして許可を与えます',
+    tooltipManualToken: 'Notion Integrationページで作成した認証トークンを手動で入力します'
   },
   en: {
     back: '← Back',
@@ -123,7 +130,10 @@ const translations: Record<Language, {
     errorDisconnect: 'Failed to disconnect',
     errorLoad: 'Failed to load settings',
     errorMissingApiKey: 'Please enter your API key',
-    errorConnectFailed: 'Failed to connect to Notion API. Please check your API key.'
+    errorConnectFailed: 'Failed to connect to Notion API. Please check your API key.',
+    tooltipUISimplify: 'Hide sidebar and toolbar on Notion.so for a cleaner display',
+    tooltipOAuth: 'Official Notion authentication. Log in through browser to grant access',
+    tooltipManualToken: 'Manually enter an authentication token created from Notion Integration page'
   }
 }
 
@@ -421,8 +431,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, language
       </div>
 
       <div style={{ marginBottom: '32px', paddingTop: '16px', borderTop: '1px solid #eee' }}>
-        <h3 style={{ marginBottom: '12px', fontSize: '16px', fontWeight: 600 }}>
+        <h3 style={{ marginBottom: '12px', fontSize: '16px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
           {t.uiTitle}
+          <TooltipIcon text={t.tooltipUISimplify} style={{ marginLeft: 0 }} />
         </h3>
         <p style={{ marginBottom: '16px', color: '#666', fontSize: '14px' }}>
           {t.uiDesc}
@@ -467,6 +478,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, language
               onChange={(e) => setAuthMethod(e.target.value as 'oauth')}
             />
             {t.oauthLabel}
+            <TooltipIcon text={t.tooltipOAuth} style={{ marginLeft: 0 }} />
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <input
@@ -476,6 +488,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, language
               onChange={(e) => setAuthMethod(e.target.value as 'manual')}
             />
             {t.manualLabel}
+            <TooltipIcon text={t.tooltipManualToken} style={{ marginLeft: 0 }} />
           </label>
         </div>
         {isConnected && (
