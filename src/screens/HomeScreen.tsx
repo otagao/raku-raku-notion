@@ -7,6 +7,8 @@ import { TooltipIcon } from "~components/TooltipIcon"
 interface HomeScreenProps {
   onNavigate: (screen: string) => void
   onClipPage?: () => void
+  onClipNow?: () => void
+  isYouTubeTab?: boolean
   language: Language
   onToggleLanguage: () => void
   memo: string
@@ -25,6 +27,7 @@ const translations: Record<Language, {
   memoLabel: string
   memoPlaceholder: string
   clipButton: string
+  clipNowButton: string
   listButton: string
   createButton: string
   checking: string
@@ -45,6 +48,7 @@ const translations: Record<Language, {
     memoLabel: 'メモ（任意）',
     memoPlaceholder: 'ページについてのメモを入力できます',
     clipButton: '📎 このページを保存',
+    clipNowButton: '今保存',
     listButton: '保存先データベース一覧を見る',
     createButton: '+ 新しい保存先データベースを作成',
     checking: '接続状態を確認中...',
@@ -65,6 +69,7 @@ const translations: Record<Language, {
     memoLabel: 'Memo (optional)',
     memoPlaceholder: 'Add a note about this page',
     clipButton: '📎 Save this page',
+    clipNowButton: 'Save now',
     listButton: 'View destination databases',
     createButton: '+ Create a new destination database',
     checking: 'Checking connection...',
@@ -85,6 +90,8 @@ const translations: Record<Language, {
 const HomeScreen: FC<HomeScreenProps> = ({
   onNavigate,
   onClipPage,
+  onClipNow,
+  isYouTubeTab = false,
   language,
   onToggleLanguage,
   memo,
@@ -410,19 +417,50 @@ const HomeScreen: FC<HomeScreenProps> = ({
           />
         </div>
 
-        <button
-          className="button"
-          onClick={onClipPage}
-          disabled={!isConnected}
-          style={{
-            marginTop: '12px',
-            opacity: !isConnected ? 0.5 : 1,
-            cursor: !isConnected ? 'not-allowed' : 'pointer'
-          }}
-          title={!isConnected ? 'Notionに接続してください' : ''}
-        >
-          {t.clipButton}
-        </button>
+        {isYouTubeTab ? (
+          <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+            <button
+              className="button"
+              onClick={onClipPage}
+              disabled={!isConnected}
+              style={{
+                flex: 1,
+                opacity: !isConnected ? 0.5 : 1,
+                cursor: !isConnected ? 'not-allowed' : 'pointer'
+              }}
+              title={!isConnected ? 'Notionに接続してください' : ''}
+            >
+              {t.clipButton}
+            </button>
+            <button
+              className="button"
+              onClick={onClipNow}
+              disabled={!isConnected}
+              style={{
+                flex: 1,
+                opacity: !isConnected ? 0.5 : 1,
+                cursor: !isConnected ? 'not-allowed' : 'pointer'
+              }}
+              title={!isConnected ? 'Notionに接続してください' : ''}
+            >
+              {t.clipNowButton}
+            </button>
+          </div>
+        ) : (
+          <button
+            className="button"
+            onClick={onClipPage}
+            disabled={!isConnected}
+            style={{
+              marginTop: '12px',
+              opacity: !isConnected ? 0.5 : 1,
+              cursor: !isConnected ? 'not-allowed' : 'pointer'
+            }}
+            title={!isConnected ? 'Notionに接続してください' : ''}
+          >
+            {t.clipButton}
+          </button>
+        )}
 
         <div style={{
           marginTop: '24px',
