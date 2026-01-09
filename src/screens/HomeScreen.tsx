@@ -163,8 +163,8 @@ const HomeScreen: FC<HomeScreenProps> = ({
 
   return (
     <div className="container">
-      <div className="header" style={{ position: 'relative' }}>
-        <h1>Raku Raku Notion</h1>
+      <div className="header" style={{ position: 'relative', marginBottom: '8px', paddingBottom: '8px' }}>
+        <h1 style={{ margin: 0 }}>Raku Raku Notion</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             onClick={onToggleLanguage}
@@ -200,7 +200,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
       {/* 接続状態ボックス */}
       <div style={{
         padding: '12px',
-        marginBottom: '16px',
+        marginBottom: '10px',
         backgroundColor: isConnected ? '#e8f4f8' : '#f5f5f5',
         borderRadius: '4px',
         border: `1px solid ${isConnected ? '#b3d9e8' : '#ddd'}`,
@@ -233,8 +233,8 @@ const HomeScreen: FC<HomeScreenProps> = ({
       </div>
 
       {/* 保存先ドロップダウン */}
-      <div style={{ marginBottom: '12px', textAlign: 'left' }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+      <div style={{ marginBottom: '10px', textAlign: 'left' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
           {t.destinationLabel}
           <TooltipIcon text={t.tooltipDestination} style={{ marginLeft: 0 }} />
         </label>
@@ -244,7 +244,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
           disabled={!isConnected || clipboards.length === 0}
           style={{
             width: '100%',
-            padding: '8px',
+            padding: '6px',
             border: '1px solid #ddd',
             borderRadius: '6px',
             fontSize: '14px',
@@ -263,7 +263,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
 
       {/* タグ付与UI */}
       <div style={{ marginBottom: '2px', textAlign: 'left' }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
           {t.tagLabel}
           <TooltipIcon text={t.tooltipTag} style={{ marginLeft: 0 }} />
         </label>
@@ -279,7 +279,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
             style={{
               width: '40%',
               minWidth: '100px',
-              padding: '8px',
+              padding: '6px',
               border: '1px solid #ddd',
               borderRadius: '6px',
               fontSize: '14px',
@@ -302,7 +302,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
               style={{
                 flex: 1,
                 minWidth: '120px',
-                padding: '8px',
+                padding: '6px',
                 border: '1px solid #ddd',
                 borderRadius: '6px',
                 fontSize: '14px'
@@ -328,7 +328,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
               (pendingTag === 'new' && newTagName.trim().length === 0)
             }
             style={{
-              padding: '8px 12px',
+              padding: '6px 10px',
               whiteSpace: 'nowrap',
               opacity:
                 pendingTag === '' ||
@@ -349,7 +349,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
 
       {/* 付与予定のタグ表示 */}
       {selectedTags.length > 0 && (
-        <div style={{ marginBottom: '4px', textAlign: 'left' }}>
+        <div style={{ marginBottom: '2px', textAlign: 'left' }}>
           <span style={{ fontWeight: 600, fontSize: '13px', color: '#444' }}>{t.addedTagsLabel}:</span>{' '}
           {selectedTags.map((tag, idx) => (
             <span
@@ -389,8 +389,8 @@ const HomeScreen: FC<HomeScreenProps> = ({
       )}
 
       <div className="empty-state" style={{ alignItems: 'stretch' }}>
-        <div style={{ marginTop: selectedTags.length > 0 ? '4px' : '0px', textAlign: 'left' }}>
-          <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+        <div style={{ marginTop: selectedTags.length > 0 ? '2px' : '0px', textAlign: 'left' }}>
+          <label style={{ display: 'block', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
             {t.memoLabel}
           </label>
           <textarea
@@ -399,10 +399,10 @@ const HomeScreen: FC<HomeScreenProps> = ({
             placeholder={t.memoPlaceholder}
             style={{
               width: '100%',
-              minHeight: '80px',
+              minHeight: '64px',
               border: '1px solid #ddd',
               borderRadius: '6px',
-              padding: '8px',
+              padding: '6px',
               fontSize: '14px',
               resize: 'vertical',
               boxSizing: 'border-box'
@@ -411,7 +411,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
         </div>
 
         {isYouTubeTab ? (
-          <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+          <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
             <button
               className="button"
               onClick={onClipPage}
@@ -445,7 +445,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
             onClick={onClipPage}
             disabled={!isConnected}
             style={{
-              marginTop: '12px',
+              marginTop: '10px',
               opacity: !isConnected ? 0.5 : 1,
               cursor: !isConnected ? 'not-allowed' : 'pointer'
             }}
@@ -456,8 +456,8 @@ const HomeScreen: FC<HomeScreenProps> = ({
         )}
 
         <div style={{
-          marginTop: '24px',
-          paddingTop: '24px',
+          marginTop: '12px',
+          paddingTop: '12px',
           borderTop: '1px solid #e9e9e7'
         }}>
           <div style={{ display: 'flex', gap: '8px' }}>
