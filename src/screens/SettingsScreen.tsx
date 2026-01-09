@@ -23,20 +23,7 @@ const translations: Record<Language, {
   uiNote: string
   uiEnabledMsg: string
   uiDisabledMsg: string
-  authMethod: string
-  oauthLabel: string
-  manualLabel: string
-  authChangeNote: string
-  oauthDesc: string
-  oauthButtonIdle: string
-  oauthButtonLoading: string
-  oauthMissingWarning: string
-  oauthMissingDetail: string
-  manualTokenLabel: string
-  manualPlaceholder: string
-  manualNote: string
-  manualButtonIdle: string
-  manualButtonLoading: string
+
   successOAuthComplete: string
   successOAuthOpened: string
   successSaved: string
@@ -48,8 +35,7 @@ const translations: Record<Language, {
   errorMissingApiKey: string
   errorConnectFailed: string
   tooltipUISimplify: string
-  tooltipOAuth: string
-  tooltipManualToken: string
+
 }> = {
   ja: {
     back: '← 戻る',
@@ -65,20 +51,7 @@ const translations: Record<Language, {
     uiNote: '※ 変更は即座に反映されます（ページの再読み込みは不要）',
     uiEnabledMsg: 'UI簡略化を有効にしました',
     uiDisabledMsg: 'UI簡略化を無効にしました',
-    authMethod: '認証方法',
-    oauthLabel: 'OAuth認証（推奨）',
-    manualLabel: '手動トークン入力',
-    authChangeNote: '※ 認証方法を変更すると、現在の接続が解除されます',
-    oauthDesc: 'NotionのOAuth認証を使用してアクセス許可を付与します。\n保存先データベース作成時に自動的にデータベースを作成します。',
-    oauthButtonIdle: 'Notionで認証して接続',
-    oauthButtonLoading: '処理中...',
-    oauthMissingWarning: '⚠️ OAuth設定が未構成です。開発者に連絡してください。',
-    oauthMissingDetail: '（CLIENT_IDが設定されていません）',
-    manualTokenLabel: 'Notion Integration Token *',
-    manualPlaceholder: 'secret_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-    manualNote: 'Notion Integrationから作成できます。保存先データベース作成時に自動的にデータベースを作成します。',
-    manualButtonIdle: 'トークンを保存して接続',
-    manualButtonLoading: '接続テスト中...',
+
     successOAuthComplete: 'Notion認証が完了しました！',
     successOAuthOpened: 'Notion認証画面を開きました。認証を完了してください。',
     successSaved: '設定を保存しました',
@@ -90,8 +63,7 @@ const translations: Record<Language, {
     errorMissingApiKey: 'APIキーを入力してください',
     errorConnectFailed: 'Notion APIへの接続に失敗しました。APIキーを確認してください。',
     tooltipUISimplify: 'Notion.so上でサイドバーやツールバーを非表示にし、シンプルな表示にします',
-    tooltipOAuth: 'Notionの公式認証方式。ブラウザでNotionにログインして許可を与えます',
-    tooltipManualToken: 'Notion Integrationページで作成した認証トークンを手動で入力します'
+
   },
   en: {
     back: '← Back',
@@ -107,20 +79,7 @@ const translations: Record<Language, {
     uiNote: 'Changes apply immediately (no reload needed).',
     uiEnabledMsg: 'UI simplify enabled',
     uiDisabledMsg: 'UI simplify disabled',
-    authMethod: 'Authentication method',
-    oauthLabel: 'OAuth (recommended)',
-    manualLabel: 'Manual token input',
-    authChangeNote: 'Changing the method will disconnect the current session.',
-    oauthDesc: 'Use Notion OAuth to grant access.\nA destination database is created automatically when needed.',
-    oauthButtonIdle: 'Connect with Notion',
-    oauthButtonLoading: 'Processing...',
-    oauthMissingWarning: '⚠️ OAuth is not configured. Please contact the developer.',
-    oauthMissingDetail: '(CLIENT_ID is missing)',
-    manualTokenLabel: 'Notion Integration Token *',
-    manualPlaceholder: 'secret_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-    manualNote: 'Create it from Notion Integration. A database will be created automatically when needed.',
-    manualButtonIdle: 'Save token and connect',
-    manualButtonLoading: 'Testing connection...',
+
     successOAuthComplete: 'Notion authentication completed!',
     successOAuthOpened: 'Opened Notion auth window. Please finish authentication.',
     successSaved: 'Settings saved',
@@ -132,15 +91,13 @@ const translations: Record<Language, {
     errorMissingApiKey: 'Please enter your API key',
     errorConnectFailed: 'Failed to connect to Notion API. Please check your API key.',
     tooltipUISimplify: 'Hide sidebar and toolbar on Notion.so for a cleaner display',
-    tooltipOAuth: 'Official Notion authentication. Log in through browser to grant access',
-    tooltipManualToken: 'Manually enter an authentication token created from Notion Integration page'
+
   }
 }
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, language }) => {
   const t = translations[language]
-  const [authMethod, setAuthMethod] = useState<'manual' | 'oauth'>('oauth')
-  const [apiKey, setApiKey] = useState('')
+
   const [isConnected, setIsConnected] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isCheckingConnection, setIsCheckingConnection] = useState(true)
@@ -187,31 +144,10 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, language
     return () => {
       chrome.storage.onChanged.removeListener(handleStorageChange)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [language])
 
-  // 認証方式が変更された場合、接続状態をリセット
-  useEffect(() => {
-    const resetConnectionState = async () => {
-      const config = await StorageService.getNotionConfig()
-      if (config && config.authMethod !== authMethod) {
-        setIsConnected(false)
-        setApiKey('')
-        setWorkspaceName('')
-        setError('')
-        setSuccessMessage('')
-        await StorageService.saveNotionConfig({
-          authMethod: authMethod,
-          apiKey: undefined,
-          accessToken: undefined,
-          workspaceId: undefined,
-          workspaceName: undefined,
-          botId: undefined
-        })
-      }
-    }
-    resetConnectionState()
-  }, [authMethod])
+
 
   const loadConfig = async () => {
     try {
@@ -222,12 +158,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, language
 
       const config = await StorageService.getNotionConfig()
       if (config) {
-        setAuthMethod(config.authMethod || 'oauth')
-        setApiKey(config.apiKey || '')
         setWorkspaceName(config.workspaceName || '')
-
-        if ((config.authMethod === 'oauth' && config.accessToken) ||
-          (config.authMethod === 'manual' && config.apiKey)) {
+        if (config.authMethod === 'oauth' && config.accessToken) {
           await checkConnection(config)
         } else {
           setIsCheckingConnection(false)
@@ -289,38 +221,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, language
     }
   }
 
-  const handleManualSave = async () => {
-    setIsLoading(true)
-    setError('')
-    setSuccessMessage('')
-
-    try {
-      if (!apiKey.trim()) {
-        throw new Error(t.errorMissingApiKey)
-      }
-
-      const config: NotionConfig = {
-        authMethod: 'manual',
-        apiKey: apiKey.trim()
-      }
-
-      const client = createNotionClient(config)
-      const connected = await client.testConnection()
-
-      if (!connected) {
-        throw new Error(t.errorConnectFailed)
-      }
-
-      await StorageService.saveNotionConfig(config)
-      setIsConnected(true)
-      setSuccessMessage(t.successSaved)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t.errorSave)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   const handleDisconnect = async () => {
     try {
       // Notion連携設定をリセット
@@ -337,7 +237,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, language
       await StorageService.saveClipboards([])
 
       setIsConnected(false)
-      setApiKey('')
       setWorkspaceName('')
       setSuccessMessage(language === 'ja'
         ? 'Notion連携を解除しました（保存先データベース一覧もリセットされました）'
@@ -465,138 +364,28 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, language
         </small>
       </div>
 
-      <div style={{ marginBottom: '24px' }}>
-        <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
-          {t.authMethod}
-        </label>
-        <div style={{ display: 'flex', gap: '16px' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <input
-              type="radio"
-              value="oauth"
-              checked={authMethod === 'oauth'}
-              onChange={(e) => setAuthMethod(e.target.value as 'oauth')}
-            />
-            {t.oauthLabel}
-            <TooltipIcon text={t.tooltipOAuth} style={{ marginLeft: 0 }} />
-          </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <input
-              type="radio"
-              value="manual"
-              checked={authMethod === 'manual'}
-              onChange={(e) => setAuthMethod(e.target.value as 'manual')}
-            />
-            {t.manualLabel}
-            <TooltipIcon text={t.tooltipManualToken} style={{ marginLeft: 0 }} />
-          </label>
-        </div>
-        {isConnected && (
-          <small style={{ color: '#666', display: 'block', marginTop: '4px' }}>
-            {t.authChangeNote}
-          </small>
-        )}
-      </div>
-
-      {authMethod === 'oauth' ? (
-        <div>
-          <p style={{ marginBottom: '16px', color: '#666' }}>
-            {t.oauthDesc.split('\n').map((line, idx) => (
-              <React.Fragment key={idx}>
-                {line}
-                {idx === 0 && <br />}
-              </React.Fragment>
-            ))}
-          </p>
-          {!isConnected && (
-            <>
-              <button
-                onClick={() => {
-                  console.log('[Settings] OAuth button clicked:', {
-                    isLoading,
-                    hasClientId: !!oauthConfig.clientId,
-                    clientId: oauthConfig.clientId ? `${oauthConfig.clientId.substring(0, 8)}...` : 'MISSING'
-                  })
-                  handleOAuthLogin()
-                }}
-                disabled={isLoading || !oauthConfig.clientId}
-                className="button"
-                style={{
-                  width: '100%',
-                  background: isLoading || !oauthConfig.clientId ? undefined : '#0078d4',
-                  fontSize: '15px',
-                  fontWeight: '600',
-                  padding: '14px 16px'
-                }}
-              >
-                {isLoading ? t.oauthButtonLoading : t.oauthButtonIdle}
-              </button>
-              {(!oauthConfig.clientId) && (
-                <div style={{
-                  padding: '12px',
-                  marginTop: '12px',
-                  backgroundColor: '#fff3cd',
-                  color: '#856404',
-                  borderRadius: '4px',
-                  fontSize: '14px'
-                }}>
-                  {t.oauthMissingWarning}<br />
-                  <small>{t.oauthMissingDetail}</small>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      ) : (
-        <div>
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
-              {t.manualTokenLabel}
-            </label>
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder={t.manualPlaceholder}
-              disabled={isLoading || isConnected}
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #ddd',
-                borderRadius: '4px'
-              }}
-            />
-            <small style={{ color: '#666' }}>
-              <a
-                href="https://www.notion.so/my-integrations"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Notion Integration
-              </a>
-              {language === 'ja'
-                ? ' から作成できます。保存先データベース作成時に自動的にデータベースを作成します。'
-                : ' provides the token. A database is created automatically when saving.'}
-            </small>
-          </div>
-
-          {!isConnected && (
-            <button
-              onClick={handleManualSave}
-              disabled={isLoading || !apiKey.trim()}
-              className="button"
-              style={{
-                width: '100%',
-                background: isLoading || !apiKey.trim() ? undefined : '#0078d4',
-                fontSize: '15px',
-                fontWeight: '600',
-                padding: '14px 16px'
-              }}
-            >
-              {isLoading ? t.manualButtonLoading : t.manualButtonIdle}
-            </button>
-          )}
-        </div>
+      {!isConnected && (
+        <button
+          onClick={() => {
+            console.log('[Settings] OAuth button clicked:', {
+              isLoading,
+              hasClientId: !!oauthConfig.clientId,
+              clientId: oauthConfig.clientId ? `${oauthConfig.clientId.substring(0, 8)}...` : 'MISSING'
+            })
+            handleOAuthLogin()
+          }}
+          disabled={isLoading || !oauthConfig.clientId}
+          className="button"
+          style={{
+            width: '100%',
+            background: isLoading || !oauthConfig.clientId ? undefined : '#0078d4',
+            fontSize: '15px',
+            fontWeight: '600',
+            padding: '14px 16px'
+          }}
+        >
+          {isLoading ? (language === 'ja' ? '処理中...' : 'Processing...') : (language === 'ja' ? 'Notionで認証して接続' : 'Connect with Notion')}
+        </button>
       )}
     </div>
   )
