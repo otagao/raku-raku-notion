@@ -1,4 +1,5 @@
 import type { NotionConfig, NotionDatabaseSummary, NotionPageData, WebClipData } from "~types"
+import { convertToYouTubeEmbedUrl } from "~utils/youtube"
 
 const NOTION_VERSION = "2022-06-28"
 const NOTION_API_BASE = "https://api.notion.com/v1"
@@ -479,13 +480,15 @@ export class NotionService {
         // 動画ブロックを追加（最大3件程度）
         if (videos && videos.length > 0) {
           videos.slice(0, 3).forEach(video => {
+            // YouTube URLの場合は埋め込み形式に変換（タイムスタンプ対応）
+            const videoUrl = convertToYouTubeEmbedUrl(video.url)
             children.push({
               object: "block",
               type: "video",
               video: {
                 type: "external",
                 external: {
-                  url: video.url
+                  url: videoUrl
                 }
               }
             })
