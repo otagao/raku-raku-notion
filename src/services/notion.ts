@@ -308,17 +308,59 @@ export class NotionService {
   }
 
   /**
+   * タイトル一致のページを検索してIDを返す
+   */
+  private async findPageIdByTitle(title: string): Promise<string | undefined> {
+    const response = await fetch(`${NOTION_API_BASE}/search`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${this.getAuthToken()}`,
+        "Notion-Version": NOTION_VERSION,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        query: title,
+        filter: { property: "object", value: "page" },
+        page_size: 20
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      console.error('[NotionService.findPageIdByTitle] Error:', errorData)
+      return undefined
+    }
+
+    const result = await response.json()
+    const pages = Array.isArray(result.results) ? result.results : []
+    const matched = pages.find((page: any) => {
+      const pageTitle = this.getPlainText(page?.properties?.title?.title)
+      return pageTitle === title
+    })
+    return matched?.id
+  }
+
+  /**
+   * 既存のコンテナページがあれば再利用、なければ作成
+   */
+  private async getOrCreateContainerPageId(title: string): Promise<string> {
+    const existingId = await this.findPageIdByTitle(title)
+    if (existingId) return existingId
+    return this.createWorkspacePage(title)
+  }
+
+  /**
    * 新しいフルページデータベースを作成する（クリップボード用）
-   * 常にワークスペース直下にコンテナページを作成し、その下にデータベースを配置
+   * 共有コンテナページの下にデータベースを配置
    */
   async createDatabase(name: string): Promise<{ id: string; url: string; properties: Record<string, string>; defaultViewId?: string }> {
     try {
       console.log('[NotionService.createDatabase] Creating database:', name)
 
-      // ワークスペース直下にコンテナページを作成
-      console.log('[NotionService.createDatabase] Creating workspace container page...')
-      const parentPageId = await this.createWorkspacePage(`${name} - コンテナ`)
-      console.log('[NotionService.createDatabase] Container page created:', parentPageId)
+      const containerTitle = 'Raku Raku Notion - コンテナ'
+      console.log('[NotionService.createDatabase] Resolving shared container page...')
+      const parentPageId = await this.getOrCreateContainerPageId(containerTitle)
+      console.log('[NotionService.createDatabase] Container page id:', parentPageId)
 
       // データベースを作成
       console.log('[NotionService.createDatabase] Creating database under page:', parentPageId)
@@ -412,15 +454,9 @@ export class NotionService {
     try {
       const children: any[] = []
 
-      // blob: は再生不可のため、動画URLを正規化（blob のときは元ページURLをセット）
-      const normalizedVideos = videos?.map(v => {
-        const isBlob = v.url.startsWith('blob:')
-        return {
-          ...v,
-          url: isBlob ? url : v.url
-        }
-      })
-
+      const imageUrls = images && images.length > 0 ? images : (thumbnail ? [thumbnail] : [])
+      const bodyImages = imageUrls ? imageUrls.slice(0, 10) : []
+      const coverUrl = videos?.[0]?.poster || imageUrls?.[0] || thumbnail
       let hostname = ''
       try {
         hostname = new URL(url).hostname
@@ -428,20 +464,10 @@ export class NotionService {
         hostname = ''
       }
       const isTwitter = hostname.includes('twitter.com') || hostname.includes('x.com')
-      const isYouTube = hostname.includes('youtube.com') || hostname.includes('youtu.be')
-      const imageUrls = images && images.length > 0 ? images : (thumbnail ? [thumbnail] : [])
-      const bodyImages = imageUrls ? imageUrls.slice(0, 10) : []
-      const hasVideo = normalizedVideos && normalizedVideos.length > 0
-      const hasImages = bodyImages.length > 0
-      const isTextOnlyTwitter = isTwitter && !hasVideo && !hasImages
-      const coverUrl = isTextOnlyTwitter
-        ? undefined
-        : (normalizedVideos?.[0]?.poster || imageUrls?.[0] || thumbnail)
 
-      // X/Twitterの場合は埋め込みカードを必ず作成し、動画投稿ならカードのみ
+      // X/Twitterの場合は埋め込みカードのみを置く（画像ブロックは追加しない）
       if (isTwitter) {
         children.length = 0
-        // 元投稿へのリンク（埋め込みカード）
         children.push({
           object: "block",
           type: "embed",
@@ -449,25 +475,10 @@ export class NotionService {
             url
           }
         })
-        // 動画投稿は埋め込みカードのみ、画像投稿なら画像を保存
-        if (!hasVideo && bodyImages.length > 0) {
-          bodyImages.forEach(imgUrl => {
-            children.push({
-              object: "block",
-              type: "image",
-              image: {
-                type: "external",
-                external: {
-                  url: imgUrl
-                }
-              }
-            })
-          })
-        }
       } else {
         // 動画ブロックを追加（最大3件程度）
-        if (normalizedVideos && normalizedVideos.length > 0) {
-          normalizedVideos.slice(0, 3).forEach(video => {
+        if (videos && videos.length > 0) {
+          videos.slice(0, 3).forEach(video => {
             children.push({
               object: "block",
               type: "video",
@@ -481,8 +492,8 @@ export class NotionService {
           })
         }
 
-        // YouTube以外のみ画像ブロックを追加（最大5件）
-        if (!isYouTube && bodyImages.length > 0) {
+        // 本文用に画像ブロックを追加（カバーも含めて最大5件）
+        if (bodyImages.length > 0) {
           bodyImages.forEach(imgUrl => {
             children.push({
               object: "block",
