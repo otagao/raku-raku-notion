@@ -37,6 +37,8 @@ const translations: Record<Language, {
   tooltipDestination: string
   tooltipWorkspace: string
   tooltipTag: string
+  tooltipListButton: string
+  tooltipCreateButton: string
 }> = {
   ja: {
     saving: 'ウェブページをNotionに簡単保存',
@@ -54,7 +56,9 @@ const translations: Record<Language, {
     addedTagsLabel: '付与タグ',
     tooltipDestination: 'ページの保存先となるNotionデータベースを選択します',
     tooltipWorkspace: 'Notion上のワークスペース（チームまたは個人アカウント）',
-    tooltipTag: 'ページに追加するタグ。既存タグから選択、または新規作成できます'
+    tooltipTag: 'ページに追加するタグ。既存タグから選択、または新規作成できます',
+    tooltipListButton: '登録済みのデータベースを一覧表示・管理します',
+    tooltipCreateButton: 'Notion上に新しい保存先データベースを作成します'
   },
   en: {
     saving: 'Save web pages to Notion easily',
@@ -72,7 +76,9 @@ const translations: Record<Language, {
     addedTagsLabel: 'Tags to add',
     tooltipDestination: 'Select a Notion database where pages will be saved',
     tooltipWorkspace: 'A workspace in Notion (team or personal account)',
-    tooltipTag: 'Tags to add to the page. Choose from existing tags or create new ones'
+    tooltipTag: 'Tags to add to the page. Choose from existing tags or create new ones',
+    tooltipListButton: 'View and manage your registered databases',
+    tooltipCreateButton: 'Create a new destination database in Notion'
   }
 }
 
@@ -423,31 +429,56 @@ const HomeScreen: FC<HomeScreenProps> = ({
           paddingTop: '24px',
           borderTop: '1px solid #e9e9e7'
         }}>
-          <button
-            className="button button-secondary"
-            onClick={() => onNavigate('clipboard-list')}
-            disabled={!isConnected}
-            style={{
-              opacity: !isConnected ? 0.5 : 1,
-              cursor: !isConnected ? 'not-allowed' : 'pointer'
-            }}
-            title={!isConnected ? 'Notionに接続してください' : ''}
-          >
-            {t.listButton}
-          </button>
-          <button
-            className="button button-secondary"
-            onClick={() => onNavigate('create-clipboard')}
-            disabled={!isConnected}
-            style={{
-              marginTop: '12px',
-              opacity: !isConnected ? 0.5 : 1,
-              cursor: !isConnected ? 'not-allowed' : 'pointer'
-            }}
-            title={!isConnected ? 'Notionに接続してください' : ''}
-          >
-            {t.createButton}
-          </button>
+          <div style={{ position: 'relative' }}>
+            <button
+              className="button button-secondary"
+              onClick={() => onNavigate('clipboard-list')}
+              disabled={!isConnected}
+              style={{
+                opacity: !isConnected ? 0.5 : 1,
+                cursor: !isConnected ? 'not-allowed' : 'pointer',
+                width: '100%'
+              }}
+              title={!isConnected ? 'Notionに接続してください' : ''}
+            >
+              {t.listButton}
+            </button>
+            <TooltipIcon
+              text={t.tooltipListButton}
+              style={{
+                position: 'absolute',
+                right: '8px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                zIndex: 1
+              }}
+            />
+          </div>
+          <div style={{ position: 'relative', marginTop: '12px' }}>
+            <button
+              className="button button-secondary"
+              onClick={() => onNavigate('create-clipboard')}
+              disabled={!isConnected}
+              style={{
+                opacity: !isConnected ? 0.5 : 1,
+                cursor: !isConnected ? 'not-allowed' : 'pointer',
+                width: '100%'
+              }}
+              title={!isConnected ? 'Notionに接続してください' : ''}
+            >
+              {t.createButton}
+            </button>
+            <TooltipIcon
+              text={t.tooltipCreateButton}
+              style={{
+                position: 'absolute',
+                right: '8px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                zIndex: 1
+              }}
+            />
+          </div>
         </div>
       </div>
     </div>
