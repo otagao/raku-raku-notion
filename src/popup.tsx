@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import HomeScreen from "~screens/HomeScreen"
 import CreateClipboardScreen from "~screens/CreateClipboardScreen"
 import ClipboardListScreen from "~screens/ClipboardListScreen"
@@ -7,7 +7,7 @@ import { SettingsScreen } from "~screens/SettingsScreen"
 import ClippingProgressScreen from "~screens/ClippingProgressScreen"
 import { StorageService } from "~services/storage"
 import { createNotionClient } from "~services/notion"
-import { InternalNotionService } from "~services/internal-notion"
+
 import type { Screen, Clipboard, NotionDatabaseSummary, Language } from "~types"
 import "~styles/global.css"
 
@@ -20,8 +20,7 @@ function IndexPopup() {
   const tagFetchSeq = useState({ current: 0 })[0] // フェッチの競合防止用
   const [isClipping, setIsClipping] = useState(false)
   const [clipProgress, setClipProgress] = useState("")
-  const [internalTestResult, setInternalTestResult] = useState<string>("")
-  const [testDatabaseId, setTestDatabaseId] = useState<string>("")
+
   const [availableDatabases, setAvailableDatabases] = useState<NotionDatabaseSummary[]>([])
   const [isLoadingDatabases, setIsLoadingDatabases] = useState(false)
   const [databaseError, setDatabaseError] = useState<string | null>(null)
@@ -30,20 +29,7 @@ function IndexPopup() {
   const [creationCountdown, setCreationCountdown] = useState(0)
   const [memoDraft, setMemoDraft] = useState<string>("")
 
-  const internalTestTexts = useMemo(() => ({
-    ja: {
-      heading: '内部APIテスト',
-      connectButton: '接続テスト実行 (Read-Only)',
-      addGallery: 'ギャラリービュー追加 (Write)',
-      targetLabel: 'Target Database ID (Test):'
-    },
-    en: {
-      heading: 'Internal API Test',
-      connectButton: 'Run connection test (Read-Only)',
-      addGallery: 'Add gallery view (Write)',
-      targetLabel: 'Target Database ID (Test):'
-    }
-  }), [])
+
 
   useEffect(() => {
     initializeAndLoadData()
@@ -398,56 +384,10 @@ function IndexPopup() {
   }
 
 
-  const handleTestInternalApi = async () => {
-    setInternalTestResult("接続テスト中...")
-    try {
-      const { user, spaces } = await InternalNotionService.loadUserContent()
-      const spaceNames = spaces.map(s => s.name).join(", ")
-      const resultMsg = user
-        ? `成功: ${user.email} (${user.given_name || ''})\nスペース: ${spaceNames}`
-        : "成功: ユーザー情報なし"
-      setInternalTestResult(resultMsg)
-      console.log('Internal API Test Success:', { user, spaces })
-    } catch (error) {
-      setInternalTestResult(`エラー: ${error instanceof Error ? error.message : '不明なエラー'}`)
-      console.error('Internal API Test Failed:', error)
-    }
-  }
 
 
-  const handleAddGalleryView = async () => {
-    if (!testDatabaseId) {
-      setInternalTestResult("エラー: データベースIDを入力してください")
-      return
-    }
-    setInternalTestResult("ギャラリービュー追加中...")
-    try {
-      // Notion設定からworkspaceIdを取得
-      const config = await StorageService.getNotionConfig()
-      if (!config.workspaceId) {
-        setInternalTestResult("エラー: Workspace IDが見つかりません。Notionと再認証してください。")
-        return
-      }
 
-      // Background Script経由でContent Scriptを使用してギャラリービューを追加
-      const response = await chrome.runtime.sendMessage({
-        type: 'add-gallery-view-via-content',
-        data: {
-          databaseId: testDatabaseId,
-          workspaceId: config.workspaceId
-        }
-      })
 
-      if (response.success) {
-        setInternalTestResult(`成功: ギャラリービューを追加しました。\nDatabase ID: ${testDatabaseId}\nNotionで確認してください。`)
-      } else {
-        setInternalTestResult(`エラー: ${response.error || '不明なエラー'}`)
-      }
-    } catch (error) {
-      setInternalTestResult(`エラー: ${error instanceof Error ? error.message : '不明なエラー'}`)
-      console.error('Add Gallery View Failed:', error)
-    }
-  }
 
   const handleClipPage = async () => {
     // 保存先データベースがない場合
@@ -510,7 +450,7 @@ function IndexPopup() {
       if (prev.includes(trimmed)) return prev
       const merged = [...prev, trimmed]
       if (selectedClipboardId) {
-        StorageService.saveTagOptionsForDatabase(selectedClipboardId, merged).catch(() => {})
+        StorageService.saveTagOptionsForDatabase(selectedClipboardId, merged).catch(() => { })
       }
       return merged
     })
@@ -570,67 +510,8 @@ function IndexPopup() {
           />
         )
       case 'settings':
-        const tInternal = internalTestTexts[language]
         return (
-          <>
-            <SettingsScreen onBack={() => handleNavigate('home')} language={language} />
-            <div style={{ padding: '20px', borderTop: '1px solid #eee' }}>
-              <h3>{tInternal.heading}</h3>
-              <button
-                onClick={handleTestInternalApi}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#444',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                {tInternal.connectButton}
-              </button>
-
-              <div style={{ marginTop: '15px', borderTop: '1px dashed #ccc', paddingTop: '10px' }}>
-                <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px' }}>
-                  {tInternal.targetLabel}
-                </label>
-                <input
-                  type="text"
-                  value={testDatabaseId}
-                  onChange={(e) => setTestDatabaseId(e.target.value)}
-                  placeholder="xxxxxxxx-xxxx-..."
-                  style={{ width: '100%', padding: '5px', marginBottom: '5px' }}
-                />
-                <button
-                  onClick={handleAddGalleryView}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: '#d9534f', // Danger color for write action
-                    color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  width: '100%'
-                }}
-              >
-                {tInternal.addGallery}
-              </button>
-            </div>
-
-              {internalTestResult && (
-                <pre style={{
-                  marginTop: '10px',
-                  padding: '10px',
-                  backgroundColor: '#f5f5f5',
-                  fontSize: '12px',
-                  overflow: 'auto',
-                  border: '1px solid #ddd'
-                }}>
-                  {internalTestResult}
-                </pre>
-              )}
-            </div>
-          </>
+          <SettingsScreen onBack={() => handleNavigate('home')} language={language} />
         )
       default:
         return (
