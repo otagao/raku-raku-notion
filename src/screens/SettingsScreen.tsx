@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import type { NotionConfig, NotionOAuthConfig, UISimplifyConfig, Language } from '~types'
+import type { NotionConfig, NotionOAuthConfig, Language } from '~types'
 import { StorageService } from '~services/storage'
 import { createNotionClient } from '~services/notion'
 import { TooltipIcon } from '~components/TooltipIcon'
@@ -221,6 +221,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, language
     }
   }
 
+
+
   const handleDisconnect = async () => {
     try {
       // Notion連携設定をリセット
@@ -365,27 +367,49 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, language
       </div>
 
       {!isConnected && (
-        <button
-          onClick={() => {
-            console.log('[Settings] OAuth button clicked:', {
-              isLoading,
-              hasClientId: !!oauthConfig.clientId,
-              clientId: oauthConfig.clientId ? `${oauthConfig.clientId.substring(0, 8)}...` : 'MISSING'
-            })
-            handleOAuthLogin()
-          }}
-          disabled={isLoading || !oauthConfig.clientId}
-          className="button"
-          style={{
-            width: '100%',
-            background: isLoading || !oauthConfig.clientId ? undefined : '#0078d4',
-            fontSize: '15px',
-            fontWeight: '600',
-            padding: '14px 16px'
-          }}
-        >
-          {isLoading ? (language === 'ja' ? '処理中...' : 'Processing...') : (language === 'ja' ? 'Notionで認証して接続' : 'Connect with Notion')}
-        </button>
+        <div style={{ marginTop: '24px', borderTop: '1px solid #eee', paddingTop: '24px' }}>
+          <p style={{ marginBottom: '16px', color: '#666' }}>
+            {language === 'ja'
+              ? 'NotionのOAuth認証を使用してアクセス許可を付与します。保存先データベース作成時に自動的にデータベースを作成します。'
+              : 'Use Notion OAuth to grant access. A destination database is created automatically when needed.'}
+          </p>
+          <button
+            onClick={() => {
+              console.log('[Settings] OAuth button clicked:', {
+                isLoading,
+                hasClientId: !!oauthConfig.clientId,
+                clientId: oauthConfig.clientId ? `${oauthConfig.clientId.substring(0, 8)}...` : 'MISSING'
+              })
+              handleOAuthLogin()
+            }}
+            disabled={isLoading || !oauthConfig.clientId}
+            className="button"
+            style={{
+              width: '100%',
+              background: isLoading || !oauthConfig.clientId ? undefined : '#0078d4',
+              fontSize: '15px',
+              fontWeight: '600',
+              padding: '14px 16px'
+            }}
+          >
+            {isLoading
+              ? (language === 'ja' ? '処理中...' : 'Processing...')
+              : (language === 'ja' ? 'Notionで認証して接続' : 'Connect with Notion')}
+          </button>
+          {(!oauthConfig.clientId) && (
+            <div style={{
+              padding: '12px',
+              marginTop: '12px',
+              backgroundColor: '#fff3cd',
+              color: '#856404',
+              borderRadius: '4px',
+              fontSize: '14px'
+            }}>
+              {language === 'ja' ? '⚠️ OAuth設定が未構成です。開発者に連絡してください。' : '⚠️ OAuth is not configured. Please contact the developer.'}<br />
+              <small>{language === 'ja' ? '（CLIENT_IDが設定されていません）' : '(CLIENT_ID is missing)'}</small>
+            </div>
+          )}
+        </div>
       )}
     </div>
   )
