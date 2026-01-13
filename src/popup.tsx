@@ -329,13 +329,18 @@ function IndexPopup() {
         throw new Error('Space ID not found. Please re-authenticate with Notion.')
       }
 
-      // 表示したいプロパティ（URLとメモ）のIDを取得
+      // 表示したいプロパティのIDを取得
       const visiblePropIds: string[] = []
+
+      // タイトルプロパティ（名前）を最優先で追加（必須）
+      if (properties["名前"]) visiblePropIds.push(properties["名前"])
+
+      // その他の表示したいプロパティ
       if (properties["URL"]) visiblePropIds.push(properties["URL"])
       if (properties["メモ"]) visiblePropIds.push(properties["メモ"])
       if (properties["タグ"]) visiblePropIds.push(properties["タグ"])
 
-      console.log('[handleCreateClipboard] Adding gallery view with properties:', visiblePropIds)
+      console.log('[handleCreateClipboard] Adding gallery view with properties (including title):', visiblePropIds)
       console.log('[handleCreateClipboard] View to remove:', viewIdToRemove)
       console.log('[handleCreateClipboard] Using space ID:', spaceIdToUse)
 
