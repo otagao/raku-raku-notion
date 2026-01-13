@@ -394,8 +394,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
                   }
                 }}
                 style={{
-                  width: '40%',
-                  minWidth: '100px',
+                  width: '120px',
                   padding: '6px',
                   border: '1px solid #ddd',
                   borderRadius: '6px',
@@ -410,22 +409,24 @@ const HomeScreen: FC<HomeScreenProps> = ({
                   <option key={tag} value={tag}>{tag}</option>
                 ))}
               </select>
-              {pendingTag === 'new' && (
-                <input
-                  type="text"
-                  value={newTagName}
-                  onChange={(e) => setNewTagName(e.target.value)}
-                  placeholder="タグ名を入力"
-                  style={{
-                    flex: 1,
-                    minWidth: '120px',
-                    padding: '6px',
-                    border: '1px solid #ddd',
-                    borderRadius: '6px',
-                    fontSize: '14px'
-                  }}
-                />
-              )}
+              <input
+                type="text"
+                value={newTagName}
+                onChange={(e) => setNewTagName(e.target.value)}
+                placeholder="タグ名を入力"
+                disabled={pendingTag !== 'new'}
+                style={{
+                  flex: 1,
+                  minWidth: '120px',
+                  padding: '6px',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  backgroundColor: pendingTag !== 'new' ? '#f5f5f5' : 'white',
+                  color: pendingTag !== 'new' ? '#999' : 'inherit',
+                  cursor: pendingTag !== 'new' ? 'not-allowed' : 'text'
+                }}
+              />
               <button
                 className="button button-secondary"
                 onClick={() => {
@@ -438,6 +439,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
                     }
                   } else if (pendingTag !== '') {
                     onAddTag(pendingTag)
+                    setPendingTag('')
                   }
                 }}
                 disabled={
@@ -445,8 +447,10 @@ const HomeScreen: FC<HomeScreenProps> = ({
                   (pendingTag === 'new' && newTagName.trim().length === 0)
                 }
                 style={{
-                  padding: '8px 12px',
+                  width: '54px',
+                  padding: '8px 4px',
                   whiteSpace: 'nowrap',
+                  flexShrink: 0,
                   backgroundColor: '#1976d2',
                   borderColor: '#1976d2',
                   color: 'white',
