@@ -46,12 +46,12 @@ const translations: Record<Language, {
   successSaved: string
 }> = {
   ja: {
-    saving: 'ウェブページをNotionに簡単保存',
+    saving: '',
     memoLabel: 'メモ（任意）',
     memoPlaceholder: 'ページについてのメモを入力できます',
     clipButton: 'このページを保存',
-    listButton: '保存先データベース一覧を見る',
-    createButton: '+ 新しい保存先データベースを作成',
+    listButton: '保存先一覧',
+    createButton: '保存先を作成',
     checking: '接続状態を確認中...',
     connected: (name) => `接続中: ${name || 'Notionワークスペース'}`,
     disconnected: '設定からNotionに接続してください',
@@ -62,19 +62,19 @@ const translations: Record<Language, {
     tooltipDestination: 'ページの保存先となるNotionデータベースを選択します',
     tooltipWorkspace: 'Notion上のワークスペース（チームまたは個人アカウント）',
     tooltipTag: 'ページに追加するタグ。既存タグから選択、または新規作成できます',
-    tooltipListButton: '登録済みのデータベースを一覧表示・管理します',
-    tooltipCreateButton: 'Notion上に新しい保存先データベースを作成します',
+    tooltipListButton: '登録済みの保存先一覧を表示します',
+    tooltipCreateButton: 'Notion上に新しい保存先を作成します',
     oauthButtonIdle: 'Notionで認証して接続',
     oauthButtonLoading: '処理中...',
     successSaved: '設定を保存しました'
   },
   en: {
-    saving: 'Save web pages to Notion easily',
+    saving: '',
     memoLabel: 'Memo (optional)',
     memoPlaceholder: 'Add a note about this page',
     clipButton: 'Save this page',
-    listButton: 'View destination databases',
-    createButton: '+ Create a new destination database',
+    listButton: 'Destinations',
+    createButton: 'Create destination',
     checking: 'Checking connection...',
     connected: (name) => `Connected: ${name || 'Notion workspace'}`,
     disconnected: 'Connect to Notion in Settings',
@@ -234,8 +234,8 @@ const HomeScreen: FC<HomeScreenProps> = ({
 
   return (
     <div className="container">
-      <div className="header" style={{ position: 'relative' }}>
-        <h1>Raku Raku Notion</h1>
+      <div className="header" style={{ position: 'relative', marginBottom: '8px', paddingBottom: '8px' }}>
+        <h1 style={{ margin: 0 }}>Raku Raku Notion</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             onClick={onToggleLanguage}
@@ -271,7 +271,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
       {/* 接続状態ボックス */}
       <div style={{
         padding: '12px',
-        marginBottom: '16px',
+        marginBottom: '10px',
         backgroundColor: isConnected ? '#e8f4f8' : '#f5f5f5',
         borderRadius: '4px',
         border: `1px solid ${isConnected ? '#b3d9e8' : '#ddd'}`,
@@ -347,8 +347,8 @@ const HomeScreen: FC<HomeScreenProps> = ({
 
       {/* 接続時のみ表示: 保存先ドロップダウン */}
       {isConnected && (
-        <div style={{ marginBottom: '12px', textAlign: 'left' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+        <div style={{ marginBottom: '10px', textAlign: 'left' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
             {t.destinationLabel}
             <TooltipIcon text={t.tooltipDestination} style={{ marginLeft: 0 }} />
           </label>
@@ -358,7 +358,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
             disabled={clipboards.length === 0}
             style={{
               width: '100%',
-              padding: '8px',
+              padding: '6px',
               border: '1px solid #ddd',
               borderRadius: '6px',
               fontSize: '14px',
@@ -379,8 +379,8 @@ const HomeScreen: FC<HomeScreenProps> = ({
       {/* 接続時のみ表示: タグ付与UI */}
       {isConnected && (
         <>
-          <div style={{ marginBottom: '8px', textAlign: 'left' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+          <div style={{ marginBottom: '2px', textAlign: 'left' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
               {t.tagLabel}
               <TooltipIcon text={t.tooltipTag} style={{ marginLeft: 0 }} />
             </label>
@@ -396,7 +396,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
                 style={{
                   width: '40%',
                   minWidth: '100px',
-                  padding: '8px',
+                  padding: '6px',
                   border: '1px solid #ddd',
                   borderRadius: '6px',
                   fontSize: '14px',
@@ -419,7 +419,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
                   style={{
                     flex: 1,
                     minWidth: '120px',
-                    padding: '8px',
+                    padding: '6px',
                     border: '1px solid #ddd',
                     borderRadius: '6px',
                     fontSize: '14px'
