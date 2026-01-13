@@ -99,14 +99,13 @@ function formatUUID(id: string): string {
 const NOTION_API_V3_BASE = "https://www.notion.so/api/v3"
 
 /**
- * ギャラリービューを追加し、既存ビューを削除する
+ * ギャラリービューを追加する（既存ビューは削除せず、ギャラリービューをデフォルトに設定）
  */
 async function addGalleryView(
   rawDatabaseId: string,
   workspaceId: string,
-  visibleProperties: string[] = [],
-  existingViewId?: string
-): Promise<{ success: boolean; error?: string }> {
+  visibleProperties: string[] = []
+): Promise<{ success: boolean; galleryViewId?: string; error?: string }> {
   try {
     const databaseId = formatUUID(rawDatabaseId)
     const viewId = generateUUID()
@@ -114,7 +113,6 @@ async function addGalleryView(
     console.log("[NotionAPIHelper] Adding gallery view to database:", databaseId)
     console.log("[NotionAPIHelper] Using workspace ID:", workspaceId)
     console.log("[NotionAPIHelper] Visible properties:", visibleProperties)
-    console.log("[NotionAPIHelper] Existing view to remove:", existingViewId)
 
     // 現在のユーザーIDを取得（データベースIDを渡して権限情報から取得）
     const currentUserId = await getCurrentUserId(databaseId)
@@ -170,25 +168,8 @@ async function addGalleryView(
       }
     )
 
-    // 既存ビューの削除（MUST）
-    if (existingViewId) {
-      operations.push(
-        {
-          id: databaseId,
-          table: "block",
-          path: ["view_ids"],
-          command: "listRemove",
-          args: { id: existingViewId }
-        },
-        {
-          id: existingViewId,
-          table: "collection_view",
-          path: [],
-          command: "update",
-          args: { alive: false }
-        }
-      )
-    }
+    // 既存ビューは削除せず、ギャラリービューを先頭に追加
+    // listBefore コマンドにより、ギャラリービューがデフォルトビューとして扱われる
 
     const transaction = {
       id: generateUUID(),
@@ -289,7 +270,7 @@ async function addGalleryView(
     }
 
     console.log("[NotionAPIHelper] Gallery view added successfully")
-    return { success: true }
+    return { success: true, galleryViewId: viewId }
 
   } catch (error) {
     console.error("[NotionAPIHelper] Error:", error)
@@ -398,8 +379,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     addGalleryView(
       request.databaseId,
       request.workspaceId,
-      request.visibleProperties || [],
-      request.existingViewId
+      request.visibleProperties || []
     ).then(result => {
       console.log("[NotionAPIHelper] add-gallery-view completed:", result)
       sendResponse(result)
