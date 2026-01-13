@@ -267,7 +267,12 @@ function IndexPopup() {
     // Notionに保存先データベースを作成
     console.log('[handleCreateClipboard] Creating Notion client with databaseId:', config.databaseId)
     const notionClient = createNotionClient(config)
-    let { id: databaseId, url: databaseUrl, properties } = await notionClient.createDatabase(clipboardName)
+    let {
+      id: databaseId,
+      url: databaseUrl,
+      properties,  // エンコード済み（公式API用）
+      propertiesDecoded  // デコード済み（内部API用）
+    } = await notionClient.createDatabase(clipboardName)
 
     // Internal APIを使用してギャラリービューを追加（自動実行）
     try {
@@ -275,10 +280,18 @@ function IndexPopup() {
       console.log('[handleCreateClipboard] Waiting for database permissions to sync (Polling)...')
 
       let viewsResponse: any = null
-      const MAX_RETRIES = 30
+      const MAX_RETRIES = 60  // 30秒 → 60秒に延長
 
       for (let i = 0; i < MAX_RETRIES; i++) {
         setCreationCountdown(MAX_RETRIES - i)
+
+        // 進行状況に応じたステータスメッセージを表示
+        setCreationStatus(
+          i < 10 ? "データベースを同期中..." :
+          i < 30 ? "権限を確認中..." :
+          i < 50 ? "もう少しお待ちください..." :
+          "最終確認中..."
+        )
 
         // Internal APIでビュー一覧取得を試行
         viewsResponse = await chrome.runtime.sendMessage({
@@ -286,15 +299,22 @@ function IndexPopup() {
           data: { databaseId }
         })
 
-        // ビュー取得に成功したらループを抜ける
-        if (viewsResponse && viewsResponse.success && viewsResponse.viewIds && viewsResponse.viewIds.length > 0) {
-          console.log(`[handleCreateClipboard] Database synced successfully after ${i + 1} seconds`)
+        // ビュー取得に成功 + spaceIdも取得できたらループを抜ける
+        // spaceId取得成功は権限反映の確実な指標
+        if (viewsResponse &&
+            viewsResponse.success &&
+            viewsResponse.spaceId &&  // spaceId取得を必須条件に追加
+            viewsResponse.viewIds &&
+            viewsResponse.viewIds.length > 0) {
+          console.log(`[handleCreateClipboard] Database synced successfully after ${i + 1} attempts`)
           break
         }
 
-        // 失敗した場合は1秒待機して再試行
+        // 失敗した場合は指数バックオフで待機して再試行
         if (i < MAX_RETRIES - 1) {
-          await new Promise(resolve => setTimeout(resolve, 1000))
+          // 指数バックオフ: 初期10秒は500ms、10-30秒は1s、30秒以降は2s
+          const waitTime = i < 10 ? 500 : i < 30 ? 1000 : 2000
+          await new Promise(resolve => setTimeout(resolve, waitTime))
         }
       }
       setCreationCountdown(0)
@@ -314,28 +334,25 @@ function IndexPopup() {
         throw new Error('Space ID not found. Please re-authenticate with Notion.')
       }
 
-      // 表示したいプロパティのIDを取得
+      // 表示したいプロパティのIDを取得（デコード済みIDを直接使用）
       const visiblePropIds: string[] = []
 
       // タイトルプロパティ（名前）を最優先で追加（必須）
-      if (properties["名前"]) visiblePropIds.push(properties["名前"])
+      if (propertiesDecoded["名前"]) visiblePropIds.push(propertiesDecoded["名前"])
 
       // その他の表示したいプロパティ
-      if (properties["URL"]) visiblePropIds.push(properties["URL"])
-      if (properties["メモ"]) visiblePropIds.push(properties["メモ"])
-      if (properties["タグ"]) visiblePropIds.push(properties["タグ"])
+      if (propertiesDecoded["URL"]) visiblePropIds.push(propertiesDecoded["URL"])
+      if (propertiesDecoded["メモ"]) visiblePropIds.push(propertiesDecoded["メモ"])
+      if (propertiesDecoded["タグ"]) visiblePropIds.push(propertiesDecoded["タグ"])
 
       // 全プロパティIDを取得（ギャラリービューの可視性制御用）
-      // 注意: Notion公式APIはURLエンコードされた形式でプロパティIDを返すが、
-      // Notion内部APIはデコードされた形式を期待するため、デコードする
-      const allPropertyIds: string[] = Object.values(properties).map(id => decodeURIComponent(id))
-      const decodedVisiblePropIds: string[] = visiblePropIds.map(id => decodeURIComponent(id))
+      const allPropertyIds: string[] = Object.values(propertiesDecoded)
 
-      console.log('[handleCreateClipboard] Properties object:', properties)
-      console.log('[handleCreateClipboard] Properties keys:', Object.keys(properties))
-      console.log('[handleCreateClipboard] Visible properties (encoded):', visiblePropIds)
-      console.log('[handleCreateClipboard] Visible properties (decoded):', decodedVisiblePropIds)
-      console.log('[handleCreateClipboard] All properties (decoded):', allPropertyIds)
+      console.log('[handleCreateClipboard] Properties object (encoded):', properties)
+      console.log('[handleCreateClipboard] Properties object (decoded):', propertiesDecoded)
+      console.log('[handleCreateClipboard] Properties keys:', Object.keys(propertiesDecoded))
+      console.log('[handleCreateClipboard] Visible properties:', visiblePropIds)
+      console.log('[handleCreateClipboard] All properties:', allPropertyIds)
       console.log('[handleCreateClipboard] Using space ID:', spaceIdToUse)
 
       // Background Script経由でContent Scriptを使用してギャラリービューを追加
@@ -344,7 +361,7 @@ function IndexPopup() {
         data: {
           databaseId,
           workspaceId: spaceIdToUse,  // 実際はspaceIdとして使用される
-          visibleProperties: decodedVisiblePropIds,  // デコード済みのIDを使用
+          visibleProperties: visiblePropIds,  // デコード済みのIDを直接使用
           allProperties: allPropertyIds  // デコード済みの全プロパティを使用
         }
       })
@@ -367,6 +384,22 @@ function IndexPopup() {
       console.log('[handleCreateClipboard] Gallery view added successfully (existing view kept)')
     } catch (error) {
       console.warn('Failed to add gallery view via internal API:', error)
+
+      // エラー種別に応じた詳細なメッセージを表示
+      const errorMessage = error instanceof Error ? error.message : String(error)
+
+      if (errorMessage.includes('permission') || errorMessage.includes('edit access')) {
+        console.warn('[handleCreateClipboard] Permission error: 権限の反映に時間がかかっています')
+        // 内部APIは失敗しても保存先データベース作成は成功とする（警告のみ）
+        // ユーザーには「データベースは作成されましたが、ビュー設定に失敗しました」と表示される
+      } else if (errorMessage.includes('timeout')) {
+        console.warn('[handleCreateClipboard] Timeout error: タイムアウトが発生しました')
+      } else if (errorMessage.includes('Cookie') || errorMessage.includes('token_v2')) {
+        console.warn('[handleCreateClipboard] Cookie error: 認証Cookieが見つかりません')
+      } else {
+        console.warn('[handleCreateClipboard] Unknown error:', errorMessage)
+      }
+
       // 内部APIは失敗しても保存先データベース作成は成功とする（警告のみ）
     }
 
