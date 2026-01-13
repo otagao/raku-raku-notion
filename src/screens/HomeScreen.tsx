@@ -379,7 +379,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
       {/* 接続時のみ表示: タグ付与UI */}
       {isConnected && (
         <>
-          <div style={{ marginBottom: '2px', textAlign: 'left' }}>
+          <div style={{ marginBottom: '10px', textAlign: 'left' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
               {t.tagLabel}
               <TooltipIcon text={t.tooltipTag} style={{ marginLeft: 0 }} />
@@ -509,15 +509,10 @@ const HomeScreen: FC<HomeScreenProps> = ({
           )}
         </>
       )}
-
       {/* 接続時のみ表示: メモ入力と保存ボタン */}
       {isConnected && (
-        <div className="empty-state" style={{ alignItems: 'stretch' }}>
-          <div className="empty-state-text" style={{ textAlign: 'left' }}>
-            {t.saving}
-          </div>
-
-          <div style={{ marginTop: '12px', textAlign: 'left' }}>
+        <div style={{ textAlign: 'left' }}>
+          <div style={{ marginBottom: '10px' }}>
             <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
               {t.memoLabel}
             </label>
@@ -539,7 +534,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
           </div>
 
           {isYouTubeTab ? (
-            <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+            <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 className="button"
                 onClick={onClipPage}
@@ -565,7 +560,6 @@ const HomeScreen: FC<HomeScreenProps> = ({
             <button
               className="button"
               onClick={onClipPage}
-              style={{ marginTop: '12px' }}
             >
               {t.clipButton}
             </button>
@@ -574,9 +568,11 @@ const HomeScreen: FC<HomeScreenProps> = ({
           <div style={{
             marginTop: '24px',
             paddingTop: '24px',
-            borderTop: '1px solid #e9e9e7'
+            borderTop: '1px solid #e9e9e7',
+            display: 'flex',
+            gap: '12px'
           }}>
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative', flex: 1 }}>
               <button
                 className="button button-secondary"
                 onClick={() => onNavigate('clipboard-list')}
@@ -595,7 +591,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
                 }}
               />
             </div>
-            <div style={{ position: 'relative', marginTop: '12px' }}>
+            <div style={{ position: 'relative', flex: 1 }}>
               <button
                 className="button button-secondary"
                 onClick={() => onNavigate('create-clipboard')}
