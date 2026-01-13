@@ -267,14 +267,10 @@ function IndexPopup() {
     // Notionに保存先データベースを作成
     console.log('[handleCreateClipboard] Creating Notion client with databaseId:', config.databaseId)
     const notionClient = createNotionClient(config)
-    const { id: databaseId, url: databaseUrl, properties, defaultViewId } = await notionClient.createDatabase(clipboardName)
+    let { id: databaseId, url: databaseUrl, properties } = await notionClient.createDatabase(clipboardName)
 
     // Internal APIを使用してギャラリービューを追加（自動実行）
     try {
-      console.log('[handleCreateClipboard] Default view ID from URL:', defaultViewId)
-
-      let viewIdToRemove = defaultViewId
-
       // データベース作成直後は内部APIへの反映に時間がかかるため待機（ポーリング方式）
       console.log('[handleCreateClipboard] Waiting for database permissions to sync (Polling)...')
 
@@ -305,17 +301,6 @@ function IndexPopup() {
 
       console.log('[handleCreateClipboard] Views response from content script:', viewsResponse)
 
-      // URLからビューIDが取得できなかった場合、内部APIで取得を試みる
-      if (!viewIdToRemove) {
-        console.log('[handleCreateClipboard] No view ID in URL. Using view from internal API...')
-        if (viewsResponse.success && viewsResponse.viewIds && viewsResponse.viewIds.length > 0) {
-          viewIdToRemove = viewsResponse.viewIds[0]
-          console.log('[handleCreateClipboard] Using first view as default view:', viewIdToRemove)
-        } else {
-          console.warn('[handleCreateClipboard] Could not find any views via internal API:', viewsResponse.error)
-        }
-      }
-
       // spaceIdを内部APIから取得（workspaceIdの代わりに使用）
       let spaceIdToUse = config.workspaceId
       if (viewsResponse.success && viewsResponse.spaceId) {
@@ -341,7 +326,6 @@ function IndexPopup() {
       if (properties["タグ"]) visiblePropIds.push(properties["タグ"])
 
       console.log('[handleCreateClipboard] Adding gallery view with properties (including title):', visiblePropIds)
-      console.log('[handleCreateClipboard] View to remove:', viewIdToRemove)
       console.log('[handleCreateClipboard] Using space ID:', spaceIdToUse)
 
       // Background Script経由でContent Scriptを使用してギャラリービューを追加
@@ -350,8 +334,7 @@ function IndexPopup() {
         data: {
           databaseId,
           workspaceId: spaceIdToUse,  // 実際はspaceIdとして使用される
-          visibleProperties: visiblePropIds,
-          existingViewId: viewIdToRemove
+          visibleProperties: visiblePropIds
         }
       })
 
@@ -361,7 +344,16 @@ function IndexPopup() {
         throw new Error(galleryResponse.error || 'Failed to add gallery view')
       }
 
-      console.log('[handleCreateClipboard] Gallery view added and default view removed successfully')
+      // ギャラリービュー作成成功時、URLにビューIDを付加
+      if (galleryResponse.galleryViewId) {
+        const url = new URL(databaseUrl)
+        // NotionのURL形式に合わせてハイフンを除去
+        url.searchParams.set('v', galleryResponse.galleryViewId.replace(/-/g, ''))
+        databaseUrl = url.toString()
+        console.log('[handleCreateClipboard] Updated database URL with gallery view:', databaseUrl)
+      }
+
+      console.log('[handleCreateClipboard] Gallery view added successfully (existing view kept)')
     } catch (error) {
       console.warn('Failed to add gallery view via internal API:', error)
       // 内部APIは失敗しても保存先データベース作成は成功とする（警告のみ）
