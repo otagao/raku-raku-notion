@@ -43,26 +43,15 @@ const translations: Record<Language, {
   tooltipCreateButton: string
   oauthButtonIdle: string
   oauthButtonLoading: string
-  manualTokenLabel: string
-  manualPlaceholder: string
-  manualButtonIdle: string
-  manualButtonLoading: string
-  authMethodLabel: string
-  useOAuth: string
-  useManualToken: string
-  oauthDesc: string
-  manualDesc: string
-  errorMissingApiKey: string
-  errorConnectFailed: string
   successSaved: string
 }> = {
   ja: {
-    saving: 'ウェブページをNotionに簡単保存',
+    saving: '',
     memoLabel: 'メモ（任意）',
     memoPlaceholder: 'ページについてのメモを入力できます',
     clipButton: 'このページを保存',
-    listButton: '保存先データベース一覧を見る',
-    createButton: '+ 新しい保存先データベースを作成',
+    listButton: '保存先一覧',
+    createButton: '保存先を作成',
     checking: '接続状態を確認中...',
     connected: (name) => `接続中: ${name || 'Notionワークスペース'}`,
     disconnected: '設定からNotionに接続してください',
@@ -73,30 +62,19 @@ const translations: Record<Language, {
     tooltipDestination: 'ページの保存先となるNotionデータベースを選択します',
     tooltipWorkspace: 'Notion上のワークスペース（チームまたは個人アカウント）',
     tooltipTag: 'ページに追加するタグ。既存タグから選択、または新規作成できます',
-    tooltipListButton: '登録済みのデータベースを一覧表示・管理します',
-    tooltipCreateButton: 'Notion上に新しい保存先データベースを作成します',
+    tooltipListButton: '登録済みの保存先一覧を表示します',
+    tooltipCreateButton: 'Notion上に新しい保存先を作成します',
     oauthButtonIdle: 'Notionで認証して接続',
     oauthButtonLoading: '処理中...',
-    manualTokenLabel: 'Notion Integration Token',
-    manualPlaceholder: 'secret_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-    manualButtonIdle: 'トークンを保存して接続',
-    manualButtonLoading: '接続テスト中...',
-    authMethodLabel: '認証方法を選択',
-    useOAuth: 'OAuth認証（推奨）',
-    useManualToken: '手動トークン入力',
-    oauthDesc: 'NotionのOAuth認証を使用してアクセス許可を付与します。',
-    manualDesc: 'Notion Integrationから作成したトークンを手動で入力します。',
-    errorMissingApiKey: 'APIキーを入力してください',
-    errorConnectFailed: 'Notion APIへの接続に失敗しました。APIキーを確認してください。',
     successSaved: '設定を保存しました'
   },
   en: {
-    saving: 'Save web pages to Notion easily',
+    saving: '',
     memoLabel: 'Memo (optional)',
     memoPlaceholder: 'Add a note about this page',
     clipButton: 'Save this page',
-    listButton: 'View destination databases',
-    createButton: '+ Create a new destination database',
+    listButton: 'Destinations',
+    createButton: 'Create destination',
     checking: 'Checking connection...',
     connected: (name) => `Connected: ${name || 'Notion workspace'}`,
     disconnected: 'Connect to Notion in Settings',
@@ -111,17 +89,6 @@ const translations: Record<Language, {
     tooltipCreateButton: 'Create a new destination database in Notion',
     oauthButtonIdle: 'Connect with Notion',
     oauthButtonLoading: 'Processing...',
-    manualTokenLabel: 'Notion Integration Token',
-    manualPlaceholder: 'secret_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-    manualButtonIdle: 'Save token and connect',
-    manualButtonLoading: 'Testing connection...',
-    authMethodLabel: 'Choose authentication method',
-    useOAuth: 'OAuth (recommended)',
-    useManualToken: 'Manual token input',
-    oauthDesc: 'Use Notion OAuth to grant access.',
-    manualDesc: 'Manually enter a token created from Notion Integration.',
-    errorMissingApiKey: 'Please enter your API key',
-    errorConnectFailed: 'Failed to connect to Notion API. Please check your API key.',
     successSaved: 'Settings saved'
   }
 }
@@ -151,8 +118,6 @@ const HomeScreen: FC<HomeScreenProps> = ({
   const [newTagName, setNewTagName] = useState<string>('') // 新規タグ名
 
   // 認証UI用のステート
-  const [authMethod, setAuthMethod] = useState<'oauth' | 'manual'>('oauth')
-  const [apiKey, setApiKey] = useState<string>('')
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(false)
   const [authError, setAuthError] = useState<string>('')
   const [authSuccess, setAuthSuccess] = useState<string>('')
@@ -213,8 +178,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
       }
 
       // 認証情報が存在するかチェック
-      const hasAuth = (config.authMethod === 'oauth' && config.accessToken) ||
-                     (config.authMethod === 'manual' && config.apiKey)
+      const hasAuth = config.authMethod === 'oauth' && config.accessToken
 
       if (hasAuth) {
         // 接続テスト
@@ -268,43 +232,10 @@ const HomeScreen: FC<HomeScreenProps> = ({
     }
   }
 
-  const handleManualSave = async () => {
-    setIsAuthLoading(true)
-    setAuthError('')
-    setAuthSuccess('')
-
-    try {
-      if (!apiKey.trim()) {
-        throw new Error(t.errorMissingApiKey)
-      }
-
-      const config = {
-        authMethod: 'manual' as const,
-        apiKey: apiKey.trim()
-      }
-
-      const client = createNotionClient(config)
-      const connected = await client.testConnection()
-
-      if (!connected) {
-        throw new Error(t.errorConnectFailed)
-      }
-
-      await StorageService.saveNotionConfig(config)
-      setIsConnected(true)
-      setAuthSuccess(t.successSaved)
-      setTimeout(() => setAuthSuccess(''), 3000)
-    } catch (err) {
-      setAuthError(err instanceof Error ? err.message : '設定の保存に失敗しました')
-    } finally {
-      setIsAuthLoading(false)
-    }
-  }
-
   return (
     <div className="container">
-      <div className="header" style={{ position: 'relative' }}>
-        <h1>Raku Raku Notion</h1>
+      <div className="header" style={{ position: 'relative', marginBottom: '8px', paddingBottom: '8px' }}>
+        <h1 style={{ margin: 0 }}>Raku Raku Notion</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             onClick={onToggleLanguage}
@@ -340,7 +271,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
       {/* 接続状態ボックス */}
       <div style={{
         padding: '12px',
-        marginBottom: '16px',
+        marginBottom: '10px',
         backgroundColor: isConnected ? '#e8f4f8' : '#f5f5f5',
         borderRadius: '4px',
         border: `1px solid ${isConnected ? '#b3d9e8' : '#ddd'}`,
@@ -385,115 +316,30 @@ const HomeScreen: FC<HomeScreenProps> = ({
       {/* 未接続時: 認証UI */}
       {!isConnected && !isCheckingConnection && (
         <div style={{ marginBottom: '24px' }}>
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, fontSize: '14px' }}>
-              {t.authMethodLabel}
-            </label>
-            <div style={{ display: 'flex', gap: '16px', marginBottom: '12px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                <input
-                  type="radio"
-                  value="oauth"
-                  checked={authMethod === 'oauth'}
-                  onChange={(e) => setAuthMethod(e.target.value as 'oauth')}
-                />
-                {t.useOAuth}
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                <input
-                  type="radio"
-                  value="manual"
-                  checked={authMethod === 'manual'}
-                  onChange={(e) => setAuthMethod(e.target.value as 'manual')}
-                />
-                {t.useManualToken}
-              </label>
-            </div>
-          </div>
-
-          {authMethod === 'oauth' ? (
-            <div>
-              <p style={{ marginBottom: '16px', color: '#666', fontSize: '14px' }}>
-                {t.oauthDesc}
-              </p>
-              <button
-                onClick={handleOAuthLogin}
-                disabled={isAuthLoading || !oauthClientId}
-                className="button"
-                style={{
-                  width: '100%',
-                  background: isAuthLoading || !oauthClientId ? undefined : '#0078d4',
-                  fontSize: '15px',
-                  fontWeight: '600',
-                  padding: '14px 16px'
-                }}
-              >
-                {isAuthLoading ? t.oauthButtonLoading : t.oauthButtonIdle}
-              </button>
-              {!oauthClientId && (
-                <div style={{
-                  padding: '12px',
-                  marginTop: '12px',
-                  backgroundColor: '#fff3cd',
-                  color: '#856404',
-                  borderRadius: '4px',
-                  fontSize: '14px'
-                }}>
-                  ⚠️ OAuth設定が未構成です。開発者に連絡してください。
-                </div>
-              )}
-            </div>
-          ) : (
-            <div>
-              <p style={{ marginBottom: '16px', color: '#666', fontSize: '14px' }}>
-                {t.manualDesc}
-              </p>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, fontSize: '14px' }}>
-                  {t.manualTokenLabel}
-                </label>
-                <input
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder={t.manualPlaceholder}
-                  disabled={isAuthLoading}
-                  style={{
-                    width: '100%',
-                    padding: '8px',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
-                    fontSize: '14px',
-                    boxSizing: 'border-box'
-                  }}
-                />
-                <small style={{ color: '#666', display: 'block', marginTop: '4px' }}>
-                  <a
-                    href="https://www.notion.so/my-integrations"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Notion Integration
-                  </a>
-                  {language === 'ja'
-                    ? ' から作成できます。'
-                    : ' provides the token.'}
-                </small>
-              </div>
-              <button
-                onClick={handleManualSave}
-                disabled={isAuthLoading || !apiKey.trim()}
-                className="button"
-                style={{
-                  width: '100%',
-                  background: isAuthLoading || !apiKey.trim() ? undefined : '#0078d4',
-                  fontSize: '15px',
-                  fontWeight: '600',
-                  padding: '14px 16px'
-                }}
-              >
-                {isAuthLoading ? t.manualButtonLoading : t.manualButtonIdle}
-              </button>
+          <button
+            onClick={handleOAuthLogin}
+            disabled={isAuthLoading || !oauthClientId}
+            className="button"
+            style={{
+              width: '100%',
+              background: isAuthLoading || !oauthClientId ? undefined : '#0078d4',
+              fontSize: '15px',
+              fontWeight: '600',
+              padding: '14px 16px'
+            }}
+          >
+            {isAuthLoading ? t.oauthButtonLoading : t.oauthButtonIdle}
+          </button>
+          {!oauthClientId && (
+            <div style={{
+              padding: '12px',
+              marginTop: '12px',
+              backgroundColor: '#fff3cd',
+              color: '#856404',
+              borderRadius: '4px',
+              fontSize: '14px'
+            }}>
+              ⚠️ {language === 'ja' ? 'OAuth設定が未構成です。開発者に連絡してください。' : 'OAuth is not configured. Please contact the developer.'}
             </div>
           )}
         </div>
@@ -501,8 +347,8 @@ const HomeScreen: FC<HomeScreenProps> = ({
 
       {/* 接続時のみ表示: 保存先ドロップダウン */}
       {isConnected && (
-        <div style={{ marginBottom: '12px', textAlign: 'left' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+        <div style={{ marginBottom: '10px', textAlign: 'left' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
             {t.destinationLabel}
             <TooltipIcon text={t.tooltipDestination} style={{ marginLeft: 0 }} />
           </label>
@@ -512,7 +358,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
             disabled={clipboards.length === 0}
             style={{
               width: '100%',
-              padding: '8px',
+              padding: '6px',
               border: '1px solid #ddd',
               borderRadius: '6px',
               fontSize: '14px',
@@ -533,8 +379,8 @@ const HomeScreen: FC<HomeScreenProps> = ({
       {/* 接続時のみ表示: タグ付与UI */}
       {isConnected && (
         <>
-          <div style={{ marginBottom: '8px', textAlign: 'left' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+          <div style={{ marginBottom: '10px', textAlign: 'left' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
               {t.tagLabel}
               <TooltipIcon text={t.tooltipTag} style={{ marginLeft: 0 }} />
             </label>
@@ -548,9 +394,8 @@ const HomeScreen: FC<HomeScreenProps> = ({
                   }
                 }}
                 style={{
-                  width: '40%',
-                  minWidth: '100px',
-                  padding: '8px',
+                  width: '120px',
+                  padding: '6px',
                   border: '1px solid #ddd',
                   borderRadius: '6px',
                   fontSize: '14px',
@@ -564,22 +409,24 @@ const HomeScreen: FC<HomeScreenProps> = ({
                   <option key={tag} value={tag}>{tag}</option>
                 ))}
               </select>
-              {pendingTag === 'new' && (
-                <input
-                  type="text"
-                  value={newTagName}
-                  onChange={(e) => setNewTagName(e.target.value)}
-                  placeholder="タグ名を入力"
-                  style={{
-                    flex: 1,
-                    minWidth: '120px',
-                    padding: '8px',
-                    border: '1px solid #ddd',
-                    borderRadius: '6px',
-                    fontSize: '14px'
-                  }}
-                />
-              )}
+              <input
+                type="text"
+                value={newTagName}
+                onChange={(e) => setNewTagName(e.target.value)}
+                placeholder="タグ名を入力"
+                disabled={pendingTag !== 'new'}
+                style={{
+                  flex: 1,
+                  minWidth: '120px',
+                  padding: '6px',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  backgroundColor: pendingTag !== 'new' ? '#f5f5f5' : 'white',
+                  color: pendingTag !== 'new' ? '#999' : 'inherit',
+                  cursor: pendingTag !== 'new' ? 'not-allowed' : 'text'
+                }}
+              />
               <button
                 className="button button-secondary"
                 onClick={() => {
@@ -592,6 +439,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
                     }
                   } else if (pendingTag !== '') {
                     onAddTag(pendingTag)
+                    setPendingTag('')
                   }
                 }}
                 disabled={
@@ -599,8 +447,10 @@ const HomeScreen: FC<HomeScreenProps> = ({
                   (pendingTag === 'new' && newTagName.trim().length === 0)
                 }
                 style={{
-                  padding: '8px 12px',
+                  width: '54px',
+                  padding: '8px 4px',
                   whiteSpace: 'nowrap',
+                  flexShrink: 0,
                   backgroundColor: '#1976d2',
                   borderColor: '#1976d2',
                   color: 'white',
@@ -663,15 +513,10 @@ const HomeScreen: FC<HomeScreenProps> = ({
           )}
         </>
       )}
-
       {/* 接続時のみ表示: メモ入力と保存ボタン */}
       {isConnected && (
-        <div className="empty-state" style={{ alignItems: 'stretch' }}>
-          <div className="empty-state-text" style={{ textAlign: 'left' }}>
-            {t.saving}
-          </div>
-
-          <div style={{ marginTop: '12px', textAlign: 'left' }}>
+        <div style={{ textAlign: 'left' }}>
+          <div style={{ marginBottom: '10px' }}>
             <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
               {t.memoLabel}
             </label>
@@ -693,7 +538,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
           </div>
 
           {isYouTubeTab ? (
-            <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+            <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 className="button"
                 onClick={onClipPage}
@@ -719,7 +564,6 @@ const HomeScreen: FC<HomeScreenProps> = ({
             <button
               className="button"
               onClick={onClipPage}
-              style={{ marginTop: '12px' }}
             >
               {t.clipButton}
             </button>
@@ -728,9 +572,11 @@ const HomeScreen: FC<HomeScreenProps> = ({
           <div style={{
             marginTop: '24px',
             paddingTop: '24px',
-            borderTop: '1px solid #e9e9e7'
+            borderTop: '1px solid #e9e9e7',
+            display: 'flex',
+            gap: '12px'
           }}>
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative', flex: 1 }}>
               <button
                 className="button button-secondary"
                 onClick={() => onNavigate('clipboard-list')}
@@ -749,7 +595,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
                 }}
               />
             </div>
-            <div style={{ position: 'relative', marginTop: '12px' }}>
+            <div style={{ position: 'relative', flex: 1 }}>
               <button
                 className="button button-secondary"
                 onClick={() => onNavigate('create-clipboard')}
