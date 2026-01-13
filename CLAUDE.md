@@ -223,21 +223,21 @@ HomeScreen（起点）
 
 **機能概要**:
 - クリップボード（データベース）作成時に、Notion内部API (v3) を使用してギャラリービューを自動追加
-- デフォルトのテーブルビューを自動削除し、ギャラリービューのみを表示
+- **既存のテーブルビューは削除せず保持**し、ギャラリービューを先頭（デフォルト）に配置
+- データベースURLに`?v={galleryViewId}`を付加し、ギャラリービューがデフォルトで開かれるようにする
 
 **実装詳細**:
 - **Content Script経由で内部APIを呼び出し**: Notion.soページ上でCookie認証を利用
 - フロー: `Popup → Background → Content Script (notion.so) → Notion Internal API`
 - `src/contents/notion-api-helper.ts`: Notion.so上で実行されるContent Script
-  - `addGalleryView()`: ギャラリービュー追加＋デフォルトビュー削除
+  - `addGalleryView()`: ギャラリービューを先頭に追加（既存ビュー削除なし）
   - `getDatabaseViews()`: ビュー一覧取得
 - `src/background/index.ts`: Content Scriptとの仲介
   - `handleAddGalleryViewViaContent()`: ギャラリービュー追加ハンドラ
   - `handleGetDatabaseViewsViaContent()`: ビュー取得ハンドラ
   - `ensureContentScriptInjected()`: Content Scriptの動的注入
-- URLから取得したビューIDを使用してデフォルトビューを特定
-- URLにビューIDがない場合は、内部APIで取得（10秒待機後）
-- 表示プロパティ: URL、メモ
+- `src/popup.tsx`: ギャラリービュー作成後にデータベースURLを更新（`?v={galleryViewId}`を付加）
+- 表示プロパティ: 名前（タイトル）、URL、メモ、タグ
 - 内部API失敗時も警告のみで、クリップボード作成は成功とする
 
 **技術的詳細**:
@@ -247,6 +247,7 @@ HomeScreen（起点）
 - manifest.jsonから実際のビルド済みファイル名を取得して注入
 - ユーザーID取得: `loadPageChunk`レスポンスからデータベースの親ページの権限情報を解析
 - 権限エラー対策: データベース作成直後にビュー操作を実行（権限が正しく設定された状態を利用）
+- **既存ビュー削除なし**: トランザクションが単純化され、競合リスクが低減（v1.0.6以降）
 
 ### 7. Notion UI簡略化機能
 
