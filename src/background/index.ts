@@ -502,6 +502,7 @@ async function handleAddGalleryViewViaContent(
     databaseId: string
     workspaceId: string
     visibleProperties?: string[]
+    allProperties?: string[]
   },
   sendResponse: (response?: any) => void
 ) {
@@ -537,7 +538,8 @@ async function handleAddGalleryViewViaContent(
         type: 'add-gallery-view',
         databaseId: data.databaseId,
         workspaceId: data.workspaceId,
-        visibleProperties: data.visibleProperties || []
+        visibleProperties: data.visibleProperties || [],
+        allProperties: data.allProperties || []
       })
       sendResponse(response)
       return
@@ -569,7 +571,8 @@ async function handleAddGalleryViewViaContent(
       type: 'add-gallery-view',
       databaseId: data.databaseId,
       workspaceId: data.workspaceId,
-      visibleProperties: data.visibleProperties || []
+      visibleProperties: data.visibleProperties || [],
+      allProperties: data.allProperties || []
     })
 
     // タブを閉じる
