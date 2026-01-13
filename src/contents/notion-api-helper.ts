@@ -104,7 +104,8 @@ const NOTION_API_V3_BASE = "https://www.notion.so/api/v3"
 async function addGalleryView(
   rawDatabaseId: string,
   workspaceId: string,
-  visibleProperties: string[] = []
+  visibleProperties: string[] = [],
+  allProperties: string[] = []
 ): Promise<{ success: boolean; galleryViewId?: string; error?: string }> {
   try {
     const databaseId = formatUUID(rawDatabaseId)
@@ -113,6 +114,7 @@ async function addGalleryView(
     console.log("[NotionAPIHelper] Adding gallery view to database:", databaseId)
     console.log("[NotionAPIHelper] Using workspace ID:", workspaceId)
     console.log("[NotionAPIHelper] Visible properties:", visibleProperties)
+    console.log("[NotionAPIHelper] All properties:", allProperties)
 
     // 現在のユーザーIDを取得（データベースIDを渡して権限情報から取得）
     const currentUserId = await getCurrentUserId(databaseId)
@@ -122,10 +124,17 @@ async function addGalleryView(
       console.error("[NotionAPIHelper] Failed to determine current user ID. This may cause permission errors.")
     }
 
-    const galleryProperties = visibleProperties.map(propId => ({
-      property: propId,
-      visible: true
-    }))
+    // 表示したいプロパティのセットを作成
+    const visibleSet = new Set(visibleProperties)
+
+    // 全プロパティを明示的にリスト化し、可視性を個別制御
+    // visibleSetに含まれるプロパティのみvisible: true、それ以外はfalse
+    const galleryProperties = allProperties
+      .filter(propId => propId !== "title")  // titleは別途最初に追加
+      .map(propId => ({
+        property: propId,
+        visible: visibleSet.has(propId)  // 表示リストにある場合のみtrue
+      }))
 
     const operations: any[] = []
 
@@ -144,10 +153,10 @@ async function addGalleryView(
           format: {
             gallery_properties: [
               {
-                property: "cover",
-                visible: false
+                property: "title",  // タイトルは常に最初、常に表示
+                visible: true
               },
-              ...galleryProperties
+              ...galleryProperties  // 他の全プロパティ（可視性は個別制御）
             ],
             gallery_cover: {
               type: "page_cover"
@@ -379,7 +388,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     addGalleryView(
       request.databaseId,
       request.workspaceId,
-      request.visibleProperties || []
+      request.visibleProperties || [],
+      request.allProperties || []
     ).then(result => {
       console.log("[NotionAPIHelper] add-gallery-view completed:", result)
       sendResponse(result)

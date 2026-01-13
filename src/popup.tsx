@@ -325,7 +325,17 @@ function IndexPopup() {
       if (properties["メモ"]) visiblePropIds.push(properties["メモ"])
       if (properties["タグ"]) visiblePropIds.push(properties["タグ"])
 
-      console.log('[handleCreateClipboard] Adding gallery view with properties (including title):', visiblePropIds)
+      // 全プロパティIDを取得（ギャラリービューの可視性制御用）
+      // 注意: Notion公式APIはURLエンコードされた形式でプロパティIDを返すが、
+      // Notion内部APIはデコードされた形式を期待するため、デコードする
+      const allPropertyIds: string[] = Object.values(properties).map(id => decodeURIComponent(id))
+      const decodedVisiblePropIds: string[] = visiblePropIds.map(id => decodeURIComponent(id))
+
+      console.log('[handleCreateClipboard] Properties object:', properties)
+      console.log('[handleCreateClipboard] Properties keys:', Object.keys(properties))
+      console.log('[handleCreateClipboard] Visible properties (encoded):', visiblePropIds)
+      console.log('[handleCreateClipboard] Visible properties (decoded):', decodedVisiblePropIds)
+      console.log('[handleCreateClipboard] All properties (decoded):', allPropertyIds)
       console.log('[handleCreateClipboard] Using space ID:', spaceIdToUse)
 
       // Background Script経由でContent Scriptを使用してギャラリービューを追加
@@ -334,7 +344,8 @@ function IndexPopup() {
         data: {
           databaseId,
           workspaceId: spaceIdToUse,  // 実際はspaceIdとして使用される
-          visibleProperties: visiblePropIds
+          visibleProperties: decodedVisiblePropIds,  // デコード済みのIDを使用
+          allProperties: allPropertyIds  // デコード済みの全プロパティを使用
         }
       })
 
