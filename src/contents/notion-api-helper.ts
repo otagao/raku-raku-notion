@@ -99,6 +99,53 @@ function formatUUID(id: string): string {
 const NOTION_API_V3_BASE = "https://www.notion.so/api/v3"
 
 /**
+ * ギャラリービューを追加する（リトライ付き）
+ * 権限エラーの場合は最大3回リトライする
+ */
+async function addGalleryViewWithRetry(
+  rawDatabaseId: string,
+  workspaceId: string,
+  visibleProperties: string[] = [],
+  allProperties: string[] = [],
+  maxRetries: number = 3
+): Promise<{ success: boolean; galleryViewId?: string; error?: string }> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log(`[NotionAPIHelper] Gallery view creation attempt ${attempt}/${maxRetries}`)
+
+    const result = await addGalleryView(
+      rawDatabaseId,
+      workspaceId,
+      visibleProperties,
+      allProperties
+    )
+
+    // 成功した場合はそのまま返す
+    if (result.success) {
+      console.log(`[NotionAPIHelper] Gallery view created successfully on attempt ${attempt}`)
+      return result
+    }
+
+    // 権限エラーの場合のみリトライ（5秒待機）
+    if (result.error && (
+      result.error.includes('permission') ||
+      result.error.includes('edit access')
+    )) {
+      if (attempt < maxRetries) {
+        console.warn(`[NotionAPIHelper] Permission error on attempt ${attempt}, waiting 5s before retry...`)
+        await new Promise(resolve => setTimeout(resolve, 5000))
+        continue
+      }
+    }
+
+    // その他のエラーは即座に返す（リトライしない）
+    console.error(`[NotionAPIHelper] Non-permission error, aborting: ${result.error}`)
+    return result
+  }
+
+  return { success: false, error: 'Max retries exceeded' }
+}
+
+/**
  * ギャラリービューを追加する（既存ビューは削除せず、ギャラリービューをデフォルトに設定）
  */
 async function addGalleryView(
@@ -188,19 +235,37 @@ async function addGalleryView(
 
     console.log("[NotionAPIHelper] Transaction payload:", JSON.stringify(transaction, null, 2))
 
-    // Cookie確認（デバッグ用）
+    // Cookie確認（厳格化）
     const cookies = document.cookie
-    console.log("[NotionAPIHelper] ========== COOKIE DIAGNOSTICS ==========")
+    console.log("[NotionAPIHelper] ========== REQUEST DETAILS ==========")
+    console.log("[NotionAPIHelper] Database ID:", databaseId)
+    console.log("[NotionAPIHelper] Space ID:", workspaceId)
+    console.log("[NotionAPIHelper] User ID:", currentUserId)
     console.log("[NotionAPIHelper] Current domain:", window.location.hostname)
     console.log("[NotionAPIHelper] Current URL:", window.location.href)
-    console.log("[NotionAPIHelper] Has cookies:", cookies.length > 0)
-    console.log("[NotionAPIHelper] Cookie count:", cookies.split(';').filter(c => c.trim()).length)
+    console.log("[NotionAPIHelper] Visible properties:", visibleProperties)
+    console.log("[NotionAPIHelper] All properties count:", allProperties.length)
 
     // 重要なNotionのCookieが存在するか確認
     const hasNotionUserCookie = cookies.includes('notion_user_id') || cookies.includes('notion_browser_id')
     const hasTokenCookie = cookies.includes('token_v2')
-    console.log("[NotionAPIHelper] Has notion_user_id or notion_browser_id cookie:", hasNotionUserCookie)
-    console.log("[NotionAPIHelper] Has token_v2 cookie:", hasTokenCookie)
+    const hasCookies = cookies.length > 0
+
+    console.log("[NotionAPIHelper] Cookie status:", {
+      hasCookies,
+      hasTokenV2: hasTokenCookie,
+      hasUserCookie: hasNotionUserCookie,
+      cookieCount: cookies.split(';').filter(c => c.trim()).length
+    })
+
+    // token_v2が存在しない場合は早期リターン（厳格化）
+    if (!hasTokenCookie) {
+      console.error("[NotionAPIHelper] CRITICAL: token_v2 cookie not found!")
+      return {
+        success: false,
+        error: "認証Cookieが見つかりません。Notion.soにログインしてから再度お試しください。"
+      }
+    }
 
     if (cookies.length === 0) {
       console.error("[NotionAPIHelper] CRITICAL: No cookies found! User may not be logged in.")
@@ -210,10 +275,7 @@ async function addGalleryView(
       }
     }
 
-    if (!hasTokenCookie) {
-      console.warn("[NotionAPIHelper] WARNING: token_v2 cookie not found. This may cause authentication issues.")
-    }
-    console.log("[NotionAPIHelper] ==========================================")
+    console.log("[NotionAPIHelper] ====================================")
 
     // リクエスト送信前にヘッダーをログ出力
     const requestBody = {
@@ -384,8 +446,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.type === 'add-gallery-view') {
-    console.log("[NotionAPIHelper] Processing add-gallery-view request")
-    addGalleryView(
+    console.log("[NotionAPIHelper] Processing add-gallery-view request with retry")
+    addGalleryViewWithRetry(
       request.databaseId,
       request.workspaceId,
       request.visibleProperties || [],
