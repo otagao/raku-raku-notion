@@ -7,7 +7,9 @@ import { TooltipIcon } from "~components/TooltipIcon"
 interface HomeScreenProps {
   onNavigate: (screen: string) => void
   onClipPage?: () => void
+  onClipNow?: () => void
   onDisconnect?: () => void
+  isYouTubeTab?: boolean
   language: Language
   onToggleLanguage: () => void
   memo: string
@@ -19,8 +21,6 @@ interface HomeScreenProps {
   onAddTag: (tag: string) => void
   onRemoveTag: (tag: string) => void
   existingTags?: string[]
-  isYouTubeTab?: boolean
-  onClipNow?: () => void
 }
 
 const translations: Record<Language, {
@@ -28,6 +28,7 @@ const translations: Record<Language, {
   memoLabel: string
   memoPlaceholder: string
   clipButton: string
+  clipNowButton: string
   disconnect: string
   listButton: string
   createButton: string
@@ -48,12 +49,19 @@ const translations: Record<Language, {
   successSaved: string
   uiSimplifyLabel: string
   tooltipUISimplify: string
+  authGuideTitle: string
+  authGuideStep1: string
+  authGuideStep1Desc: string
+  authGuideStep2: string
+  authGuideStep2Desc: string
+  authGuideNote: string
 }> = {
   ja: {
     saving: '',
     memoLabel: 'メモ（任意）',
     memoPlaceholder: 'ページについてのメモを入力できます',
     clipButton: 'このページを保存',
+    clipNowButton: '再生時間を\n維持して保存',
     disconnect: '連携解除',
     listButton: '保存先一覧',
     createButton: '保存先を作成',
@@ -73,13 +81,20 @@ const translations: Record<Language, {
     oauthButtonLoading: '処理中...',
     successSaved: '設定を保存しました',
     uiSimplifyLabel: 'Notion UI簡略化',
-    tooltipUISimplify: 'Notion.so上でサイドバーやツールバーを非表示にし、シンプルな表示にします'
+    tooltipUISimplify: 'Notion.so上でサイドバーやツールバーを非表示にし、シンプルな表示にします',
+    authGuideTitle: '認証画面での操作手順',
+    authGuideStep1: '1. 「ページを選択する」ボタンを押す',
+    authGuideStep1Desc: '注意事項を読んでから「ページを選択する」ボタンをクリックしてください。',
+    authGuideStep2: '2. 何も選択せず「アクセスを許可する」',
+    authGuideStep2Desc: '公開/非公開ページともに、何も選択せずに「アクセスを許可する」ボタンを押せばOKです。',
+    authGuideNote: '※ データベースへのアクセス権限は、保存先作成時に個別に付与されます。'
   },
   en: {
     saving: '',
     memoLabel: 'Memo (optional)',
     memoPlaceholder: 'Add a note about this page',
     clipButton: 'Save this page',
+    clipNowButton: 'Save with\nplayback time',
     disconnect: 'Disconnect',
     listButton: 'Destinations',
     createButton: 'Create destination',
@@ -99,14 +114,22 @@ const translations: Record<Language, {
     oauthButtonLoading: 'Processing...',
     successSaved: 'Settings saved',
     uiSimplifyLabel: 'Notion UI simplify',
-    tooltipUISimplify: 'Hide sidebar and toolbar on Notion.so for a cleaner display'
+    tooltipUISimplify: 'Hide sidebar and toolbar on Notion.so for a cleaner display',
+    authGuideTitle: 'Steps on the auth screen',
+    authGuideStep1: '1. Click "Select pages"',
+    authGuideStep1Desc: 'Read the notice and then click the "Select pages" button.',
+    authGuideStep2: '2. Click "Allow access" without selecting',
+    authGuideStep2Desc: 'For both public and private pages, just click "Allow access" without selecting any pages.',
+    authGuideNote: '* Database access permissions will be granted individually when creating a destination.'
   }
 }
 
 const HomeScreen: FC<HomeScreenProps> = ({
   onNavigate,
   onClipPage,
+  onClipNow,
   onDisconnect,
+  isYouTubeTab = false,
   language,
   onToggleLanguage,
   memo,
@@ -117,9 +140,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
   selectedTags,
   onAddTag,
   onRemoveTag,
-  existingTags = [],
-  isYouTubeTab = false,
-  onClipNow
+  existingTags = []
 }) => {
   const t = translations[language]
   const [isConnected, setIsConnected] = useState<boolean>(false)
@@ -348,6 +369,67 @@ const HomeScreen: FC<HomeScreenProps> = ({
       {/* 未接続時: 認証UI */}
       {!isConnected && !isCheckingConnection && (
         <div style={{ marginBottom: '24px' }}>
+          {/* 認証ガイド */}
+          <div style={{
+            backgroundColor: '#f8f9fa',
+            borderRadius: '8px',
+            padding: '16px',
+            marginBottom: '16px'
+          }}>
+            <h3 style={{
+              fontSize: '14px',
+              fontWeight: 600,
+              marginBottom: '12px',
+              color: '#333'
+            }}>
+              {t.authGuideTitle}
+            </h3>
+            <div style={{ marginBottom: '12px' }}>
+              <p style={{
+                fontSize: '13px',
+                fontWeight: 600,
+                marginBottom: '4px',
+                color: '#333'
+              }}>
+                {t.authGuideStep1}
+              </p>
+              <p style={{
+                fontSize: '12px',
+                color: '#666',
+                margin: 0,
+                lineHeight: '1.4'
+              }}>
+                {t.authGuideStep1Desc}
+              </p>
+            </div>
+            <div style={{ marginBottom: '12px' }}>
+              <p style={{
+                fontSize: '13px',
+                fontWeight: 600,
+                marginBottom: '4px',
+                color: '#333'
+              }}>
+                {t.authGuideStep2}
+              </p>
+              <p style={{
+                fontSize: '12px',
+                color: '#666',
+                margin: 0,
+                lineHeight: '1.4'
+              }}>
+                {t.authGuideStep2Desc}
+              </p>
+            </div>
+            <p style={{
+              fontSize: '11px',
+              color: '#888',
+              margin: 0,
+              fontStyle: 'italic'
+            }}>
+              {t.authGuideNote}
+            </p>
+          </div>
+
           <button
             onClick={handleOAuthLogin}
             disabled={isAuthLoading || !oauthClientId}
@@ -371,7 +453,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
               borderRadius: '4px',
               fontSize: '14px'
             }}>
-              ⚠️ {language === 'ja' ? 'OAuth設定が未構成です。開発者に連絡してください。' : 'OAuth is not configured. Please contact the developer.'}
+              {language === 'ja' ? 'OAuth設定が未構成です。開発者に連絡してください。' : 'OAuth is not configured. Please contact the developer.'}
             </div>
           )}
         </div>
@@ -585,11 +667,12 @@ const HomeScreen: FC<HomeScreenProps> = ({
                 style={{
                   flex: 1,
                   opacity: !onClipNow ? 0.6 : 1,
-                  cursor: !onClipNow ? 'not-allowed' : 'pointer'
+                  cursor: !onClipNow ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'pre-line'
                 }}
                 title="現在の再生位置で保存"
               >
-                今保存
+                {t.clipNowButton}
               </button>
             </div>
           ) : (
