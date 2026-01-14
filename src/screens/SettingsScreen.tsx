@@ -374,14 +374,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, language
               : 'Use Notion OAuth to grant access. A destination database is created automatically when needed.'}
           </p>
           <button
-            onClick={() => {
-              console.log('[Settings] OAuth button clicked:', {
-                isLoading,
-                hasClientId: !!oauthConfig.clientId,
-                clientId: oauthConfig.clientId ? `${oauthConfig.clientId.substring(0, 8)}...` : 'MISSING'
-              })
-              handleOAuthLogin()
-            }}
+            onClick={handleOAuthLogin}
             disabled={isLoading || !oauthConfig.clientId}
             className="button"
             style={{
