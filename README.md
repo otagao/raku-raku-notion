@@ -45,10 +45,9 @@ npm run dev
 
 ### 3. Notion連携
 
-1. 拡張機能の設定（⚙️）を開く
-2. 「手動トークン入力」を選択
-3. [Notion Integration](https://www.notion.so/my-integrations) でトークンを作成
-4. トークンを貼り付けて「保存して接続」
+1. 拡張機能を開くとログイン画面が表示されます
+2. 「Notionで認証して接続」を選択
+3. 指示に従ってNotionと拡張機能を接続する
 
 詳細は [docs/SETUP.md](docs/SETUP.md) と [docs/NOTION_AUTH.md](docs/NOTION_AUTH.md) を参照してください。
 
