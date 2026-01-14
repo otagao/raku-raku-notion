@@ -60,7 +60,7 @@ const translations: Record<Language, {
     memoLabel: 'メモ（任意）',
     memoPlaceholder: 'ページについてのメモを入力できます',
     clipButton: 'このページを保存',
-    clipNowButton: '再生時間を\n維持して保存',
+    clipNowButton: '再生時間情報も保存',
     disconnect: '連携解除',
     listButton: '保存先一覧',
     createButton: '保存先を作成',
