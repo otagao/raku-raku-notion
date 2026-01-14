@@ -31,6 +31,7 @@ const buildOverlay = () => {
   host.style.position = "fixed"
   host.style.inset = "0"
   host.style.zIndex = "2147483647"
+  host.style.pointerEvents = "none"
 
   const shadow = host.attachShadow({ mode: "open" })
   uiHost = host
@@ -46,6 +47,7 @@ const buildOverlay = () => {
   overlay.style.justifyContent = "center"
   overlay.style.zIndex = "2147483647"
   overlay.style.fontFamily = "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif"
+  overlay.style.pointerEvents = "none"
 
   const wrapper = document.createElement("div")
   wrapper.id = WRAPPER_ID
@@ -58,6 +60,7 @@ const buildOverlay = () => {
   wrapper.style.boxShadow = "0 20px 60px rgba(0, 0, 0, 0.35)"
   wrapper.style.overflow = "hidden"
   wrapper.style.background = "#ffffff"
+  wrapper.style.pointerEvents = "auto"
 
   const dragBar = document.createElement("div")
   dragBar.id = DRAG_BAR_ID

@@ -305,9 +305,9 @@ const HomeScreen: FC<HomeScreenProps> = ({
         <div style={{
           padding: '12px',
           marginBottom: '10px',
-          backgroundColor: isConnected ? '#e8f4f8' : '#f5f5f5',
+          backgroundColor: isConnected ? '#ffe6e6' : '#f5f5f5',
           borderRadius: '4px',
-          border: `1px solid ${isConnected ? '#b3d9e8' : '#ddd'}`,
+          border: `1px solid ${isConnected ? '#f5caca' : '#ddd'}`,
           minHeight: '44px',
           display: 'flex',
           alignItems: 'center',
@@ -433,7 +433,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
             className="button"
             style={{
               width: '100%',
-              background: isAuthLoading || !oauthClientId ? undefined : '#0078d4',
+              background: isAuthLoading || !oauthClientId ? undefined : '#f2a8a8',
               fontSize: '15px',
               fontWeight: '600',
               padding: '14px 16px'
@@ -562,8 +562,8 @@ const HomeScreen: FC<HomeScreenProps> = ({
                   padding: '8px 4px',
                   whiteSpace: 'nowrap',
                   flexShrink: 0,
-                  backgroundColor: '#1976d2',
-                  borderColor: '#1976d2',
+                  backgroundColor: '#f2a8a8',
+                  borderColor: '#f2a8a8',
                   color: 'white',
                   opacity:
                     pendingTag === '' ||
@@ -595,10 +595,10 @@ const HomeScreen: FC<HomeScreenProps> = ({
                     gap: '4px',
                     padding: '4px 8px',
                     marginLeft: idx === 0 ? 8 : 4,
-                    background: '#eef4ff',
+                    background: '#fbe3e3',
                     borderRadius: '12px',
                     fontSize: '12px',
-                    color: '#334'
+                    color: '#6a4a4a'
                   }}
                 >
                   {tag}
