@@ -8,6 +8,7 @@ interface HomeScreenProps {
   onNavigate: (screen: string) => void
   onClipPage?: () => void
   onClipNow?: () => void
+  onDisconnect?: () => void
   isYouTubeTab?: boolean
   language: Language
   onToggleLanguage: () => void
@@ -20,8 +21,6 @@ interface HomeScreenProps {
   onAddTag: (tag: string) => void
   onRemoveTag: (tag: string) => void
   existingTags?: string[]
-  isYouTubeTab?: boolean
-  onClipNow?: () => void
 }
 
 const translations: Record<Language, {
@@ -30,11 +29,11 @@ const translations: Record<Language, {
   memoPlaceholder: string
   clipButton: string
   clipNowButton: string
+  disconnect: string
   listButton: string
   createButton: string
   checking: string
   connected: (name: string) => string
-  disconnected: string
   destinationLabel: string
   destinationPlaceholder: string
   tagLabel: string
@@ -47,6 +46,8 @@ const translations: Record<Language, {
   oauthButtonIdle: string
   oauthButtonLoading: string
   successSaved: string
+  uiSimplifyLabel: string
+  tooltipUISimplify: string
   authGuideTitle: string
   authGuideStep1: string
   authGuideStep1Desc: string
@@ -60,11 +61,11 @@ const translations: Record<Language, {
     memoPlaceholder: 'ページについてのメモを入力できます',
     clipButton: 'このページを保存',
     clipNowButton: '再生時間を\n維持して保存',
+    disconnect: '連携解除',
     listButton: '保存先一覧',
     createButton: '保存先を作成',
     checking: '接続状態を確認中...',
     connected: (name) => `接続中: ${name || 'Notionワークスペース'}`,
-    disconnected: '設定からNotionに接続してください',
     destinationLabel: '保存先',
     destinationPlaceholder: '保存先を選択してください',
     tagLabel: 'タグ付与',
@@ -77,6 +78,8 @@ const translations: Record<Language, {
     oauthButtonIdle: 'Notionで認証して接続',
     oauthButtonLoading: '処理中...',
     successSaved: '設定を保存しました',
+    uiSimplifyLabel: 'Notion UI簡略化',
+    tooltipUISimplify: 'Notion.so上でサイドバーやツールバーを非表示にし、シンプルな表示にします',
     authGuideTitle: '認証画面での操作手順',
     authGuideStep1: '1. 「ページを選択する」ボタンを押す',
     authGuideStep1Desc: '注意事項を読んでから「ページを選択する」ボタンをクリックしてください。',
@@ -90,11 +93,11 @@ const translations: Record<Language, {
     memoPlaceholder: 'Add a note about this page',
     clipButton: 'Save this page',
     clipNowButton: 'Save with\nplayback time',
+    disconnect: 'Disconnect',
     listButton: 'Destinations',
     createButton: 'Create destination',
     checking: 'Checking connection...',
     connected: (name) => `Connected: ${name || 'Notion workspace'}`,
-    disconnected: 'Connect to Notion in Settings',
     destinationLabel: 'Destination',
     destinationPlaceholder: 'Select a destination',
     tagLabel: 'Add tags',
@@ -107,6 +110,8 @@ const translations: Record<Language, {
     oauthButtonIdle: 'Connect with Notion',
     oauthButtonLoading: 'Processing...',
     successSaved: 'Settings saved',
+    uiSimplifyLabel: 'Notion UI simplify',
+    tooltipUISimplify: 'Hide sidebar and toolbar on Notion.so for a cleaner display',
     authGuideTitle: 'Steps on the auth screen',
     authGuideStep1: '1. Click "Select pages"',
     authGuideStep1Desc: 'Read the notice and then click the "Select pages" button.',
@@ -120,6 +125,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
   onNavigate,
   onClipPage,
   onClipNow,
+  onDisconnect,
   isYouTubeTab = false,
   language,
   onToggleLanguage,
@@ -139,6 +145,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
   const [isCheckingConnection, setIsCheckingConnection] = useState<boolean>(true)
   const [pendingTag, setPendingTag] = useState<string>('') // 未選択スタート
   const [newTagName, setNewTagName] = useState<string>('') // 新規タグ名
+  const [uiSimplifyEnabled, setUiSimplifyEnabled] = useState<boolean | null>(null)
 
   // 認証UI用のステート
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(false)
@@ -157,6 +164,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
 
   useEffect(() => {
     checkConnection()
+    loadUISimplify()
 
     // ストレージ変更を監視して、接続状態が変わったら再チェック
     const handleStorageChange = async (changes: { [key: string]: chrome.storage.StorageChange }) => {
@@ -183,6 +191,16 @@ const HomeScreen: FC<HomeScreenProps> = ({
       chrome.storage.onChanged.removeListener(handleStorageChange)
     }
   }, [t])
+
+  const loadUISimplify = async () => {
+    const config = await StorageService.getUISimplifyConfig()
+    setUiSimplifyEnabled(config.enabled)
+  }
+
+  const handleUISimplifyToggle = async (enabled: boolean) => {
+    setUiSimplifyEnabled(enabled)
+    await StorageService.saveUISimplifyConfig({ enabled })
+  }
 
   const checkConnection = async () => {
     setIsCheckingConnection(true)
@@ -260,56 +278,65 @@ const HomeScreen: FC<HomeScreenProps> = ({
       <div className="header" style={{ position: 'relative', marginBottom: '8px', paddingBottom: '8px' }}>
         <h1 style={{ margin: 0 }}>Raku Raku Notion</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            onClick={onToggleLanguage}
-            style={{
-              background: 'transparent',
-              border: '1px solid #ddd',
-              fontSize: '12px',
-              cursor: 'pointer',
-              padding: '4px 8px',
-              borderRadius: '4px',
-              color: '#666'
-            }}
-            title={language === 'ja' ? '日本語表示中' : 'English display'}
-          >
-            {language === 'ja' ? '日本語' : 'English'}
-          </button>
-          <button
-            onClick={() => onNavigate('settings')}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              fontSize: '20px',
-              cursor: 'pointer',
-              padding: '4px 8px'
-            }}
-            title="設定"
-          >
-            ⚙️
-          </button>
+          {isConnected && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <label className="toggle-switch" style={{ cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={!!uiSimplifyEnabled}
+                  onChange={(e) => handleUISimplifyToggle(e.target.checked)}
+                  disabled={uiSimplifyEnabled === null}
+                />
+                <span className="toggle-track" aria-hidden="true">
+                  <span className="toggle-thumb" />
+                </span>
+              </label>
+              <span style={{ fontSize: '12px', color: '#666', whiteSpace: 'nowrap' }}>
+                {t.uiSimplifyLabel}
+              </span>
+              <TooltipIcon text={t.tooltipUISimplify} style={{ marginLeft: 0 }} />
+            </div>
+          )}
         </div>
       </div>
 
       {/* 接続状態ボックス */}
-      <div style={{
-        padding: '12px',
-        marginBottom: '10px',
-        backgroundColor: isConnected ? '#e8f4f8' : '#f5f5f5',
-        borderRadius: '4px',
-        border: `1px solid ${isConnected ? '#b3d9e8' : '#ddd'}`,
-        minHeight: '44px',
-        display: 'flex',
-        alignItems: 'center'
-      }}>
-        {isCheckingConnection ? (
-          <span style={{ color: '#666' }}>{t.checking}</span>
-        ) : isConnected ? (
-          <span>{t.connected(workspaceName)}</span>
-        ) : (
-          <span style={{ color: '#666' }}>未接続</span>
-        )}
-      </div>
+      {(isCheckingConnection || isConnected) && (
+        <div style={{
+          padding: '12px',
+          marginBottom: '10px',
+          backgroundColor: isConnected ? '#e8f4f8' : '#f5f5f5',
+          borderRadius: '4px',
+          border: `1px solid ${isConnected ? '#b3d9e8' : '#ddd'}`,
+          minHeight: '44px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px'
+        }}>
+          {isCheckingConnection ? (
+            <span style={{ color: '#666' }}>{t.checking}</span>
+          ) : (
+            <span>{t.connected(workspaceName)}</span>
+          )}
+          {isConnected && !isCheckingConnection && onDisconnect && (
+            <button
+              onClick={onDisconnect}
+              style={{
+                fontSize: '12px',
+                padding: '4px 8px',
+                background: '#fff',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {t.disconnect}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* 認証エラー・成功メッセージ */}
       {authError && (
@@ -423,7 +450,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
               borderRadius: '4px',
               fontSize: '14px'
             }}>
-              ⚠️ {language === 'ja' ? 'OAuth設定が未構成です。開発者に連絡してください。' : 'OAuth is not configured. Please contact the developer.'}
+              {language === 'ja' ? 'OAuth設定が未構成です。開発者に連絡してください。' : 'OAuth is not configured. Please contact the developer.'}
             </div>
           )}
         </div>
@@ -699,6 +726,19 @@ const HomeScreen: FC<HomeScreenProps> = ({
                 }}
               />
             </div>
+          </div>
+          <div style={{ marginTop: '12px' }}>
+            <button
+              onClick={onToggleLanguage}
+              className="button button-secondary"
+              style={{
+                width: '100%',
+                fontSize: '12px'
+              }}
+              title={language === 'ja' ? 'English display' : '日本語表示'}
+            >
+              {language === 'ja' ? 'English' : '日本語'}
+            </button>
           </div>
         </div>
       )}
