@@ -12,13 +12,12 @@ const WRAPPER_ID = "raku-raku-notion-iframe-wrapper"
 const IFRAME_ID = "raku-raku-notion-iframe"
 const CLOSE_ID = "raku-raku-notion-iframe-close"
 const DRAG_BAR_ID = "raku-raku-notion-iframe-drag"
-const DRAG_SHIELD_ID = "raku-raku-notion-iframe-drag-shield"
 
 let uiHost: HTMLElement | null = null
 let uiShadow: ShadowRoot | null = null
-let dragShield: HTMLElement | null = null
-let dragMoveHandler: ((event: MouseEvent) => void) | null = null
-let dragEndHandler: ((event: MouseEvent) => void) | null = null
+let dragPointerId: number | null = null
+let dragMoveHandler: ((event: PointerEvent) => void) | null = null
+let dragEndHandler: ((event: PointerEvent) => void) | null = null
 let languageChangeHandler: ((changes: Record<string, chrome.storage.StorageChange>, areaName: string) => void) | null = null
 const CLOSE_LABELS: Record<Language, string> = {
   ja: "閉じる",
@@ -73,6 +72,7 @@ const buildOverlay = () => {
   dragBar.style.background = "#fbfbfb"
   dragBar.style.cursor = "move"
   dragBar.style.userSelect = "none"
+  dragBar.style.touchAction = "none"
 
   const dragTitle = document.createElement("span")
   dragTitle.textContent = "Raku Raku Notion"
@@ -101,7 +101,7 @@ const buildOverlay = () => {
   iframe.allow = "clipboard-write"
   iframe.src = `${chrome.runtime.getURL("popup.html")}?ui=iframe`
 
-  closeButton.addEventListener("mousedown", (event) => {
+  closeButton.addEventListener("pointerdown", (event) => {
     event.stopPropagation()
   })
 
@@ -155,21 +155,13 @@ const attachLanguageListener = (button: HTMLButtonElement) => {
 }
 
 const attachDragHandlers = (dragBar: HTMLElement, wrapper: HTMLElement) => {
-  const dragStart = (event: MouseEvent) => {
+  const dragStart = (event: PointerEvent) => {
     if (event.button !== 0) return
     if ((event.target as HTMLElement | null)?.closest(`#${CLOSE_ID}`)) return
     event.preventDefault()
-
-    const overlay = overlayFromWrapper(wrapper)
-    const shield = document.createElement("div")
-    shield.id = DRAG_SHIELD_ID
-    shield.style.position = "fixed"
-    shield.style.inset = "0"
-    shield.style.cursor = "move"
-    shield.style.background = "transparent"
-    shield.style.zIndex = "2147483647"
-    overlay?.appendChild(shield)
-    dragShield = shield
+    if (dragPointerId !== null) return
+    dragPointerId = event.pointerId
+    dragBar.setPointerCapture(event.pointerId)
 
     const rect = wrapper.getBoundingClientRect()
     wrapper.style.position = "absolute"
@@ -184,7 +176,8 @@ const attachDragHandlers = (dragBar: HTMLElement, wrapper: HTMLElement) => {
     const startLeft = rect.left
     const startTop = rect.top
 
-    dragMoveHandler = (moveEvent: MouseEvent) => {
+    dragMoveHandler = (moveEvent: PointerEvent) => {
+      if (dragPointerId !== moveEvent.pointerId) return
       const deltaX = moveEvent.clientX - startX
       const deltaY = moveEvent.clientY - startY
       const width = rect.width
@@ -197,30 +190,31 @@ const attachDragHandlers = (dragBar: HTMLElement, wrapper: HTMLElement) => {
       wrapper.style.top = `${nextTop}px`
     }
 
-    dragEndHandler = () => {
+    dragEndHandler = (endEvent: PointerEvent) => {
+      if (dragPointerId !== endEvent.pointerId) return
+      try {
+        dragBar.releasePointerCapture(endEvent.pointerId)
+      } catch {
+        // ignore release errors
+      }
+      dragPointerId = null
       if (dragMoveHandler) {
-        window.removeEventListener("mousemove", dragMoveHandler)
+        dragBar.removeEventListener("pointermove", dragMoveHandler)
         dragMoveHandler = null
       }
       if (dragEndHandler) {
-        window.removeEventListener("mouseup", dragEndHandler)
-        window.removeEventListener("blur", dragEndHandler)
-        document.removeEventListener("mouseleave", dragEndHandler)
+        dragBar.removeEventListener("pointerup", dragEndHandler)
+        dragBar.removeEventListener("pointercancel", dragEndHandler)
         dragEndHandler = null
       }
-      if (dragShield && dragShield.isConnected) {
-        dragShield.remove()
-      }
-      dragShield = null
     }
 
-    window.addEventListener("mousemove", dragMoveHandler)
-    window.addEventListener("mouseup", dragEndHandler)
-    window.addEventListener("blur", dragEndHandler)
-    document.addEventListener("mouseleave", dragEndHandler)
+    dragBar.addEventListener("pointermove", dragMoveHandler)
+    dragBar.addEventListener("pointerup", dragEndHandler)
+    dragBar.addEventListener("pointercancel", dragEndHandler)
   }
 
-  dragBar.addEventListener("mousedown", dragStart)
+  dragBar.addEventListener("pointerdown", dragStart)
 }
 
 const overlayFromWrapper = (wrapper: HTMLElement) => {
@@ -233,14 +227,12 @@ const closeOverlay = () => {
   }
   uiHost = null
   uiShadow = null
-  dragShield = null
+  dragPointerId = null
 
   if (dragMoveHandler) {
-    window.removeEventListener("mousemove", dragMoveHandler)
     dragMoveHandler = null
   }
   if (dragEndHandler) {
-    window.removeEventListener("mouseup", dragEndHandler)
     dragEndHandler = null
   }
   if (languageChangeHandler) {
