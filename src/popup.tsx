@@ -3,7 +3,6 @@ import HomeScreen from "~screens/HomeScreen"
 import CreateClipboardScreen from "~screens/CreateClipboardScreen"
 import ClipboardListScreen from "~screens/ClipboardListScreen"
 import SelectClipboardScreen from "~screens/SelectClipboardScreen"
-import { SettingsScreen } from "~screens/SettingsScreen"
 import ClippingProgressScreen from "~screens/ClippingProgressScreen"
 import { StorageService } from "~services/storage"
 import { createNotionClient } from "~services/notion"
@@ -259,8 +258,7 @@ function IndexPopup() {
     console.log('[handleCreateClipboard] Loaded config:', JSON.stringify(config, null, 2))
 
     if (!config.accessToken && !config.apiKey) {
-      alert('Notion連携が必要です。設定画面でNotionアカウントを連携してください。')
-      handleNavigate('settings')
+      alert('Notion連携が必要です。ホーム画面でNotionアカウントを連携してください。')
       throw new Error('Notion連携が必要です')
     }
 
@@ -451,6 +449,31 @@ function IndexPopup() {
     });
   }
 
+  const handleDisconnect = async () => {
+    try {
+      await StorageService.saveNotionConfig({
+        authMethod: 'oauth',
+        apiKey: undefined,
+        accessToken: undefined,
+        workspaceId: undefined,
+        workspaceName: undefined,
+        botId: undefined
+      })
+
+      await StorageService.saveClipboards([])
+      setClipboards([])
+      setSelectedClipboardId(undefined)
+      setSelectedTags([])
+      setTagOptions([])
+      setAvailableDatabases([])
+      setDatabaseError(null)
+      setDatabaseInfoMessage(null)
+    } catch (error) {
+      console.error('Failed to disconnect:', error)
+      alert('連携解除に失敗しました')
+    }
+  }
+
   const handleClipNow = async () => {
     if (clipboards.length === 0) {
       alert('保存先データベースを先に作成してください')
@@ -513,6 +536,7 @@ function IndexPopup() {
             existingTags={tagOptions}
             isYouTubeTab={isYouTubeTab}
             onClipNow={handleClipNow}
+            onDisconnect={handleDisconnect}
           />
         )
       case 'create-clipboard':
@@ -548,10 +572,6 @@ function IndexPopup() {
             language={language}
           />
         )
-      case 'settings':
-        return (
-          <SettingsScreen onBack={() => handleNavigate('home')} language={language} />
-        )
       default:
         return (
           <HomeScreen
@@ -570,6 +590,7 @@ function IndexPopup() {
             existingTags={tagOptions}
             isYouTubeTab={isYouTubeTab}
             onClipNow={handleClipNow}
+            onDisconnect={handleDisconnect}
           />
         )
     }
