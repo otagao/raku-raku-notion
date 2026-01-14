@@ -34,7 +34,6 @@ const translations: Record<Language, {
   createButton: string
   checking: string
   connected: (name: string) => string
-  disconnected: string
   destinationLabel: string
   destinationPlaceholder: string
   tagLabel: string
@@ -67,7 +66,6 @@ const translations: Record<Language, {
     createButton: '保存先を作成',
     checking: '接続状態を確認中...',
     connected: (name) => `接続中: ${name || 'Notionワークスペース'}`,
-    disconnected: '設定からNotionに接続してください',
     destinationLabel: '保存先',
     destinationPlaceholder: '保存先を選択してください',
     tagLabel: 'タグ付与',
@@ -100,7 +98,6 @@ const translations: Record<Language, {
     createButton: 'Create destination',
     checking: 'Checking connection...',
     connected: (name) => `Connected: ${name || 'Notion workspace'}`,
-    disconnected: 'Connect to Notion in Settings',
     destinationLabel: 'Destination',
     destinationPlaceholder: 'Select a destination',
     tagLabel: 'Add tags',
