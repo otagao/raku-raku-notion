@@ -258,21 +258,16 @@ async function addGalleryView(
       cookieCount: cookies.split(';').filter(c => c.trim()).length
     })
 
-    // token_v2が存在しない場合は早期リターン（厳格化）
+    // 警告: token_v2が取得できない場合でもリクエストは試行する
+    // httpOnly Cookieはdocument.cookieでは取得できないが、fetchではブラウザが自動で送信する
     if (!hasTokenCookie) {
-      console.error("[NotionAPIHelper] CRITICAL: token_v2 cookie not found!")
-      return {
-        success: false,
-        error: "認証Cookieが見つかりません。Notion.soにログインしてから再度お試しください。"
-      }
+      console.warn("[NotionAPIHelper] WARNING: token_v2 cookie not visible in document.cookie (may be httpOnly)")
+      console.warn("[NotionAPIHelper] Will attempt request anyway - browser should include httpOnly cookies automatically")
     }
 
     if (cookies.length === 0) {
-      console.error("[NotionAPIHelper] CRITICAL: No cookies found! User may not be logged in.")
-      return {
-        success: false,
-        error: "ブラウザでNotion.soにログインしていないため、ギャラリービューを設定できません。Notion.soを開いてログインしてから再度お試しください。"
-      }
+      console.warn("[NotionAPIHelper] WARNING: No cookies visible in document.cookie")
+      console.warn("[NotionAPIHelper] Will attempt request anyway - httpOnly cookies may still be available")
     }
 
     console.log("[NotionAPIHelper] ====================================")

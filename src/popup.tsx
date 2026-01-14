@@ -28,6 +28,7 @@ function IndexPopup() {
   const [databaseInfoMessage, setDatabaseInfoMessage] = useState<string | null>(null)
   const [language, setLanguage] = useState<Language>('ja')
   const [creationCountdown, setCreationCountdown] = useState(0)
+  const [creationStatus, setCreationStatus] = useState<string>("")
   const [memoDraft, setMemoDraft] = useState<string>("")
 
 
@@ -299,6 +300,13 @@ function IndexPopup() {
           data: { databaseId }
         })
 
+        console.log(`[handleCreateClipboard] Polling attempt ${i + 1}/${MAX_RETRIES}:`, {
+          success: viewsResponse?.success,
+          hasSpaceId: !!viewsResponse?.spaceId,
+          viewCount: viewsResponse?.viewIds?.length || 0,
+          error: viewsResponse?.error
+        })
+
         // ビュー取得に成功 + spaceIdも取得できたらループを抜ける
         // spaceId取得成功は権限反映の確実な指標
         if (viewsResponse &&
@@ -318,21 +326,29 @@ function IndexPopup() {
         }
       }
       setCreationCountdown(0)
+      setCreationStatus("")
 
-      console.log('[handleCreateClipboard] Views response from content script:', viewsResponse)
+      console.log('[handleCreateClipboard] Polling completed. Final response:', viewsResponse)
+
+      // ポーリングが失敗した場合の詳細なエラーログ
+      if (!viewsResponse || !viewsResponse.success) {
+        console.error('[handleCreateClipboard] ❌ Polling failed - viewsResponse is invalid:', viewsResponse)
+        throw new Error(`Database views polling failed: ${viewsResponse?.error || 'Unknown error'}`)
+      }
+
+      if (!viewsResponse.spaceId) {
+        console.error('[handleCreateClipboard] ❌ Polling failed - spaceId not found')
+        throw new Error('Space ID not found in polling response')
+      }
+
+      if (!viewsResponse.viewIds || viewsResponse.viewIds.length === 0) {
+        console.error('[handleCreateClipboard] ❌ Polling failed - no views found')
+        throw new Error('No views found in database')
+      }
 
       // spaceIdを内部APIから取得（workspaceIdの代わりに使用）
-      let spaceIdToUse = config.workspaceId
-      if (viewsResponse.success && viewsResponse.spaceId) {
-        spaceIdToUse = viewsResponse.spaceId
-        console.log('[handleCreateClipboard] Using spaceId from internal API:', spaceIdToUse)
-      } else {
-        console.warn('[handleCreateClipboard] Could not get spaceId from internal API. Falling back to workspaceId:', spaceIdToUse)
-      }
-
-      if (!spaceIdToUse) {
-        throw new Error('Space ID not found. Please re-authenticate with Notion.')
-      }
+      const spaceIdToUse = viewsResponse.spaceId
+      console.log('[handleCreateClipboard] ✓ Using spaceId from internal API:', spaceIdToUse)
 
       // 表示したいプロパティのIDを取得（デコード済みIDを直接使用）
       const visiblePropIds: string[] = []
@@ -563,6 +579,7 @@ function IndexPopup() {
             onCreateClipboard={handleCreateClipboard}
             language={language}
             countdown={creationCountdown}
+            status={creationStatus}
           />
         )
       case 'clipboard-list':
