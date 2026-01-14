@@ -53,7 +53,7 @@ const translations: Record<Language, {
     memoLabel: 'メモ（任意）',
     memoPlaceholder: 'ページについてのメモを入力できます',
     clipButton: 'このページを保存',
-    clipNowButton: '今保存',
+    clipNowButton: '再生時間を\n維持して保存',
     listButton: '保存先一覧',
     createButton: '保存先を作成',
     checking: '接続状態を確認中...',
@@ -77,7 +77,7 @@ const translations: Record<Language, {
     memoLabel: 'Memo (optional)',
     memoPlaceholder: 'Add a note about this page',
     clipButton: 'Save this page',
-    clipNowButton: 'Save now',
+    clipNowButton: 'Save with\nplayback time',
     listButton: 'Destinations',
     createButton: 'Create destination',
     checking: 'Checking connection...',
@@ -558,11 +558,12 @@ const HomeScreen: FC<HomeScreenProps> = ({
                 style={{
                   flex: 1,
                   opacity: !onClipNow ? 0.6 : 1,
-                  cursor: !onClipNow ? 'not-allowed' : 'pointer'
+                  cursor: !onClipNow ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'pre-line'
                 }}
                 title="現在の再生位置で保存"
               >
-                今保存
+                {t.clipNowButton}
               </button>
             </div>
           ) : (
