@@ -3,7 +3,6 @@ import HomeScreen from "~screens/HomeScreen"
 import CreateClipboardScreen from "~screens/CreateClipboardScreen"
 import ClipboardListScreen from "~screens/ClipboardListScreen"
 import SelectClipboardScreen from "~screens/SelectClipboardScreen"
-import { SettingsScreen } from "~screens/SettingsScreen"
 import ClippingProgressScreen from "~screens/ClippingProgressScreen"
 import { StorageService } from "~services/storage"
 import { createNotionClient } from "~services/notion"
@@ -259,8 +258,7 @@ function IndexPopup() {
     console.log('[handleCreateClipboard] Loaded config:', JSON.stringify(config, null, 2))
 
     if (!config.accessToken && !config.apiKey) {
-      alert('Notion連携が必要です。設定画面でNotionアカウントを連携してください。')
-      handleNavigate('settings')
+      alert('Notion連携が必要です。ホーム画面でNotionアカウントを連携してください。')
       throw new Error('Notion連携が必要です')
     }
 
@@ -573,10 +571,6 @@ function IndexPopup() {
             onSelectClipboard={handleSelectClipboard}
             language={language}
           />
-        )
-      case 'settings':
-        return (
-          <SettingsScreen onBack={() => handleNavigate('home')} language={language} />
         )
       default:
         return (

@@ -277,34 +277,6 @@ const HomeScreen: FC<HomeScreenProps> = ({
             </span>
             <TooltipIcon text={t.tooltipUISimplify} style={{ marginLeft: 0 }} />
           </div>
-          <button
-            onClick={onToggleLanguage}
-            style={{
-              background: 'transparent',
-              border: '1px solid #ddd',
-              fontSize: '12px',
-              cursor: 'pointer',
-              padding: '4px 8px',
-              borderRadius: '4px',
-              color: '#666'
-            }}
-            title={language === 'ja' ? '日本語表示中' : 'English display'}
-          >
-            {language === 'ja' ? '日本語' : 'English'}
-          </button>
-          <button
-            onClick={() => onNavigate('settings')}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              fontSize: '20px',
-              cursor: 'pointer',
-              padding: '4px 8px'
-            }}
-            title="設定"
-          >
-            ⚙️
-          </button>
         </div>
       </div>
 
@@ -672,6 +644,19 @@ const HomeScreen: FC<HomeScreenProps> = ({
                 }}
               />
             </div>
+          </div>
+          <div style={{ marginTop: '12px' }}>
+            <button
+              onClick={onToggleLanguage}
+              className="button button-secondary"
+              style={{
+                width: '100%',
+                fontSize: '12px'
+              }}
+              title={language === 'ja' ? '日本語表示中' : 'English display'}
+            >
+              {language === 'ja' ? '日本語' : 'English'}
+            </button>
           </div>
         </div>
       )}
