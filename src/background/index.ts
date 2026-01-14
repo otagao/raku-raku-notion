@@ -112,6 +112,10 @@ async function handleMessage(
         await handleClipPage(message.data, sender, sendResponse)
         break
 
+      case "clip-now-youtube":
+        await handleClipNowYouTube(message.data, sender, sendResponse)
+        break
+
       case "create-database":
         await handleCreateDatabase(message.data, sendResponse)
         break
@@ -405,6 +409,55 @@ async function handleClipPage(
       error: errorMsg
     })
   }
+}
+
+function withYouTubeTime(url: string, seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return url
+  try {
+    const parsed = new URL(url)
+    const isYouTube = parsed.hostname.includes('youtube.com') || parsed.hostname.includes('youtu.be')
+    if (!isYouTube) return url
+    parsed.searchParams.set('t', `${Math.floor(seconds)}`)
+    return parsed.toString()
+  } catch {
+    return url
+  }
+}
+
+async function getYouTubeCurrentTime(tabId: number): Promise<number | null> {
+  try {
+    const response = await chrome.tabs.sendMessage(tabId, { type: 'get-youtube-time' })
+    if (response?.success && typeof response.currentTime === 'number') {
+      return response.currentTime
+    }
+  } catch (error) {
+    console.warn('[Background] Failed to get YouTube time:', error)
+  }
+  return null
+}
+
+async function handleClipNowYouTube(
+  data: { title: string; url: string; databaseId: string; tabId?: number; content?: string; thumbnail?: string; memo?: string; tags?: string[] },
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response?: any) => void
+) {
+  let url = data.url
+
+  if (data.tabId) {
+    const currentTime = await getYouTubeCurrentTime(data.tabId)
+    if (currentTime !== null) {
+      url = withYouTubeTime(url, currentTime)
+    }
+  }
+
+  await handleClipPage(
+    {
+      ...data,
+      url
+    },
+    sender,
+    sendResponse
+  )
 }
 
 /**

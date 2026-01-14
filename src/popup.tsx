@@ -31,8 +31,6 @@ function IndexPopup() {
   const [creationStatus, setCreationStatus] = useState<string>("")
   const [memoDraft, setMemoDraft] = useState<string>("")
 
-
-
   useEffect(() => {
     initializeAndLoadData()
 
@@ -167,8 +165,20 @@ function IndexPopup() {
 
   const loadCurrentTab = async () => {
     const tabInfo = await StorageService.getCurrentTabInfo()
-    const url = tabInfo?.url || ''
-    setIsYouTubeTab(url.includes('youtube.com') || url.includes('youtu.be'))
+    if (!tabInfo?.url) {
+      setIsYouTubeTab(false)
+      return
+    }
+    setIsYouTubeTab(isYouTubeUrl(tabInfo.url))
+  }
+
+  const isYouTubeUrl = (url: string) => {
+    try {
+      const parsed = new URL(url)
+      return parsed.hostname.includes('youtube.com') || parsed.hostname.includes('youtu.be')
+    } catch {
+      return false
+    }
   }
 
   const toggleLanguage = async () => {
@@ -565,6 +575,8 @@ function IndexPopup() {
           <HomeScreen
             onNavigate={handleNavigate}
             onClipPage={handleClipPage}
+            onClipNow={handleClipNow}
+            isYouTubeTab={isYouTubeTab}
             language={language}
             onToggleLanguage={toggleLanguage}
             memo={memoDraft}
