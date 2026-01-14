@@ -6,12 +6,17 @@ export const config: PlasmoCSConfig = {
   matches: ["<all_urls>"]
 }
 
+const HOST_ID = "raku-raku-notion-iframe-host"
 const OVERLAY_ID = "raku-raku-notion-iframe-overlay"
 const WRAPPER_ID = "raku-raku-notion-iframe-wrapper"
 const IFRAME_ID = "raku-raku-notion-iframe"
 const CLOSE_ID = "raku-raku-notion-iframe-close"
 const DRAG_BAR_ID = "raku-raku-notion-iframe-drag"
+const DRAG_SHIELD_ID = "raku-raku-notion-iframe-drag-shield"
 
+let uiHost: HTMLElement | null = null
+let uiShadow: ShadowRoot | null = null
+let dragShield: HTMLElement | null = null
 let dragMoveHandler: ((event: MouseEvent) => void) | null = null
 let dragEndHandler: ((event: MouseEvent) => void) | null = null
 let languageChangeHandler: ((changes: Record<string, chrome.storage.StorageChange>, areaName: string) => void) | null = null
@@ -21,6 +26,16 @@ const CLOSE_LABELS: Record<Language, string> = {
 }
 
 const buildOverlay = () => {
+  const host = document.createElement("div")
+  host.id = HOST_ID
+  host.style.position = "fixed"
+  host.style.inset = "0"
+  host.style.zIndex = "2147483647"
+
+  const shadow = host.attachShadow({ mode: "open" })
+  uiHost = host
+  uiShadow = shadow
+
   const overlay = document.createElement("div")
   overlay.id = OVERLAY_ID
   overlay.style.position = "fixed"
@@ -30,11 +45,12 @@ const buildOverlay = () => {
   overlay.style.alignItems = "center"
   overlay.style.justifyContent = "center"
   overlay.style.zIndex = "2147483647"
+  overlay.style.fontFamily = "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif"
 
   const wrapper = document.createElement("div")
   wrapper.id = WRAPPER_ID
   wrapper.style.position = "relative"
-  wrapper.style.width = "420px"
+  wrapper.style.width = "400px"
   wrapper.style.height = "620px"
   wrapper.style.maxWidth = "92vw"
   wrapper.style.maxHeight = "92vh"
@@ -82,7 +98,12 @@ const buildOverlay = () => {
   iframe.allow = "clipboard-write"
   iframe.src = `${chrome.runtime.getURL("popup.html")}?ui=iframe`
 
-  closeButton.addEventListener("click", () => {
+  closeButton.addEventListener("mousedown", (event) => {
+    event.stopPropagation()
+  })
+
+  closeButton.addEventListener("click", (event) => {
+    event.stopPropagation()
     closeOverlay()
   })
 
@@ -91,20 +112,21 @@ const buildOverlay = () => {
   wrapper.appendChild(dragBar)
   wrapper.appendChild(iframe)
   overlay.appendChild(wrapper)
+  shadow.appendChild(overlay)
 
   attachDragHandlers(dragBar, wrapper)
   updateCloseLabel(closeButton)
   attachLanguageListener(closeButton)
 
-  return overlay
+  return host
 }
 
 const openOverlay = () => {
-  if (document.getElementById(OVERLAY_ID)) return
+  if (document.getElementById(HOST_ID)) return
 
-  const overlay = buildOverlay()
+  const host = buildOverlay()
   const parent = document.body || document.documentElement
-  parent.appendChild(overlay)
+  parent.appendChild(host)
 }
 
 const updateCloseLabel = async (button: HTMLButtonElement) => {
@@ -132,7 +154,19 @@ const attachLanguageListener = (button: HTMLButtonElement) => {
 const attachDragHandlers = (dragBar: HTMLElement, wrapper: HTMLElement) => {
   const dragStart = (event: MouseEvent) => {
     if (event.button !== 0) return
+    if ((event.target as HTMLElement | null)?.closest(`#${CLOSE_ID}`)) return
     event.preventDefault()
+
+    const overlay = overlayFromWrapper(wrapper)
+    const shield = document.createElement("div")
+    shield.id = DRAG_SHIELD_ID
+    shield.style.position = "fixed"
+    shield.style.inset = "0"
+    shield.style.cursor = "move"
+    shield.style.background = "transparent"
+    shield.style.zIndex = "2147483647"
+    overlay?.appendChild(shield)
+    dragShield = shield
 
     const rect = wrapper.getBoundingClientRect()
     wrapper.style.position = "absolute"
@@ -171,6 +205,10 @@ const attachDragHandlers = (dragBar: HTMLElement, wrapper: HTMLElement) => {
         document.removeEventListener("mouseleave", dragEndHandler)
         dragEndHandler = null
       }
+      if (dragShield && dragShield.isConnected) {
+        dragShield.remove()
+      }
+      dragShield = null
     }
 
     window.addEventListener("mousemove", dragMoveHandler)
@@ -187,10 +225,12 @@ const overlayFromWrapper = (wrapper: HTMLElement) => {
 }
 
 const closeOverlay = () => {
-  const overlay = document.getElementById(OVERLAY_ID)
-  if (overlay) {
-    overlay.remove()
+  if (uiHost) {
+    uiHost.remove()
   }
+  uiHost = null
+  uiShadow = null
+  dragShield = null
 
   if (dragMoveHandler) {
     window.removeEventListener("mousemove", dragMoveHandler)
