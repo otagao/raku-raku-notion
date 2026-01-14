@@ -108,7 +108,9 @@ const STORAGE_KEYS = {
   NOTION_CONFIG: 'raku-notion-config',
   UI_SIMPLIFY_CONFIG: 'raku-ui-simplify-config',
   LANGUAGE_CONFIG: 'raku-language-config',
-  NEW_DATA: 'raku-new-data', // 追加
+  SELECTED_CLIPBOARD_ID: 'raku-selected-clipboard-id',
+  TAG_OPTIONS_MAP: 'raku-tag-options-map',
+  NEW_DATA: 'raku-new-data', // 追加例
 }
 ```
 
