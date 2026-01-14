@@ -371,14 +371,22 @@ function IndexPopup() {
       console.log('[handleCreateClipboard] All properties:', allPropertyIds)
       console.log('[handleCreateClipboard] Using space ID:', spaceIdToUse)
 
+      // デフォルトビューIDを取得（通常は最初のビュー）
+      const defaultViewId = viewsResponse.viewIds && viewsResponse.viewIds.length > 0
+        ? viewsResponse.viewIds[0]
+        : undefined
+      console.log('[handleCreateClipboard] Default view ID to delete:', defaultViewId)
+
       // Background Script経由でContent Scriptを使用してギャラリービューを追加
+      // タグ設定を含む全てのプロパティ表示設定が完了してから、デフォルトビューを削除
       const galleryResponse = await chrome.runtime.sendMessage({
         type: 'add-gallery-view-via-content',
         data: {
           databaseId,
           workspaceId: spaceIdToUse,  // 実際はspaceIdとして使用される
           visibleProperties: visiblePropIds,  // デコード済みのIDを直接使用
-          allProperties: allPropertyIds  // デコード済みの全プロパティを使用
+          allProperties: allPropertyIds,  // デコード済みの全プロパティを使用
+          defaultViewId  // デフォルトビューを削除するために渡す
         }
       })
 
@@ -397,7 +405,7 @@ function IndexPopup() {
         console.log('[handleCreateClipboard] Updated database URL with gallery view:', databaseUrl)
       }
 
-      console.log('[handleCreateClipboard] Gallery view added successfully (existing view kept)')
+      console.log('[handleCreateClipboard] Gallery view added successfully and default view removed')
     } catch (error) {
       console.warn('Failed to add gallery view via internal API:', error)
 

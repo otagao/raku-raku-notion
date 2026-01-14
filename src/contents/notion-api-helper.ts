@@ -107,6 +107,7 @@ async function addGalleryViewWithRetry(
   workspaceId: string,
   visibleProperties: string[] = [],
   allProperties: string[] = [],
+  defaultViewId?: string,
   maxRetries: number = 3
 ): Promise<{ success: boolean; galleryViewId?: string; error?: string }> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -116,7 +117,8 @@ async function addGalleryViewWithRetry(
       rawDatabaseId,
       workspaceId,
       visibleProperties,
-      allProperties
+      allProperties,
+      defaultViewId
     )
 
     // 成功した場合はそのまま返す
@@ -146,13 +148,14 @@ async function addGalleryViewWithRetry(
 }
 
 /**
- * ギャラリービューを追加する（既存ビューは削除せず、ギャラリービューをデフォルトに設定）
+ * ギャラリービューを追加し、デフォルトビューを削除する
  */
 async function addGalleryView(
   rawDatabaseId: string,
   workspaceId: string,
   visibleProperties: string[] = [],
-  allProperties: string[] = []
+  allProperties: string[] = [],
+  defaultViewId?: string
 ): Promise<{ success: boolean; galleryViewId?: string; error?: string }> {
   try {
     const databaseId = formatUUID(rawDatabaseId)
@@ -162,6 +165,7 @@ async function addGalleryView(
     console.log("[NotionAPIHelper] Using workspace ID:", workspaceId)
     console.log("[NotionAPIHelper] Visible properties:", visibleProperties)
     console.log("[NotionAPIHelper] All properties:", allProperties)
+    console.log("[NotionAPIHelper] Default view ID to delete:", defaultViewId)
 
     // 現在のユーザーIDを取得（データベースIDを渡して権限情報から取得）
     const currentUserId = await getCurrentUserId(databaseId)
@@ -224,8 +228,28 @@ async function addGalleryView(
       }
     )
 
-    // 既存ビューは削除せず、ギャラリービューを先頭に追加
-    // listBefore コマンドにより、ギャラリービューがデフォルトビューとして扱われる
+    // デフォルトビューの削除（defaultViewIdが指定されている場合のみ）
+    if (defaultViewId) {
+      console.log("[NotionAPIHelper] Removing default view:", defaultViewId)
+      operations.push(
+        // view_idsからデフォルトビューを削除
+        {
+          id: databaseId,
+          table: "block",
+          path: ["view_ids"],
+          command: "listRemove",
+          args: { id: formatUUID(defaultViewId) }
+        },
+        // ビュー自体を削除（alive: false）
+        {
+          id: formatUUID(defaultViewId),
+          table: "collection_view",
+          path: [],
+          command: "update",
+          args: { alive: false }
+        }
+      )
+    }
 
     const transaction = {
       id: generateUUID(),
@@ -446,7 +470,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       request.databaseId,
       request.workspaceId,
       request.visibleProperties || [],
-      request.allProperties || []
+      request.allProperties || [],
+      request.defaultViewId  // デフォルトビューIDを渡す
     ).then(result => {
       console.log("[NotionAPIHelper] add-gallery-view completed:", result)
       sendResponse(result)
