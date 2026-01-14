@@ -27,9 +27,8 @@ function IndexPopup() {
   const [databaseInfoMessage, setDatabaseInfoMessage] = useState<string | null>(null)
   const [language, setLanguage] = useState<Language>('ja')
   const [creationCountdown, setCreationCountdown] = useState(0)
+  const [creationStatus, setCreationStatus] = useState<string>("")
   const [memoDraft, setMemoDraft] = useState<string>("")
-
-
 
   useEffect(() => {
     initializeAndLoadData()
@@ -165,8 +164,20 @@ function IndexPopup() {
 
   const loadCurrentTab = async () => {
     const tabInfo = await StorageService.getCurrentTabInfo()
-    const url = tabInfo?.url || ''
-    setIsYouTubeTab(url.includes('youtube.com') || url.includes('youtu.be'))
+    if (!tabInfo?.url) {
+      setIsYouTubeTab(false)
+      return
+    }
+    setIsYouTubeTab(isYouTubeUrl(tabInfo.url))
+  }
+
+  const isYouTubeUrl = (url: string) => {
+    try {
+      const parsed = new URL(url)
+      return parsed.hostname.includes('youtube.com') || parsed.hostname.includes('youtu.be')
+    } catch {
+      return false
+    }
   }
 
   const toggleLanguage = async () => {
@@ -265,22 +276,31 @@ function IndexPopup() {
     // Notionに保存先データベースを作成
     console.log('[handleCreateClipboard] Creating Notion client with databaseId:', config.databaseId)
     const notionClient = createNotionClient(config)
-    const { id: databaseId, url: databaseUrl, properties, defaultViewId } = await notionClient.createDatabase(clipboardName)
+    let {
+      id: databaseId,
+      url: databaseUrl,
+      properties,  // エンコード済み（公式API用）
+      propertiesDecoded  // デコード済み（内部API用）
+    } = await notionClient.createDatabase(clipboardName)
 
     // Internal APIを使用してギャラリービューを追加（自動実行）
     try {
-      console.log('[handleCreateClipboard] Default view ID from URL:', defaultViewId)
-
-      let viewIdToRemove = defaultViewId
-
       // データベース作成直後は内部APIへの反映に時間がかかるため待機（ポーリング方式）
       console.log('[handleCreateClipboard] Waiting for database permissions to sync (Polling)...')
 
       let viewsResponse: any = null
-      const MAX_RETRIES = 30
+      const MAX_RETRIES = 60  // 30秒 → 60秒に延長
 
       for (let i = 0; i < MAX_RETRIES; i++) {
         setCreationCountdown(MAX_RETRIES - i)
+
+        // 進行状況に応じたステータスメッセージを表示
+        setCreationStatus(
+          i < 10 ? "データベースを同期中..." :
+          i < 30 ? "権限を確認中..." :
+          i < 50 ? "もう少しお待ちください..." :
+          "最終確認中..."
+        )
 
         // Internal APIでビュー一覧取得を試行
         viewsResponse = await chrome.runtime.sendMessage({
@@ -288,63 +308,93 @@ function IndexPopup() {
           data: { databaseId }
         })
 
-        // ビュー取得に成功したらループを抜ける
-        if (viewsResponse && viewsResponse.success && viewsResponse.viewIds && viewsResponse.viewIds.length > 0) {
-          console.log(`[handleCreateClipboard] Database synced successfully after ${i + 1} seconds`)
+        console.log(`[handleCreateClipboard] Polling attempt ${i + 1}/${MAX_RETRIES}:`, {
+          success: viewsResponse?.success,
+          hasSpaceId: !!viewsResponse?.spaceId,
+          viewCount: viewsResponse?.viewIds?.length || 0,
+          error: viewsResponse?.error
+        })
+
+        // ビュー取得に成功 + spaceIdも取得できたらループを抜ける
+        // spaceId取得成功は権限反映の確実な指標
+        if (viewsResponse &&
+            viewsResponse.success &&
+            viewsResponse.spaceId &&  // spaceId取得を必須条件に追加
+            viewsResponse.viewIds &&
+            viewsResponse.viewIds.length > 0) {
+          console.log(`[handleCreateClipboard] Database synced successfully after ${i + 1} attempts`)
           break
         }
 
-        // 失敗した場合は1秒待機して再試行
+        // 失敗した場合は指数バックオフで待機して再試行
         if (i < MAX_RETRIES - 1) {
-          await new Promise(resolve => setTimeout(resolve, 1000))
+          // 指数バックオフ: 初期10秒は500ms、10-30秒は1s、30秒以降は2s
+          const waitTime = i < 10 ? 500 : i < 30 ? 1000 : 2000
+          await new Promise(resolve => setTimeout(resolve, waitTime))
         }
       }
       setCreationCountdown(0)
+      setCreationStatus("")
 
-      console.log('[handleCreateClipboard] Views response from content script:', viewsResponse)
+      console.log('[handleCreateClipboard] Polling completed. Final response:', viewsResponse)
 
-      // URLからビューIDが取得できなかった場合、内部APIで取得を試みる
-      if (!viewIdToRemove) {
-        console.log('[handleCreateClipboard] No view ID in URL. Using view from internal API...')
-        if (viewsResponse.success && viewsResponse.viewIds && viewsResponse.viewIds.length > 0) {
-          viewIdToRemove = viewsResponse.viewIds[0]
-          console.log('[handleCreateClipboard] Using first view as default view:', viewIdToRemove)
-        } else {
-          console.warn('[handleCreateClipboard] Could not find any views via internal API:', viewsResponse.error)
-        }
+      // ポーリングが失敗した場合の詳細なエラーログ
+      if (!viewsResponse || !viewsResponse.success) {
+        console.error('[handleCreateClipboard] ❌ Polling failed - viewsResponse is invalid:', viewsResponse)
+        throw new Error(`Database views polling failed: ${viewsResponse?.error || 'Unknown error'}`)
+      }
+
+      if (!viewsResponse.spaceId) {
+        console.error('[handleCreateClipboard] ❌ Polling failed - spaceId not found')
+        throw new Error('Space ID not found in polling response')
+      }
+
+      if (!viewsResponse.viewIds || viewsResponse.viewIds.length === 0) {
+        console.error('[handleCreateClipboard] ❌ Polling failed - no views found')
+        throw new Error('No views found in database')
       }
 
       // spaceIdを内部APIから取得（workspaceIdの代わりに使用）
-      let spaceIdToUse = config.workspaceId
-      if (viewsResponse.success && viewsResponse.spaceId) {
-        spaceIdToUse = viewsResponse.spaceId
-        console.log('[handleCreateClipboard] Using spaceId from internal API:', spaceIdToUse)
-      } else {
-        console.warn('[handleCreateClipboard] Could not get spaceId from internal API. Falling back to workspaceId:', spaceIdToUse)
-      }
+      const spaceIdToUse = viewsResponse.spaceId
+      console.log('[handleCreateClipboard] ✓ Using spaceId from internal API:', spaceIdToUse)
 
-      if (!spaceIdToUse) {
-        throw new Error('Space ID not found. Please re-authenticate with Notion.')
-      }
-
-      // 表示したいプロパティ（URLとメモ）のIDを取得
+      // 表示したいプロパティのIDを取得（デコード済みIDを直接使用）
       const visiblePropIds: string[] = []
-      if (properties["URL"]) visiblePropIds.push(properties["URL"])
-      if (properties["メモ"]) visiblePropIds.push(properties["メモ"])
-      if (properties["タグ"]) visiblePropIds.push(properties["タグ"])
 
-      console.log('[handleCreateClipboard] Adding gallery view with properties:', visiblePropIds)
-      console.log('[handleCreateClipboard] View to remove:', viewIdToRemove)
+      // タイトルプロパティ（名前）を最優先で追加（必須）
+      if (propertiesDecoded["名前"]) visiblePropIds.push(propertiesDecoded["名前"])
+
+      // その他の表示したいプロパティ
+      if (propertiesDecoded["URL"]) visiblePropIds.push(propertiesDecoded["URL"])
+      if (propertiesDecoded["メモ"]) visiblePropIds.push(propertiesDecoded["メモ"])
+      if (propertiesDecoded["タグ"]) visiblePropIds.push(propertiesDecoded["タグ"])
+
+      // 全プロパティIDを取得（ギャラリービューの可視性制御用）
+      const allPropertyIds: string[] = Object.values(propertiesDecoded)
+
+      console.log('[handleCreateClipboard] Properties object (encoded):', properties)
+      console.log('[handleCreateClipboard] Properties object (decoded):', propertiesDecoded)
+      console.log('[handleCreateClipboard] Properties keys:', Object.keys(propertiesDecoded))
+      console.log('[handleCreateClipboard] Visible properties:', visiblePropIds)
+      console.log('[handleCreateClipboard] All properties:', allPropertyIds)
       console.log('[handleCreateClipboard] Using space ID:', spaceIdToUse)
 
+      // デフォルトビューIDを取得（通常は最初のビュー）
+      const defaultViewId = viewsResponse.viewIds && viewsResponse.viewIds.length > 0
+        ? viewsResponse.viewIds[0]
+        : undefined
+      console.log('[handleCreateClipboard] Default view ID to delete:', defaultViewId)
+
       // Background Script経由でContent Scriptを使用してギャラリービューを追加
+      // タグ設定を含む全てのプロパティ表示設定が完了してから、デフォルトビューを削除
       const galleryResponse = await chrome.runtime.sendMessage({
         type: 'add-gallery-view-via-content',
         data: {
           databaseId,
           workspaceId: spaceIdToUse,  // 実際はspaceIdとして使用される
-          visibleProperties: visiblePropIds,
-          existingViewId: viewIdToRemove
+          visibleProperties: visiblePropIds,  // デコード済みのIDを直接使用
+          allProperties: allPropertyIds,  // デコード済みの全プロパティを使用
+          defaultViewId  // デフォルトビューを削除するために渡す
         }
       })
 
@@ -354,9 +404,34 @@ function IndexPopup() {
         throw new Error(galleryResponse.error || 'Failed to add gallery view')
       }
 
-      console.log('[handleCreateClipboard] Gallery view added and default view removed successfully')
+      // ギャラリービュー作成成功時、URLにビューIDを付加
+      if (galleryResponse.galleryViewId) {
+        const url = new URL(databaseUrl)
+        // NotionのURL形式に合わせてハイフンを除去
+        url.searchParams.set('v', galleryResponse.galleryViewId.replace(/-/g, ''))
+        databaseUrl = url.toString()
+        console.log('[handleCreateClipboard] Updated database URL with gallery view:', databaseUrl)
+      }
+
+      console.log('[handleCreateClipboard] Gallery view added successfully and default view removed')
     } catch (error) {
       console.warn('Failed to add gallery view via internal API:', error)
+
+      // エラー種別に応じた詳細なメッセージを表示
+      const errorMessage = error instanceof Error ? error.message : String(error)
+
+      if (errorMessage.includes('permission') || errorMessage.includes('edit access')) {
+        console.warn('[handleCreateClipboard] Permission error: 権限の反映に時間がかかっています')
+        // 内部APIは失敗しても保存先データベース作成は成功とする（警告のみ）
+        // ユーザーには「データベースは作成されましたが、ビュー設定に失敗しました」と表示される
+      } else if (errorMessage.includes('timeout')) {
+        console.warn('[handleCreateClipboard] Timeout error: タイムアウトが発生しました')
+      } else if (errorMessage.includes('Cookie') || errorMessage.includes('token_v2')) {
+        console.warn('[handleCreateClipboard] Cookie error: 認証Cookieが見つかりません')
+      } else {
+        console.warn('[handleCreateClipboard] Unknown error:', errorMessage)
+      }
+
       // 内部APIは失敗しても保存先データベース作成は成功とする（警告のみ）
     }
 
@@ -523,6 +598,8 @@ function IndexPopup() {
           <HomeScreen
             onNavigate={handleNavigate}
             onClipPage={handleClipPage}
+            onClipNow={handleClipNow}
+            isYouTubeTab={isYouTubeTab}
             language={language}
             onToggleLanguage={toggleLanguage}
             memo={memoDraft}
@@ -546,6 +623,7 @@ function IndexPopup() {
             onCreateClipboard={handleCreateClipboard}
             language={language}
             countdown={creationCountdown}
+            status={creationStatus}
           />
         )
       case 'clipboard-list':
