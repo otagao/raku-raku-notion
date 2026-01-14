@@ -461,7 +461,13 @@ export class NotionService {
    * 新しいフルページデータベースを作成する（クリップボード用）
    * 共有コンテナページの下にデータベースを配置
    */
-  async createDatabase(name: string): Promise<{ id: string; url: string; properties: Record<string, string>; defaultViewId?: string }> {
+  async createDatabase(name: string): Promise<{
+    id: string
+    url: string
+    properties: Record<string, string>  // エンコード済み（公式API用）
+    propertiesDecoded: Record<string, string>  // デコード済み（内部API用）
+    defaultViewId?: string
+  }> {
     try {
       console.log('[NotionService.createDatabase] Creating database:', name)
 
@@ -526,15 +532,22 @@ export class NotionService {
       console.log('[NotionService.createDatabase] Database created successfully:', result)
       console.log('[NotionService.createDatabase] Database URL:', result.url)
 
-      // プロパティIDを抽出
+      // プロパティIDを両形式で抽出（エンコード済み + デコード済み）
       const propertyIds: Record<string, string> = {}
+      const propertyIdsDecoded: Record<string, string> = {}
+
       if (result.properties) {
         Object.keys(result.properties).forEach(key => {
           if (result.properties[key] && result.properties[key].id) {
-            propertyIds[key] = result.properties[key].id
+            const encodedId = result.properties[key].id
+            propertyIds[key] = encodedId  // エンコード済み（公式API用）
+            propertyIdsDecoded[key] = decodeURIComponent(encodedId)  // デコード済み（内部API用）
           }
         })
       }
+
+      console.log('[NotionService.createDatabase] Property IDs (encoded):', propertyIds)
+      console.log('[NotionService.createDatabase] Property IDs (decoded):', propertyIdsDecoded)
 
       // URLからデフォルトビューIDを抽出
       const defaultViewId = extractViewIdFromUrl(result.url)
@@ -549,6 +562,7 @@ export class NotionService {
         id: result.id,
         url: result.url,
         properties: propertyIds,
+        propertiesDecoded: propertyIdsDecoded,
         defaultViewId
       }
     } catch (error) {
