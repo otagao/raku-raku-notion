@@ -49,7 +49,7 @@ const CreateClipboardScreen: FC<CreateClipboardScreenProps> = ({
 
     try {
       await onCreateClipboard(clipboardName)
-      onNavigate('clipboard-list')
+      onNavigate('home')
     } catch (err) {
       setError(err instanceof Error ? err.message : '保存先データベースの作成に失敗しました')
       setIsCreating(false)
