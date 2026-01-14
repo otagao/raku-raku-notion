@@ -179,7 +179,50 @@ async function openIframeUiForActiveTab(tabId?: number) {
     throw new Error("No active tab available for iframe UI")
   }
 
-  await chrome.tabs.sendMessage(targetTabId, { type: "open-iframe-ui" })
+  const tab = await chrome.tabs.get(targetTabId)
+  const url = tab.url || ""
+  const isRestrictedUrl =
+    url.startsWith("chrome://") ||
+    url.startsWith("edge://") ||
+    url.startsWith("about:") ||
+    url.startsWith("chrome-extension://") ||
+    url.startsWith("https://chrome.google.com/webstore") ||
+    url.startsWith("https://chromewebstore.google.com/")
+
+  if (isRestrictedUrl) {
+    await openActionPopup(targetTabId)
+    return
+  }
+
+  try {
+    await chrome.tabs.sendMessage(targetTabId, { type: "open-iframe-ui" })
+  } catch (error) {
+    console.warn("[Background] Failed to open iframe UI in tab, falling back:", error)
+    await openActionPopup(targetTabId)
+  }
+}
+
+async function openActionPopup(tabId?: number) {
+  const fallbackPopup = "popup.html"
+  let previousPopup = ""
+  try {
+    previousPopup = await chrome.action.getPopup({ tabId })
+  } catch {
+    previousPopup = ""
+  }
+
+  try {
+    await chrome.action.setPopup({ popup: fallbackPopup, tabId })
+    await chrome.action.openPopup()
+  } catch (error) {
+    console.error("[Background] Failed to open action popup fallback:", error)
+  } finally {
+    try {
+      await chrome.action.setPopup({ popup: previousPopup || "", tabId })
+    } catch {
+      // ignore restore errors
+    }
+  }
 }
 
 async function handleCloseIframeUi(sendResponse: (response?: any) => void) {
