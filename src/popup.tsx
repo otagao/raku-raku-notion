@@ -451,6 +451,31 @@ function IndexPopup() {
     });
   }
 
+  const handleDisconnect = async () => {
+    try {
+      await StorageService.saveNotionConfig({
+        authMethod: 'oauth',
+        apiKey: undefined,
+        accessToken: undefined,
+        workspaceId: undefined,
+        workspaceName: undefined,
+        botId: undefined
+      })
+
+      await StorageService.saveClipboards([])
+      setClipboards([])
+      setSelectedClipboardId(undefined)
+      setSelectedTags([])
+      setTagOptions([])
+      setAvailableDatabases([])
+      setDatabaseError(null)
+      setDatabaseInfoMessage(null)
+    } catch (error) {
+      console.error('Failed to disconnect:', error)
+      alert('連携解除に失敗しました')
+    }
+  }
+
   const handleClipNow = async () => {
     if (clipboards.length === 0) {
       alert('保存先データベースを先に作成してください')
@@ -513,6 +538,7 @@ function IndexPopup() {
             existingTags={tagOptions}
             isYouTubeTab={isYouTubeTab}
             onClipNow={handleClipNow}
+            onDisconnect={handleDisconnect}
           />
         )
       case 'create-clipboard':
@@ -570,6 +596,7 @@ function IndexPopup() {
             existingTags={tagOptions}
             isYouTubeTab={isYouTubeTab}
             onClipNow={handleClipNow}
+            onDisconnect={handleDisconnect}
           />
         )
     }
