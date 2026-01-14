@@ -1,6 +1,7 @@
 import React, { type FC } from "react"
 import type { Clipboard, NotionDatabaseSummary, Language } from "~types"
 import { TooltipIcon } from "~components/TooltipIcon"
+import { requestUiClose } from "~utils/ui-close"
 
 interface ClipboardListScreenProps {
   clipboards: Clipboard[]
@@ -108,7 +109,7 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
     // Notionデータベースを新しいタブで開く
     if (clipboard.notionDatabaseUrl) {
       chrome.tabs.create({ url: clipboard.notionDatabaseUrl })
-      window.close()
+      requestUiClose()
     }
   }
 

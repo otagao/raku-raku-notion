@@ -56,7 +56,8 @@
         "resources": [
           "oauth-callback.html",
           "oauth-callback.js",
-          "assets/tutorial.html"
+          "assets/tutorial.html",
+          "popup.html"
         ],
         "matches": [
           "<all_urls>"
