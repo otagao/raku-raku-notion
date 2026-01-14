@@ -15,7 +15,6 @@ const translations: Record<Language, {
   checking: string
   connected: (name?: string) => string
   disconnected: string
-  disconnect: string
   uiTitle: string
   uiDesc: string
   uiDisable: string
@@ -27,10 +26,8 @@ const translations: Record<Language, {
   successOAuthComplete: string
   successOAuthOpened: string
   successSaved: string
-  successDisconnected: string
   errorOAuth: string
   errorSave: string
-  errorDisconnect: string
   errorLoad: string
   errorMissingApiKey: string
   errorConnectFailed: string
@@ -43,7 +40,6 @@ const translations: Record<Language, {
     checking: '接続状態を確認中...',
     connected: (name) => `接続中: ${name || 'Notionワークスペース'}`,
     disconnected: '未接続',
-    disconnect: '連携解除',
     uiTitle: 'Notion UI簡略化',
     uiDesc: 'Notionのサイドバーやツールバーの一部を非表示にします',
     uiDisable: '無効',
@@ -55,10 +51,8 @@ const translations: Record<Language, {
     successOAuthComplete: 'Notion認証が完了しました！',
     successOAuthOpened: 'Notion認証画面を開きました。認証を完了してください。',
     successSaved: '設定を保存しました',
-    successDisconnected: 'Notion連携を解除しました',
     errorOAuth: 'OAuth認証に失敗しました',
     errorSave: '設定の保存に失敗しました',
-    errorDisconnect: '連携解除に失敗しました',
     errorLoad: '設定の読み込みに失敗しました',
     errorMissingApiKey: 'APIキーを入力してください',
     errorConnectFailed: 'Notion APIへの接続に失敗しました。APIキーを確認してください。',
@@ -71,7 +65,6 @@ const translations: Record<Language, {
     checking: 'Checking connection...',
     connected: (name) => `Connected: ${name || 'Notion workspace'}`,
     disconnected: 'Disconnected',
-    disconnect: 'Disconnect',
     uiTitle: 'Notion UI simplify',
     uiDesc: 'Hide parts of the Notion sidebar and toolbar.',
     uiDisable: 'Off',
@@ -83,10 +76,8 @@ const translations: Record<Language, {
     successOAuthComplete: 'Notion authentication completed!',
     successOAuthOpened: 'Opened Notion auth window. Please finish authentication.',
     successSaved: 'Settings saved',
-    successDisconnected: 'Disconnected from Notion',
     errorOAuth: 'OAuth authentication failed',
     errorSave: 'Failed to save settings',
-    errorDisconnect: 'Failed to disconnect',
     errorLoad: 'Failed to load settings',
     errorMissingApiKey: 'Please enter your API key',
     errorConnectFailed: 'Failed to connect to Notion API. Please check your API key.',
@@ -223,31 +214,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, language
 
 
 
-  const handleDisconnect = async () => {
-    try {
-      // Notion連携設定をリセット
-      await StorageService.saveNotionConfig({
-        authMethod: 'oauth',
-        apiKey: undefined,
-        accessToken: undefined,
-        workspaceId: undefined,
-        workspaceName: undefined,
-        botId: undefined
-      })
-
-      // 保存先データベース一覧を全削除
-      await StorageService.saveClipboards([])
-
-      setIsConnected(false)
-      setWorkspaceName('')
-      setSuccessMessage(language === 'ja'
-        ? 'Notion連携を解除しました（保存先データベース一覧もリセットされました）'
-        : t.successDisconnected)
-    } catch (err) {
-      setError(t.errorDisconnect)
-    }
-  }
-
   const handleUISimplifyToggle = async (enabled: boolean) => {
     try {
       setUiSimplifyEnabled(enabled)
@@ -300,8 +266,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, language
         border: `1px solid ${isConnected ? '#b3d9e8' : '#ddd'}`,
         minHeight: '44px',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between'
+        alignItems: 'center'
       }}>
         <div>
           {isCheckingConnection ? (
@@ -314,21 +279,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, language
             <span style={{ color: '#666' }}>{t.disconnected}</span>
           )}
         </div>
-        {isConnected && !isCheckingConnection && (
-          <button
-            onClick={handleDisconnect}
-            style={{
-              fontSize: '12px',
-              padding: '4px 8px',
-              background: '#fff',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            {t.disconnect}
-          </button>
-        )}
       </div>
 
       <div style={{ marginBottom: '32px', paddingTop: '16px', borderTop: '1px solid #eee' }}>

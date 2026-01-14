@@ -7,6 +7,7 @@ import { TooltipIcon } from "~components/TooltipIcon"
 interface HomeScreenProps {
   onNavigate: (screen: string) => void
   onClipPage?: () => void
+  onDisconnect?: () => void
   language: Language
   onToggleLanguage: () => void
   memo: string
@@ -27,6 +28,7 @@ const translations: Record<Language, {
   memoLabel: string
   memoPlaceholder: string
   clipButton: string
+  disconnect: string
   listButton: string
   createButton: string
   checking: string
@@ -50,6 +52,7 @@ const translations: Record<Language, {
     memoLabel: 'メモ（任意）',
     memoPlaceholder: 'ページについてのメモを入力できます',
     clipButton: 'このページを保存',
+    disconnect: '連携解除',
     listButton: '保存先一覧',
     createButton: '保存先を作成',
     checking: '接続状態を確認中...',
@@ -73,6 +76,7 @@ const translations: Record<Language, {
     memoLabel: 'Memo (optional)',
     memoPlaceholder: 'Add a note about this page',
     clipButton: 'Save this page',
+    disconnect: 'Disconnect',
     listButton: 'Destinations',
     createButton: 'Create destination',
     checking: 'Checking connection...',
@@ -96,6 +100,7 @@ const translations: Record<Language, {
 const HomeScreen: FC<HomeScreenProps> = ({
   onNavigate,
   onClipPage,
+  onDisconnect,
   language,
   onToggleLanguage,
   memo,
@@ -277,14 +282,32 @@ const HomeScreen: FC<HomeScreenProps> = ({
         border: `1px solid ${isConnected ? '#b3d9e8' : '#ddd'}`,
         minHeight: '44px',
         display: 'flex',
-        alignItems: 'center'
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '12px'
       }}>
         {isCheckingConnection ? (
           <span style={{ color: '#666' }}>{t.checking}</span>
         ) : isConnected ? (
           <span>{t.connected(workspaceName)}</span>
         ) : (
-          <span style={{ color: '#666' }}>未接続</span>
+          <span style={{ color: '#666' }}>{t.disconnected}</span>
+        )}
+        {isConnected && !isCheckingConnection && onDisconnect && (
+          <button
+            onClick={onDisconnect}
+            style={{
+              fontSize: '12px',
+              padding: '4px 8px',
+              background: '#fff',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {t.disconnect}
+          </button>
         )}
       </div>
 
