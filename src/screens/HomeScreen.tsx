@@ -46,6 +46,8 @@ const translations: Record<Language, {
   oauthButtonIdle: string
   oauthButtonLoading: string
   successSaved: string
+  uiSimplifyLabel: string
+  tooltipUISimplify: string
 }> = {
   ja: {
     saving: '',
@@ -69,7 +71,9 @@ const translations: Record<Language, {
     tooltipCreateButton: 'Notion上に新しい保存先を作成します',
     oauthButtonIdle: 'Notionで認証して接続',
     oauthButtonLoading: '処理中...',
-    successSaved: '設定を保存しました'
+    successSaved: '設定を保存しました',
+    uiSimplifyLabel: 'Notion UI簡略化',
+    tooltipUISimplify: 'Notion.so上でサイドバーやツールバーを非表示にし、シンプルな表示にします'
   },
   en: {
     saving: '',
@@ -93,7 +97,9 @@ const translations: Record<Language, {
     tooltipCreateButton: 'Create a new destination database in Notion',
     oauthButtonIdle: 'Connect with Notion',
     oauthButtonLoading: 'Processing...',
-    successSaved: 'Settings saved'
+    successSaved: 'Settings saved',
+    uiSimplifyLabel: 'Notion UI simplify',
+    tooltipUISimplify: 'Hide sidebar and toolbar on Notion.so for a cleaner display'
   }
 }
 
@@ -121,6 +127,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
   const [isCheckingConnection, setIsCheckingConnection] = useState<boolean>(true)
   const [pendingTag, setPendingTag] = useState<string>('') // 未選択スタート
   const [newTagName, setNewTagName] = useState<string>('') // 新規タグ名
+  const [uiSimplifyEnabled, setUiSimplifyEnabled] = useState<boolean | null>(null)
 
   // 認証UI用のステート
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(false)
@@ -139,6 +146,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
 
   useEffect(() => {
     checkConnection()
+    loadUISimplify()
 
     // ストレージ変更を監視して、接続状態が変わったら再チェック
     const handleStorageChange = async (changes: { [key: string]: chrome.storage.StorageChange }) => {
@@ -165,6 +173,16 @@ const HomeScreen: FC<HomeScreenProps> = ({
       chrome.storage.onChanged.removeListener(handleStorageChange)
     }
   }, [t])
+
+  const loadUISimplify = async () => {
+    const config = await StorageService.getUISimplifyConfig()
+    setUiSimplifyEnabled(config.enabled)
+  }
+
+  const handleUISimplifyToggle = async (enabled: boolean) => {
+    setUiSimplifyEnabled(enabled)
+    await StorageService.saveUISimplifyConfig({ enabled })
+  }
 
   const checkConnection = async () => {
     setIsCheckingConnection(true)
@@ -242,6 +260,23 @@ const HomeScreen: FC<HomeScreenProps> = ({
       <div className="header" style={{ position: 'relative', marginBottom: '8px', paddingBottom: '8px' }}>
         <h1 style={{ margin: 0 }}>Raku Raku Notion</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <label className="toggle-switch" style={{ cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={!!uiSimplifyEnabled}
+                onChange={(e) => handleUISimplifyToggle(e.target.checked)}
+                disabled={uiSimplifyEnabled === null}
+              />
+              <span className="toggle-track" aria-hidden="true">
+                <span className="toggle-thumb" />
+              </span>
+            </label>
+            <span style={{ fontSize: '12px', color: '#666', whiteSpace: 'nowrap' }}>
+              {t.uiSimplifyLabel}
+            </span>
+            <TooltipIcon text={t.tooltipUISimplify} style={{ marginLeft: 0 }} />
+          </div>
           <button
             onClick={onToggleLanguage}
             style={{
