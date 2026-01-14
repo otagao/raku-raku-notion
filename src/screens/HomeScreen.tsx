@@ -653,9 +653,9 @@ const HomeScreen: FC<HomeScreenProps> = ({
                 width: '100%',
                 fontSize: '12px'
               }}
-              title={language === 'ja' ? '日本語表示中' : 'English display'}
+              title={language === 'ja' ? 'English display' : '日本語表示'}
             >
-              {language === 'ja' ? '日本語' : 'English'}
+              {language === 'ja' ? 'English' : '日本語'}
             </button>
           </div>
         </div>
