@@ -127,6 +127,10 @@ chrome.storage.local.clear()
 
 ISC License
 
+Copyright (c) 2024-2025 Team Bookmark (True)
+
+詳細は [LICENSE](LICENSE) ファイルを参照してください。
+
 ## 🔧 トラブルシューティング
 
 ### OAuth認証ボタンが押せない（グレーアウトしている）
