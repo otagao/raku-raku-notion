@@ -7,13 +7,15 @@ interface CreateClipboardScreenProps {
   onCreateClipboard: (clipboardName: string) => void
   language: Language
   countdown: number
+  status?: string
 }
 
 const CreateClipboardScreen: FC<CreateClipboardScreenProps> = ({
   onNavigate,
   onCreateClipboard,
   language,
-  countdown
+  countdown,
+  status
 }) => {
   const [clipboardName, setClipboardName] = useState("")
   const [isCreating, setIsCreating] = useState(false)
@@ -104,6 +106,11 @@ const CreateClipboardScreen: FC<CreateClipboardScreenProps> = ({
             <p style={{ color: '#d9534f', fontSize: '12px', marginTop: '10px', textAlign: 'center', fontWeight: 'bold' }}>
               完了するまで、この画面を閉じたり別のタブに移動したりしないでください。
             </p>
+            {status && (
+              <p style={{ color: '#0066cc', fontSize: '12px', marginTop: '5px', textAlign: 'center', fontWeight: 'bold' }}>
+                {status}
+              </p>
+            )}
             {countdown > 0 && (
               <p style={{ color: '#666', fontSize: '12px', marginTop: '5px', textAlign: 'center' }}>
                 {language === 'ja'
