@@ -165,9 +165,9 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
         <div style={{
           marginBottom: '8px',
           padding: '12px',
-          backgroundColor: '#e3f2fd',
+          backgroundColor: '#ffe3e3',
           borderRadius: '4px',
-          color: '#1976d2',
+          color: '#b45c5c',
           fontSize: '13px'
         }}>
           {databaseInfoMessage}
