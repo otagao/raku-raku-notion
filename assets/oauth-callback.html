@@ -3,71 +3,222 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OAuth認証完了 - Raku Raku Notion</title>
+    <title>OAuth認証完了 - Raku Raku Notion</title>
   <style>
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      background-color: #000;
+      color: white;
+      overflow: hidden;
       display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    
+    /* Star Rail Style Overlay */
+    .raku-overlay {
+      display: none; /* Initially hidden */
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 2147483647;
+      background-color: rgba(0, 0, 0, 0.85);
+      justify-content: center;
+      align-items: center;
+      backdrop-filter: blur(8px);
+    }
+    
+    .raku-modal {
+      position: relative;
+      width: 900px;
+      max-width: 90%;
+      min-height: 500px;
+      background: radial-gradient(circle at center, #1a1a2e 0%, #000000 100%);
+      border-top: 1px solid rgba(255, 255, 255, 0.2);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
+      color: white;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .raku-header {
+      padding: 30px 0 10px 0;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .raku-icon {
+      font-size: 30px;
+      margin-bottom: 5px;
+      filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.5));
+    }
+
+    .raku-title {
+      font-size: 24px;
+      margin: 5px 0 0 0;
+      color: #fff;
+      font-weight: 500;
+      letter-spacing: 2px;
+    }
+
+    .raku-dec-line {
+      width: 200px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+      margin-top: 10px;
+    }
+
+    .raku-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 20px 60px;
+      text-align: center;
+    }
+
+    .raku-img-container {
+      position: relative;
+      width: 100%;
+      max-width: 500px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 30px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .raku-corner {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-color: rgba(255,255,255,0.5);
+      border-style: solid;
+    }
+    .tl { top: 0; left: 0; border-width: 1px 0 0 1px; }
+    .tr { top: 0; right: 0; border-width: 1px 1px 0 0; }
+    .bl { bottom: 0; left: 0; border-width: 0 0 1px 1px; }
+    .br { bottom: 0; right: 0; border-width: 0 1px 1px 0; }
+
+    .raku-img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      filter: drop-shadow(0 0 20px rgba(0, 255, 255, 0.2));
+    }
+
+    .raku-text {
+      font-size: 16px;
+      color: #d0d0d0;
+      font-weight: 500;
+      line-height: 1.6;
+    }
+
+    .raku-footer {
+      padding: 0 0 40px 0;
+      display: flex;
+      justify-content: center;
+    }
+
+    .raku-btn {
+      background: #ffffff;
+      color: #000000;
+      border: none;
+      padding: 12px 100px;
+      font-size: 16px;
+      font-weight: bold;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+      text-decoration: none;
+      display: inline-block;
+    }
+    .raku-btn:hover {
+      transform: scale(1.02);
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+    }
+
+    /* Original Spinner/Error Styles (Hidden or repurposed) */
+    .spinner-container {
+      display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-height: 100vh;
-      margin: 0;
-      background-color: #f7f6f3;
-    }
-    .container {
-      text-align: center;
-      padding: 40px;
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      max-width: 400px;
     }
     .spinner {
       width: 48px;
       height: 48px;
-      border: 4px solid #f3f3f3;
-      border-top: 4px solid #0078d4;
+      border: 4px solid #333;
+      border-top: 4px solid #00ffff;
       border-radius: 50%;
       animation: spin 1s linear infinite;
-      margin: 0 auto 20px;
+      margin-bottom: 20px;
     }
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
-    .success {
-      color: #0a0;
-      font-size: 48px;
-      margin-bottom: 16px;
-    }
-    .error {
-      color: #c00;
-      font-size: 48px;
-      margin-bottom: 16px;
-    }
-    h1 {
-      font-size: 20px;
-      margin-bottom: 12px;
-      color: #333;
-    }
-    p {
-      color: #666;
-      margin-bottom: 0;
+    .error-container {
+      text-align: center;
+      color: #ff4d4f;
+      display: none;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="spinner" id="spinner"></div>
-    <div id="success" style="display: none;">
-      <div class="success">✓</div>
-      <h1>認証が完了しました</h1>
-      <p>このページは自動的に閉じられます</p>
-    </div>
-    <div id="error" style="display: none;">
-      <div class="error">✗</div>
-      <h1>認証に失敗しました</h1>
-      <p id="error-message"></p>
+  
+  <!-- Loading Spinner -->
+  <div class="spinner-container" id="spinner-view">
+    <div class="spinner"></div>
+    <div style="color: #ccc;">認証処理中...</div>
+  </div>
+
+  <!-- Error View -->
+  <div class="error-container" id="error-view">
+    <h1 style="font-size: 24px; margin-bottom: 10px;">認証エラー</h1>
+    <p id="error-message"></p>
+  </div>
+
+  <!-- Success Overlay -->
+  <div class="raku-overlay" id="success-overlay">
+    <div class="raku-modal">
+      <div class="raku-header">
+        <div class="raku-icon">🔰</div>
+        <h2 class="raku-title">認証が完了しました</h2>
+        <div class="raku-dec-line"></div>
+      </div>
+      
+      <div class="raku-content">
+        <div class="raku-img-container">
+          <div class="raku-corner tl"></div>
+          <div class="raku-corner tr"></div>
+          <div class="raku-corner bl"></div>
+          <div class="raku-corner br"></div>
+          <img src="guide-icons.png" class="raku-img" alt="Guide">
+        </div>
+        
+        <div class="raku-text">
+          <div>拡張機能のボタンをもう一度押し、<br>保存先を作成に進んでください。</div>
+        </div>
+      </div>
+
+      <div class="raku-footer">
+        <button class="raku-btn" id="close-btn">閉じる</button>
+      </div>
     </div>
   </div>
 
