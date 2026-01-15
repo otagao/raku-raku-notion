@@ -4,55 +4,53 @@ This document lists the licenses of third-party dependencies used in this projec
 
 ## Direct Dependencies
 
-### react (18.3.1)
-- License: MIT
-- Repository: https://github.com/facebook/react
-- Copyright (c) Meta Platforms, Inc. and affiliates.
-
 ### react-dom (18.3.1)
 - License: MIT
 - Repository: https://github.com/facebook/react
-- Copyright (c) Meta Platforms, Inc. and affiliates.
 
-### plasmo (0.90.5)
+### react (18.3.1)
 - License: MIT
-- Repository: https://github.com/ACloudGuru-Resources/plasmo
-- Copyright (c) Plasmo Corp.
-
-### typescript (5.9.3)
-- License: Apache-2.0
-- Repository: https://github.com/microsoft/TypeScript
-- Copyright (c) Microsoft Corporation.
+- Repository: https://github.com/facebook/react
 
 ## Development Dependencies
 
 ### @types/chrome (0.1.31)
 - License: MIT
-- Repository: https://github.com/ACloudGuru-Resources/DefinitelyTyped
+- Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
 
 ### @types/node (24.10.1)
 - License: MIT
-- Repository: https://github.com/ACloudGuru-Resources/DefinitelyTyped
-
-### @types/react (19.2.6)
-- License: MIT
-- Repository: https://github.com/ACloudGuru-Resources/DefinitelyTyped
+- Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
 
 ### @types/react-dom (19.2.3)
 - License: MIT
-- Repository: https://github.com/ACloudGuru-Resources/DefinitelyTyped
+- Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+
+### @types/react (19.2.6)
+- License: MIT
+- Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+
+### plasmo (0.90.5)
+- License: MIT
+- Repository: https://github.com/PlasmoHQ/plasmo
+- Copyright (c) Plasmo Corp.
+
+### typescript (5.9.3)
+- License: Apache-2.0
+- Repository: https://github.com/microsoft/TypeScript
+- Copyright (c) Microsoft Corp.
 
 ## Workers Dependencies
 
-### @cloudflare/workers-types (4.x)
+### @cloudflare/workers-types (4.20251205.0)
 - License: MIT OR Apache-2.0
-- Repository: https://github.com/cloudflare/workers-types
-- Copyright (c) Cloudflare, Inc.
+- Repository: https://github.com/cloudflare/workerd
+- Copyright (c) Cloudflare Workers DevProd Team
 
-### wrangler (3.x)
+### wrangler (3.114.15)
 - License: MIT OR Apache-2.0
 - Repository: https://github.com/cloudflare/workers-sdk
-- Copyright (c) Cloudflare, Inc.
+- Copyright (c) wrangler@cloudflare.com
 
 ---
 
@@ -98,4 +96,4 @@ limitations under the License.
 
 ---
 
-*This file was last updated: 2025-01*
+*This file was last updated: 2026-01*
