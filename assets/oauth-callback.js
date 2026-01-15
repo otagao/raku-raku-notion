@@ -3,7 +3,7 @@
  * 拡張機能のoauth-callback.htmlで実行されるスクリプト
  */
 
-(async function() {
+(async function () {
   try {
     console.log('[OAuth Callback] Starting...')
 
@@ -81,18 +81,22 @@
 
     if (response?.success) {
       // 成功表示
-      const spinner = document.getElementById('spinner')
-      const success = document.getElementById('success')
+      const spinnerView = document.getElementById('spinner-view')
+      const successOverlay = document.getElementById('success-overlay')
+      const closeBtn = document.getElementById('close-btn')
 
-      if (spinner) spinner.style.display = 'none'
-      if (success) success.style.display = 'block'
+      if (spinnerView) spinnerView.style.display = 'none'
+      if (successOverlay) successOverlay.style.display = 'flex'
 
-      console.log('[OAuth Callback] Success! Closing in 2 seconds...')
+      console.log('[OAuth Callback] Success! Waiting for user to close...')
 
-      // 2秒後にタブを閉じる
-      setTimeout(() => {
-        window.close()
-      }, 2000)
+      // 閉じるボタンのイベントリスナー
+      if (closeBtn) {
+        closeBtn.onclick = () => {
+          window.close();
+        };
+      }
+
     } else {
       throw new Error(response?.error || '認証の完了に失敗しました')
     }
@@ -100,12 +104,12 @@
     console.error('[OAuth Callback] Error:', err)
 
     // エラー表示
-    const spinner = document.getElementById('spinner')
-    const errorDiv = document.getElementById('error')
+    const spinnerView = document.getElementById('spinner-view')
+    const errorView = document.getElementById('error-view')
     const errorMessage = document.getElementById('error-message')
 
-    if (spinner) spinner.style.display = 'none'
-    if (errorDiv) errorDiv.style.display = 'block'
+    if (spinnerView) spinnerView.style.display = 'none'
+    if (errorView) errorView.style.display = 'block'
     if (errorMessage) {
       errorMessage.textContent = err instanceof Error ? err.message : '不明なエラー'
     }
