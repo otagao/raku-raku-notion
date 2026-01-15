@@ -10,10 +10,10 @@ raku-raku-notion/
 │   ├── popup.tsx              # メインエントリーポイント
 │   ├── screens/               # 画面コンポーネント
 │   │   ├── HomeScreen.tsx
+│   │   ├── LoginScreen.tsx
 │   │   ├── CreateClipboardScreen.tsx
 │   │   ├── ClipboardListScreen.tsx
 │   │   ├── SelectClipboardScreen.tsx
-│   │   ├── SettingsScreen.tsx
 │   │   └── ClippingProgressScreen.tsx
 │   ├── contents/              # Content Scripts
 │   │   ├── extract-content.ts # ページコンテンツ抽出
@@ -67,18 +67,17 @@ raku-raku-notion/
 
 各画面は独立したReactコンポーネントとして実装されています：
 
-- **HomeScreen**: エントリーポイント、クリップボタンとメモ入力
+- **LoginScreen**: ログイン画面（未認証時に表示）、OAuth/手動トークン認証
+- **HomeScreen**: メイン画面（認証済み時）、クリップボタン・メモ・タグ入力、クリップボード選択
 - **CreateClipboardScreen**: クリップボード作成フォーム
 - **ClipboardListScreen**: クリップボード一覧表示＋既存データベース取り込み
-- **SelectClipboardScreen**: クリップ先選択（複数クリップボードがある場合）
-- **SettingsScreen**: Notion認証設定（OAuth/手動トークン）、UI簡略化設定
+- **SelectClipboardScreen**: クリップ先選択（レガシー、現在はHomeScreen内で選択）
 - **ClippingProgressScreen**: クリップ実行中の進行状況表示
 
-画面間の遷移は `popup.tsx` のルーティングロジックで管理されます。
+画面間の遷移は `popup.tsx` のルーティングロジックで管理されます。LoginScreenは認証状態に応じて特別に表示されます。
 
 ```typescript
-export type Screen = 'home' | 'create-clipboard' | 'clipboard-list' |
-                     'select-clipboard' | 'settings'
+export type Screen = 'home' | 'create-clipboard' | 'clipboard-list' | 'select-clipboard'
 ```
 
 ### 2. ビジネスロジック層 (Services)
@@ -339,10 +338,12 @@ SettingsScreen (接続済み表示)
 
 ```typescript
 {
-  'raku-forms': Form[],               // 旧フォームリスト（後方互換）
-  'raku-clipboards': Clipboard[],     // クリップボードリスト
-  'raku-notion-config': NotionConfig, // Notion設定
-  'raku-initialized': boolean         // 初期化フラグ
+  'raku-clipboards': Clipboard[],              // クリップボードリスト
+  'raku-notion-config': NotionConfig,          // Notion設定
+  'raku-ui-simplify-config': UISimplifyConfig, // UI簡略化設定
+  'raku-language-config': LanguageConfig,      // 言語設定（ja/en）
+  'raku-selected-clipboard-id': string,        // 選択中クリップボードID
+  'raku-tag-options-map': Record<string, string[]> // DBごとのタグ候補キャッシュ
 }
 ```
 
@@ -384,19 +385,18 @@ interface NotionDatabaseSummary {
 ## 画面遷移
 
 ```
-HomeScreen
-  ├─> 📎 このページをクリップ
-  │     ├─> (0個) → CreateClipboardScreen
-  │     ├─> (1個) → 自動クリップ
-  │     └─> (複数) → SelectClipboardScreen
+LoginScreen（未認証時のみ）
+  └─> OAuth認証 / 手動トークン → HomeScreen
+
+HomeScreen（認証済み時）
+  ├─> 📎 このページをクリップ → ClippingProgressScreen
+  │     └─> (0個の場合) → CreateClipboardScreen
   ├─> ClipboardListScreen
   │     ├─> Notionデータベースを開く
   │     └─> CreateClipboardScreen
   ├─> CreateClipboardScreen
   │     └─> ClipboardListScreen
-  └─> SettingsScreen
-        ├─> OAuth認証
-        └─> 手動トークン入力
+  └─> 連携解除 → LoginScreen
 ```
 
 ## Notion API連携
