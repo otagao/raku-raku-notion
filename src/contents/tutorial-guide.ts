@@ -1,7 +1,5 @@
 import type { PlasmoCSConfig } from "plasmo"
 
-import guideLoginUrl from "data-base64:../../assets/guide-login.png"
-
 export const config: PlasmoCSConfig = {
     matches: [
         "https://www.notion.so/install-integration*",
@@ -11,6 +9,11 @@ export const config: PlasmoCSConfig = {
     ]
 }
 
+// Detect dark mode preference
+const isDarkMode = () => {
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+};
+
 // Vanilla JS implementation for Star Rail Style Modal Overlay with Slideshow
 const injectOverlay = () => {
     // Check if duplicate
@@ -18,8 +21,7 @@ const injectOverlay = () => {
 
     console.log("Raku Raku Notion: Injecting Slideshow Overlay");
 
-    let currentSlide = 0;
-    const totalSlides = 1;
+    const darkMode = isDarkMode();
 
     const container = document.createElement("div");
     container.id = "raku-raku-notion-overlay";
@@ -32,12 +34,12 @@ const injectOverlay = () => {
         width: 100vw !important;
         height: 100vh !important;
         z-index: 2147483647 !important;
-        background-color: transparent !important; /* Transparent background */
+        background-color: transparent !important;
         font-family: 'Segoe UI', sans-serif !important;
         display: flex !important;
-        justify-content: flex-end !important; /* Align to right */
-        align-items: flex-end !important; /* Align to bottom */
-        pointer-events: none !important; /* Allow clicks to pass through container */
+        justify-content: flex-end !important;
+        align-items: flex-end !important;
+        pointer-events: none !important;
         padding: 20px !important;
         box-sizing: border-box !important;
     `;
@@ -46,20 +48,22 @@ const injectOverlay = () => {
     const modal = document.createElement("div");
     modal.style.cssText = `
         position: relative !important;
-        width: 400px !important; /* Smaller width */
+        width: 400px !important;
         max-width: 90% !important;
         max-height: 80vh !important;
-        background: radial-gradient(circle at center, #1a1a2e 0%, #000000 100%) !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        box-shadow: 0 0 30px rgba(0, 0, 0, 0.9) !important;
-        color: white !important;
+        background: ${darkMode
+            ? 'radial-gradient(circle at center, #1a1a2e 0%, #000000 100%)'
+            : 'radial-gradient(circle at center, #ffffff 0%, #f5f5f5 100%)'} !important;
+        border: 1px solid ${darkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.15)'} !important;
+        box-shadow: 0 0 30px ${darkMode ? 'rgba(0, 0, 0, 0.9)' : 'rgba(0, 0, 0, 0.2)'} !important;
+        color: ${darkMode ? 'white' : '#333333'} !important;
         padding: 0 !important;
         display: flex !important;
         flex-direction: column !important;
         overflow: hidden !important;
-        pointer-events: auto !important; /* Re-enable clicks on the modal itself */
+        pointer-events: auto !important;
         border-radius: 10px !important;
-        margin-right: 20px !important; /* Spacing from edge */
+        margin-right: 20px !important;
         margin-bottom: 20px !important;
     `;
 
@@ -86,11 +90,11 @@ const injectOverlay = () => {
 
     // Title Element
     const title = document.createElement("h2");
-    title.textContent = "手順"; // Default for Page 1
+    title.textContent = "認証方法";
     title.style.cssText = `
         font-size: 18px !important;
         margin: 2px 0 0 0 !important;
-        color: #fff !important;
+        color: ${darkMode ? '#fff' : '#333'} !important;
         font-weight: 500 !important;
         letter-spacing: 1px !important;
     `;
@@ -101,7 +105,7 @@ const injectOverlay = () => {
     decLine.style.cssText = `
         width: 100px !important;
         height: 1px !important;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent) !important;
+        background: linear-gradient(90deg, transparent, ${darkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.3)'}, transparent) !important;
         margin-top: 5px !important;
     `;
     header.appendChild(decLine);
@@ -132,33 +136,37 @@ const injectOverlay = () => {
         align-items: flex-start !important;
         width: 100% !important;
         text-align: left !important;
-        color: #eee !important;
+        color: ${darkMode ? '#eee' : '#333'} !important;
         transition: opacity 0.3s ease !important;
     `;
 
+    // Colors based on dark/light mode
+    const headingColor = darkMode ? '#00ffff' : '#0066cc';
+    const textColor = darkMode ? '#ccc' : '#555';
+    const highlightColor = darkMode ? '#ffff00' : '#cc6600';
+    const borderColor = darkMode ? '#00ffff' : '#0066cc';
+    const introTextColor = darkMode ? '#fff' : '#333';
+
     const instructionsHTML = `
-        <div style="margin-bottom: 5px; font-size: 13px; color: #fff; font-weight: bold; border-left: 3px solid #00ffff; padding-left: 8px;">
+        <div style="margin-bottom: 5px; font-size: 13px; color: ${introTextColor}; font-weight: bold; border-left: 3px solid ${borderColor}; padding-left: 8px;">
             認証画面での操作手順はこちらの通りです。
         </div>
         <div style="margin-bottom: 20px;">
-            <h3 style="color: #00ffff; font-size: 14px; margin: 0 0 5px 0; font-weight: bold;">1. 「Notionにログイン」またはアカウントを選択</h3>
-            <p style="font-size: 13px; line-height: 1.5; color: #ccc; margin: 0;">
-                <span style="color: #ffff00; font-weight: bold;">※ログインしていない人のみ</span><br>
+            <h3 style="color: ${headingColor}; font-size: 14px; margin: 0 0 5px 0; font-weight: bold;">1. 「Notionにログイン」またはアカウントを選択</h3>
+            <p style="font-size: 13px; line-height: 1.5; color: ${textColor}; margin: 0;">
+                <span style="color: ${highlightColor}; font-weight: bold;">※ログインしていない人のみ</span><br>
                 Notionにログインしていない人はNotionにログインする画面から始まります。
             </p>
-            <div style="margin-top: 5px; text-align: center;">
-                <img src="${guideLoginUrl}" style="max-width: 150px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2);">
-            </div>
         </div>
         <div style="margin-bottom: 20px;">
-            <h3 style="color: #00ffff; font-size: 14px; margin: 0 0 5px 0; font-weight: bold;">2. 「ページを選択する」ボタンを押す</h3>
-            <p style="font-size: 13px; line-height: 1.5; color: #ccc; margin: 0;">
+            <h3 style="color: ${headingColor}; font-size: 14px; margin: 0 0 5px 0; font-weight: bold;">2. 「ページを選択する」ボタンを押す</h3>
+            <p style="font-size: 13px; line-height: 1.5; color: ${textColor}; margin: 0;">
                 注意事項を読んでから「ページを選択する」ボタンをクリックしてください。
             </p>
         </div>
         <div>
-            <h3 style="color: #00ffff; font-size: 14px; margin: 0 0 5px 0; font-weight: bold;">3. 「アクセスを許可する」</h3>
-            <p style="font-size: 13px; line-height: 1.5; color: #ccc; margin: 0;">
+            <h3 style="color: ${headingColor}; font-size: 14px; margin: 0 0 5px 0; font-weight: bold;">3. 「アクセスを許可する」</h3>
+            <p style="font-size: 13px; line-height: 1.5; color: ${textColor}; margin: 0;">
                 何も選択せず「アクセスを許可する」ボタンを押せばOK。
             </p>
         </div>
@@ -172,87 +180,18 @@ const injectOverlay = () => {
 
     modal.appendChild(contentArea);
 
-    // Pagination Dots
-    const dotsContainer = document.createElement("div");
-    dotsContainer.style.cssText = `
-    display: flex!important;
-    justify - content: center!important;
-    margin - bottom: 10px!important;
-    `;
-
-    const createDot = (active: boolean) => {
-        const span = document.createElement("span");
-        span.style.cssText = `
-    display: inline - block!important;
-    width: ${active ? '6px' : '4px'} !important;
-    height: ${active ? '6px' : '4px'} !important;
-    background: ${active ? '#fff' : '#555'} !important;
-    border - radius: 50 % !important;
-    margin: 0 4px!important;
-    transition: all 0.3s!important;
-    `;
-        return span;
-    };
-
-    const updateDots = () => {
-        dotsContainer.innerHTML = '';
-        for (let i = 0; i < totalSlides; i++) {
-            dotsContainer.appendChild(createDot(i === currentSlide));
-        }
-    };
-    updateDots();
-
-    // 3. Footer (Close Button and Dots)
-    const footer = document.createElement("div");
-    footer.style.cssText = `
-    padding: 0 0 15px 0!important;
-    display: flex!important;
-    flex - direction: column!important;
-    align - items: center!important;
-    gap: 10px!important;
-    `;
-
-    footer.appendChild(dotsContainer);
-
-    // Use a smaller close button/icon instead of a big button
-    /*
-    const closeBtn = document.createElement("button");
-    closeBtn.textContent = "閉じる";
-    closeBtn.style.cssText = `
-    background: #ffffff!important;
-    color: #000000!important;
-    border: none!important;
-    padding: 8px 40px!important;
-    font - size: 12px!important;
-    font - weight: bold!important;
-    border - radius: 50px!important;
-    cursor: pointer!important;
-    transition: transform 0.2s, box - shadow 0.2s!important;
-    box - shadow: 0 2px 5px rgba(0, 0, 0, 0.3)!important;
-    `;
-    closeBtn.onclick = () => {
-        container.style.opacity = "0";
-        container.style.transition = "opacity 0.5s ease";
-        setTimeout(() => {
-            container.remove();
-            showHelpButton(); 
-        }, 500);
-    };
-    footer.appendChild(closeBtn);
-    */
-
     // Top right close button on modal
     const closeIcon = document.createElement("div");
     closeIcon.innerHTML = "×";
     closeIcon.style.cssText = `
-    position: absolute!important;
-    top: 10px!important;
-    right: 15px!important;
-    font - size: 24px!important;
-    color: rgba(255, 255, 255, 0.7)!important;
-    cursor: pointer!important;
-    font - weight: bold!important;
-    z - index: 10!important;
+    position: absolute !important;
+    top: 10px !important;
+    right: 15px !important;
+    font-size: 24px !important;
+    color: ${darkMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.5)'} !important;
+    cursor: pointer !important;
+    font-weight: bold !important;
+    z-index: 10 !important;
     `;
     closeIcon.onclick = () => {
         container.style.opacity = "0";
@@ -264,16 +203,12 @@ const injectOverlay = () => {
     };
     modal.appendChild(closeIcon);
 
-    modal.appendChild(footer);
-
     // Navigation Logic
     const updateSlides = () => {
         // Reset styles
         slide2.style.display = "flex";
-        title.textContent = "手順"; // Title for Page 1
-    }
-
-    updateDots();
+        title.textContent = "認証方法";
+    };
 
 
 
@@ -294,38 +229,40 @@ const injectOverlay = () => {
 const showHelpButton = () => {
     if (document.getElementById("raku-raku-notion-help-btn")) return;
 
+    const darkMode = isDarkMode();
+
     const btn = document.createElement("div");
     btn.id = "raku-raku-notion-help-btn";
     btn.textContent = "？";
     btn.style.cssText = `
-    position: fixed!important;
-    bottom: 20px!important;
-    right: 20px!important;
-    width: 50px!important;
-    height: 50px!important;
-    background: #000000!important;
-    color: #ffffff!important;
-    border: 2px solid #00ffff!important;
-    border - radius: 50 % !important;
-    display: flex!important;
-    justify - content: center!important;
-    align - items: center!important;
-    font - size: 24px!important;
-    font - weight: bold!important;
-    cursor: pointer!important;
-    z - index: 2147483646!important;
-    box - shadow: 0 4px 10px rgba(0, 0, 0, 0.5)!important;
-    transition: transform 0.2s, box - shadow 0.2s!important;
-    font - family: 'Segoe UI', sans - serif!important;
+    position: fixed !important;
+    bottom: 20px !important;
+    right: 20px !important;
+    width: 50px !important;
+    height: 50px !important;
+    background: ${darkMode ? '#000000' : '#ffffff'} !important;
+    color: ${darkMode ? '#ffffff' : '#333333'} !important;
+    border: 2px solid ${darkMode ? '#00ffff' : '#0066cc'} !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    font-size: 24px !important;
+    font-weight: bold !important;
+    cursor: pointer !important;
+    z-index: 2147483646 !important;
+    box-shadow: 0 4px 10px ${darkMode ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 0, 0, 0.2)'} !important;
+    transition: transform 0.2s, box-shadow 0.2s !important;
+    font-family: 'Segoe UI', sans-serif !important;
     `;
 
     btn.onmouseover = () => {
         btn.style.transform = "scale(1.1)";
-        btn.style.boxShadow = "0 0 15px rgba(0, 255, 255, 0.5)";
+        btn.style.boxShadow = darkMode ? "0 0 15px rgba(0, 255, 255, 0.5)" : "0 0 15px rgba(0, 102, 204, 0.4)";
     };
     btn.onmouseout = () => {
         btn.style.transform = "scale(1)";
-        btn.style.boxShadow = "0 4px 10px rgba(0,0,0,0.5)";
+        btn.style.boxShadow = darkMode ? "0 4px 10px rgba(0,0,0,0.5)" : "0 4px 10px rgba(0,0,0,0.2)";
     };
 
     btn.onclick = () => {
