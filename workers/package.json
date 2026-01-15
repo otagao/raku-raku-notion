@@ -2,6 +2,8 @@
   "name": "raku-raku-notion-oauth-worker",
   "version": "1.0.0",
   "description": "OAuth proxy worker for Raku Raku Notion",
+  "author": "Team Bookmark (True)",
+  "license": "ISC",
   "main": "src/index.ts",
   "scripts": {
     "dev": "wrangler dev",
