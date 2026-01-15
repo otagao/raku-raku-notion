@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create .env file
+        run: |
+          echo "PLASMO_PUBLIC_NOTION_CLIENT_ID=${{ secrets.PLASMO_PUBLIC_NOTION_CLIENT_ID }}" >> .env
+          echo "PLASMO_PUBLIC_OAUTH_REDIRECT_URI=${{ secrets.PLASMO_PUBLIC_OAUTH_REDIRECT_URI }}" >> .env
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Verify build output
+        run: |
+          test -d build/chrome-mv3-prod
+          test -f build/chrome-mv3-prod/manifest.json
+          echo "Build verification successful"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-build
+          path: build/chrome-mv3-prod/
+          retention-days: 7
