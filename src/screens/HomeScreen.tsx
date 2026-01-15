@@ -67,7 +67,7 @@ const translations: Record<Language, {
     clipNowButton: '再生時間情報も保存',
     disconnect: '連携解除',
     listButton: '保存先一覧',
-    createButton: '保存先を作成',
+    createButton: '新規作成',
     checking: '接続状態を確認中...',
     connected: (name) => `接続中: ${name || 'Notionワークスペース'}`,
     destinationLabel: '保存先',
@@ -103,7 +103,7 @@ const translations: Record<Language, {
     clipNowButton: 'Save with\nplayback time',
     disconnect: 'Disconnect',
     listButton: 'Destinations',
-    createButton: 'Create destination',
+    createButton: 'Create',
     checking: 'Checking connection...',
     connected: (name) => `Connected: ${name || 'Notion workspace'}`,
     destinationLabel: 'Destination',
@@ -475,27 +475,44 @@ const HomeScreen: FC<HomeScreenProps> = ({
             {t.destinationLabel}
             <TooltipIcon text={t.tooltipDestination} style={{ marginLeft: 0 }} />
           </label>
-          <select
-            value={selectedClipboardId || ''}
-            onChange={(e) => onSelectClipboardId(e.target.value)}
-            disabled={clipboards.length === 0}
-            style={{
-              width: '100%',
-              padding: '6px',
-              border: '1px solid #ddd',
-              borderRadius: '6px',
-              fontSize: '14px',
-              backgroundColor: clipboards.length === 0 ? '#f5f5f5' : 'white',
-              cursor: clipboards.length === 0 ? 'not-allowed' : 'pointer'
-            }}
-          >
-            <option value="" disabled>{t.destinationPlaceholder}</option>
-            {clipboards.map(cb => (
-              <option key={cb.id} value={cb.notionDatabaseId}>
-                {cb.name}
-              </option>
-            ))}
-          </select>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <select
+              value={selectedClipboardId || ''}
+              onChange={(e) => onSelectClipboardId(e.target.value)}
+              disabled={clipboards.length === 0}
+              style={{
+                flex: 1,
+                padding: '6px',
+                border: '1px solid #ddd',
+                borderRadius: '6px',
+                fontSize: '14px',
+                backgroundColor: clipboards.length === 0 ? '#f5f5f5' : 'white',
+                cursor: clipboards.length === 0 ? 'not-allowed' : 'pointer'
+              }}
+            >
+              <option value="" disabled>{t.destinationPlaceholder}</option>
+              {clipboards.map(cb => (
+                <option key={cb.id} value={cb.notionDatabaseId}>
+                  {cb.name}
+                </option>
+              ))}
+            </select>
+            <button
+              className="button button-secondary"
+              onClick={() => onNavigate('create-clipboard')}
+              style={{
+                width: '100px',
+                padding: '8px 4px',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                backgroundColor: '#f2a8a8',
+                borderColor: '#f2a8a8',
+                color: 'white'
+              }}
+            >
+              {t.createButton}
+            </button>
+          </div>
         </div>
       )}
 
@@ -719,38 +736,19 @@ const HomeScreen: FC<HomeScreenProps> = ({
                 }}
               />
             </div>
-            <div style={{ position: 'relative', flex: 1 }}>
+            <div style={{ flex: 1 }}>
               <button
+                onClick={onToggleLanguage}
                 className="button button-secondary"
-                onClick={() => onNavigate('create-clipboard')}
-                style={{ width: '100%' }}
-              >
-                {t.createButton}
-              </button>
-              <TooltipIcon
-                text={t.tooltipCreateButton}
                 style={{
-                  position: 'absolute',
-                  right: '8px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  zIndex: 1
+                  width: '100%',
+                  fontSize: '12px'
                 }}
-              />
+                title={language === 'ja' ? 'English display' : '日本語表示'}
+              >
+                {language === 'ja' ? 'English' : '日本語'}
+              </button>
             </div>
-          </div>
-          <div style={{ marginTop: '12px' }}>
-            <button
-              onClick={onToggleLanguage}
-              className="button button-secondary"
-              style={{
-                width: '100%',
-                fontSize: '12px'
-              }}
-              title={language === 'ja' ? 'English display' : '日本語表示'}
-            >
-              {language === 'ja' ? 'English' : '日本語'}
-            </button>
           </div>
         </div>
       )}
