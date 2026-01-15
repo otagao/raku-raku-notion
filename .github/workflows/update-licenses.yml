@@ -1,0 +1,71 @@
+name: Update Third Party Licenses
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'workers/package.json'
+      - 'workers/package-lock.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-licenses:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install main dependencies
+        run: npm ci
+
+      - name: Install workers dependencies
+        run: cd workers && npm ci
+
+      - name: Generate THIRD_PARTY_LICENSES.md
+        run: node scripts/generate-licenses.js
+
+      - name: Check for changes
+        id: check
+        run: |
+          if git diff --quiet THIRD_PARTY_LICENSES.md; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "No license changes detected"
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "License changes detected"
+          fi
+
+      - name: Create Pull Request
+        if: steps.check.outputs.has_changes == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'chore: THIRD_PARTY_LICENSES.mdを自動更新'
+          title: 'chore: THIRD_PARTY_LICENSES.mdを自動更新'
+          body: |
+            ## 概要
+            依存関係の変更に伴い、THIRD_PARTY_LICENSES.mdを自動更新しました。
+
+            ## 変更内容
+            - サードパーティライセンス情報の更新
+
+            ---
+            *このPRはGitHub Actionsにより自動生成されました*
+          branch: chore/update-licenses
+          delete-branch: true
+          labels: |
+            documentation
+            automated
