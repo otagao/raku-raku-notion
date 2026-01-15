@@ -5,7 +5,9 @@ import guideLoginUrl from "data-base64:../../assets/guide-login.png"
 export const config: PlasmoCSConfig = {
     matches: [
         "https://www.notion.so/install-integration*",
-        "https://notion.so/install-integration*"
+        "https://notion.so/install-integration*",
+        "https://www.notion.so/login*",
+        "https://notion.so/login*"
     ]
 }
 
@@ -22,7 +24,7 @@ const injectOverlay = () => {
     const container = document.createElement("div");
     container.id = "raku-raku-notion-overlay";
 
-    // Full screen blocking container
+    // Non-blocking container (allows clicking through to the page)
     container.style.cssText = `
         position: fixed !important;
         top: 0 !important;
@@ -30,53 +32,54 @@ const injectOverlay = () => {
         width: 100vw !important;
         height: 100vh !important;
         z-index: 2147483647 !important;
-        background-color: rgba(0, 0, 0, 0.85) !important;
+        background-color: transparent !important; /* Transparent background */
         font-family: 'Segoe UI', sans-serif !important;
         display: flex !important;
-        justify-content: center !important;
-        align-items: center !important;
-        pointer-events: auto !important;
-        backdrop-filter: blur(8px) !important;
+        justify-content: flex-end !important; /* Align to right */
+        align-items: flex-end !important; /* Align to bottom */
+        pointer-events: none !important; /* Allow clicks to pass through container */
+        padding: 20px !important;
+        box-sizing: border-box !important;
     `;
 
-    // Prevent scrolling
-    document.body.style.overflow = "hidden";
-
-    // Modal Window
+    // Modal Window (Miniaturized for side display)
     const modal = document.createElement("div");
     modal.style.cssText = `
         position: relative !important;
-        width: 900px !important;
+        width: 400px !important; /* Smaller width */
         max-width: 90% !important;
-        min-height: 650px !important; /* Increased height for 3rd page image */
+        max-height: 80vh !important;
         background: radial-gradient(circle at center, #1a1a2e 0%, #000000 100%) !important;
-        border-top: 1px solid rgba(255, 255, 255, 0.2) !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
-        box-shadow: 0 0 50px rgba(0, 0, 0, 0.9) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        box-shadow: 0 0 30px rgba(0, 0, 0, 0.9) !important;
         color: white !important;
         padding: 0 !important;
         display: flex !important;
         flex-direction: column !important;
         overflow: hidden !important;
+        pointer-events: auto !important; /* Re-enable clicks on the modal itself */
+        border-radius: 10px !important;
+        margin-right: 20px !important; /* Spacing from edge */
+        margin-bottom: 20px !important;
     `;
 
     // 1. Header (Icon and Dynamic Title)
     const header = document.createElement("div");
     header.style.cssText = `
-        padding: 30px 0 10px 0 !important;
+        padding: 15px 0 10px 0 !important;
         text-align: center !important;
         display: flex !important;
         flex-direction: column !important;
         align-items: center !important;
-        gap: 5px !important;
+        gap: 2px !important;
     `;
 
     // Beginner Shield Icon
     const icon = document.createElement("div");
     icon.textContent = "🔰";
     icon.style.cssText = `
-        font-size: 30px !important;
-        margin-bottom: 5px !important;
+        font-size: 20px !important;
+        margin-bottom: 2px !important;
         filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.5)) !important;
     `;
     header.appendChild(icon);
@@ -85,21 +88,21 @@ const injectOverlay = () => {
     const title = document.createElement("h2");
     title.textContent = "認証"; // Default for Page 1
     title.style.cssText = `
-        font-size: 24px !important;
-        margin: 5px 0 0 0 !important;
+        font-size: 18px !important;
+        margin: 2px 0 0 0 !important;
         color: #fff !important;
         font-weight: 500 !important;
-        letter-spacing: 2px !important;
+        letter-spacing: 1px !important;
     `;
     header.appendChild(title);
 
     // Decorative lines under icon/title
     const decLine = document.createElement("div");
     decLine.style.cssText = `
-        width: 200px !important;
+        width: 100px !important;
         height: 1px !important;
         background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent) !important;
-        margin-top: 10px !important;
+        margin-top: 5px !important;
     `;
     header.appendChild(decLine);
 
@@ -111,11 +114,12 @@ const injectOverlay = () => {
         flex: 1 !important;
         display: flex !important;
         flex-direction: column !important;
-        justify-content: center !important;
+        justify-content: flex-start !important;
         align-items: center !important;
-        padding: 20px 60px !important;
+        padding: 10px 20px !important;
         text-align: center !important;
         position: relative !important;
+        overflow-y: auto !important;
     `;
 
     // Slide 1 Content (Main Guide)
@@ -133,21 +137,21 @@ const injectOverlay = () => {
     imgContainer.style.cssText = `
         position: relative !important;
         width: 100% !important;
-        max-width: 500px !important;
+        max-width: 200px !important; /* Smaller image */
         background: rgba(255, 255, 255, 0.05) !important;
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        padding: 30px !important;
+        padding: 10px !important;
         display: flex !important;
         justify-content: center !important;
         align-items: center !important;
-        margin-bottom: 20px !important;
+        margin-bottom: 10px !important;
     `;
 
     // Decoration corners
     const corners = ["top-left", "top-right", "bottom-left", "bottom-right"];
     corners.forEach(pos => {
         const corner = document.createElement("div");
-        let style = "position: absolute !important; width: 10px !important; height: 10px !important; border-color: rgba(255,255,255,0.5) !important; border-style: solid !important;";
+        let style = "position: absolute !important; width: 6px !important; height: 6px !important; border-color: rgba(255,255,255,0.5) !important; border-style: solid !important;";
         if (pos === "top-left") style += "top: 0; left: 0; border-width: 1px 0 0 1px !important;";
         if (pos === "top-right") style += "top: 0; right: 0; border-width: 1px 1px 0 0 !important;";
         if (pos === "bottom-left") style += "bottom: 0; left: 0; border-width: 0 0 1px 1px !important;";
@@ -162,20 +166,20 @@ const injectOverlay = () => {
         max-width: 100% !important;
         height: auto !important;
         display: block !important;
-        filter: drop-shadow(0 0 20px rgba(0, 255, 255, 0.2)) !important;
+        filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.2)) !important;
     `;
     imgContainer.appendChild(img);
     slide1.appendChild(imgContainer);
 
     const textDesc1 = document.createElement("div");
     textDesc1.innerHTML = `
-        <div>拡張機能のボタンをもう一度押すと認証をどう進めればいいかのチュートリアルが表示されます</div>
-        <div style="font-size: 13px; color: #aaa; margin-top: 8px;">
-            この画面を閉じた後も、画面内の<span style="color: #00ffff; font-weight: bold;">？ボタン</span>を押すことで、この説明をいつでも確認できます。
+        <div style="font-size: 13px;">拡張機能のボタンをもう一度押すと、認証画面の操作手順が出てきます</div>
+        <div style="font-size: 12px; color: #aaa; margin-top: 5px;">
+            右上の<span style="color: #00ffff; font-weight: bold;">✕ボタン</span>で閉じると<br><span style="color: #00ffff; font-weight: bold;">？ボタン</span>になります
         </div>
     `;
     textDesc1.style.cssText = `
-        font-size: 15px !important;
+        font-size: 13px !important;
         color: #d0d0d0 !important;
         font-weight: 500 !important;
     `;
@@ -188,26 +192,25 @@ const injectOverlay = () => {
         flex-direction: column !important;
         align-items: flex-start !important;
         width: 100% !important;
-        max-width: 600px !important;
         text-align: left !important;
         color: #eee !important;
         transition: opacity 0.3s ease !important;
     `;
 
     const instructionsHTML = `
-        <div style="margin-bottom: 20px; font-size: 16px; color: #fff; font-weight: bold; border-left: 4px solid #00ffff; padding-left: 10px;">
+        <div style="margin-bottom: 10px; font-size: 13px; color: #fff; font-weight: bold; border-left: 3px solid #00ffff; padding-left: 8px;">
             このような手順の説明の文章が表示されます。
         </div>
-        <div style="margin-bottom: 30px;">
-            <h3 style="color: #00ffff; font-size: 20px; margin: 0 0 10px 0; font-weight: bold;">1. 「ページを選択する」ボタンを押す</h3>
-            <p style="font-size: 15px; line-height: 1.6; color: #ccc; margin: 0;">
+        <div style="margin-bottom: 20px;">
+            <h3 style="color: #00ffff; font-size: 14px; margin: 0 0 5px 0; font-weight: bold;">1. 「ページを選択する」ボタンを押す</h3>
+            <p style="font-size: 13px; line-height: 1.5; color: #ccc; margin: 0;">
                 注意事項を読んでから「ページを選択する」ボタンをクリックしてください。
             </p>
         </div>
         <div>
-            <h3 style="color: #00ffff; font-size: 20px; margin: 0 0 10px 0; font-weight: bold;">2. 何も選択せず「アクセスを許可する」</h3>
-            <p style="font-size: 15px; line-height: 1.6; color: #ccc; margin: 0;">
-                公開/非公開ページともに、<span style="color: #fff; text-decoration: underline;">何も選択せずに</span>「アクセスを許可する」ボタンを押せばOKです。
+            <h3 style="color: #00ffff; font-size: 14px; margin: 0 0 5px 0; font-weight: bold;">2. 「アクセスを許可する」</h3>
+            <p style="font-size: 13px; line-height: 1.5; color: #ccc; margin: 0;">
+                何も選択せず「アクセスを許可する」ボタンを押せばOK。
             </p>
         </div>
     `;
@@ -228,22 +231,21 @@ const injectOverlay = () => {
     imgContainer3.style.cssText = `
         position: relative !important;
         width: 100% !important;
-        max-width: 500px !important;
+        max-width: 250px !important; /* Smaller */
         background: rgba(255, 255, 255, 0.05) !important;
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        padding: 20px !important;
+        padding: 10px !important;
         display: flex !important;
         justify-content: center !important;
         align-items: center !important;
-        margin-bottom: 20px !important;
+        margin-bottom: 10px !important;
     `;
 
     const img3 = document.createElement("img");
     img3.src = guideLoginUrl;
     img3.style.cssText = `
         max-width: 100% !important;
-        max-height: 300px !important;
-        width: auto !important;
+        height: auto !important;
         display: block !important;
         border-radius: 4px !important;
     `;
@@ -252,11 +254,11 @@ const injectOverlay = () => {
 
     const textDesc3 = document.createElement("div");
     textDesc3.innerHTML = `
-        <div style="font-weight: bold; font-size: 18px; margin-bottom: 10px;">Notionにログインしていない場合</div>
-        <div>Notionにログインしていない人は、<br>このようなNotionにログインする画面から始まります。</div>
+        <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px;">Notionにログインしていない場合</div>
+        <div style="font-size: 13px;">Notionにログインしていない人は<br>Notionにログインする画面から始まります。</div>
     `;
     textDesc3.style.cssText = `
-        font-size: 15px !important;
+        font-size: 12px !important;
         color: #d0d0d0 !important;
         font-weight: 500 !important;
     `;
@@ -272,18 +274,18 @@ const injectOverlay = () => {
     dotsContainer.style.cssText = `
         display: flex !important;
         justify-content: center !important;
-        margin-bottom: 20px !important;
+        margin-bottom: 10px !important;
     `;
 
     const createDot = (active: boolean) => {
         const span = document.createElement("span");
         span.style.cssText = `
             display: inline-block !important;
-            width: ${active ? '8px' : '6px'} !important;
-            height: ${active ? '8px' : '6px'} !important;
+            width: ${active ? '6px' : '4px'} !important;
+            height: ${active ? '6px' : '4px'} !important;
             background: ${active ? '#fff' : '#555'} !important;
             border-radius: 50% !important;
-            margin: 0 5px !important;
+            margin: 0 4px !important;
             transition: all 0.3s !important;
         `;
         return span;
@@ -300,48 +302,65 @@ const injectOverlay = () => {
     // 3. Footer (Close Button and Dots)
     const footer = document.createElement("div");
     footer.style.cssText = `
-        padding: 0 0 40px 0 !important;
+        padding: 0 0 15px 0 !important;
         display: flex !important;
         flex-direction: column !important;
         align-items: center !important;
-        gap: 20px !important;
+        gap: 10px !important;
     `;
 
     footer.appendChild(dotsContainer);
 
+    // Use a smaller close button/icon instead of a big button
+    /*
     const closeBtn = document.createElement("button");
     closeBtn.textContent = "閉じる";
     closeBtn.style.cssText = `
         background: #ffffff !important;
         color: #000000 !important;
         border: none !important;
-        padding: 12px 100px !important;
-        font-size: 16px !important;
+        padding: 8px 40px !important;
+        font-size: 12px !important;
         font-weight: bold !important;
         border-radius: 50px !important;
         cursor: pointer !important;
         transition: transform 0.2s, box-shadow 0.2s !important;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.3) !important;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3) !important;
     `;
-    closeBtn.onmouseover = () => {
-        closeBtn.style.transform = "scale(1.02)";
-        closeBtn.style.boxShadow = "0 0 20px rgba(255, 255, 255, 0.4)";
-    };
-    closeBtn.onmouseout = () => {
-        closeBtn.style.transform = "scale(1)";
-        closeBtn.style.boxShadow = "0 5px 15px rgba(0,0,0,0.3)";
-    };
     closeBtn.onclick = () => {
         container.style.opacity = "0";
         container.style.transition = "opacity 0.5s ease";
         setTimeout(() => {
             container.remove();
-            document.body.style.overflow = "";
-            showHelpButton(); // Show the persistent help button
+            showHelpButton(); 
         }, 500);
     };
-
     footer.appendChild(closeBtn);
+    */
+
+    // Top right close button on modal
+    const closeIcon = document.createElement("div");
+    closeIcon.innerHTML = "×";
+    closeIcon.style.cssText = `
+        position: absolute !important;
+        top: 10px !important;
+        right: 15px !important;
+        font-size: 24px !important;
+        color: rgba(255, 255, 255, 0.7) !important;
+        cursor: pointer !important;
+        font-weight: bold !important;
+        z-index: 10 !important;
+    `;
+    closeIcon.onclick = () => {
+        container.style.opacity = "0";
+        container.style.transition = "opacity 0.3s ease";
+        setTimeout(() => {
+            container.remove();
+            showHelpButton();
+        }, 300);
+    };
+    modal.appendChild(closeIcon);
+
     modal.appendChild(footer);
 
     // Navigation Logic
@@ -363,25 +382,25 @@ const injectOverlay = () => {
             title.textContent = "ログイン"; // Title for Page 3
         }
 
-        // Arrow state
+        updateDots();
+
+        // Arrow visibility
         if (currentSlide === 0) {
             arrowLeft.style.opacity = "0.3";
-            arrowLeft.style.cursor = "default";
+            arrowLeft.style.pointerEvents = "none";
             arrowRight.style.opacity = "1";
-            arrowRight.style.cursor = "pointer";
+            arrowRight.style.pointerEvents = "auto";
         } else if (currentSlide === totalSlides - 1) {
             arrowRight.style.opacity = "0.3";
-            arrowRight.style.cursor = "default";
+            arrowRight.style.pointerEvents = "none";
             arrowLeft.style.opacity = "1";
-            arrowLeft.style.cursor = "pointer";
+            arrowLeft.style.pointerEvents = "auto";
         } else {
             arrowLeft.style.opacity = "1";
-            arrowLeft.style.cursor = "pointer";
+            arrowLeft.style.pointerEvents = "auto";
             arrowRight.style.opacity = "1";
-            arrowRight.style.cursor = "pointer";
+            arrowRight.style.pointerEvents = "auto";
         }
-
-        updateDots();
     };
 
     // Side arrows (Buttons)
@@ -389,16 +408,17 @@ const injectOverlay = () => {
     arrowLeft.innerHTML = "&#10094;"; // <
     arrowLeft.style.cssText = `
         position: absolute !important;
-        left: 30px !important;
+        left: 10px !important;
         top: 50% !important;
         transform: translateY(-50%) !important;
-        font-size: 40px !important;
+        font-size: 24px !important;
         color: rgba(255,255,255,1) !important;
         font-weight: 100 !important;
         cursor: pointer !important;
-        padding: 20px !important;
+        padding: 10px !important;
         user-select: none !important;
         transition: transform 0.2s !important;
+        z-index: 5 !important;
     `;
     arrowLeft.onclick = () => {
         if (currentSlide > 0) {
@@ -412,16 +432,17 @@ const injectOverlay = () => {
     arrowRight.innerHTML = "&#10095;"; // >
     arrowRight.style.cssText = `
         position: absolute !important;
-        right: 30px !important;
+        right: 10px !important;
         top: 50% !important;
         transform: translateY(-50%) !important;
-        font-size: 40px !important;
+        font-size: 24px !important;
         color: rgba(255,255,255,1) !important;
         font-weight: 100 !important;
         cursor: pointer !important;
-        padding: 20px !important;
+        padding: 10px !important;
         user-select: none !important;
         transition: transform 0.2s !important;
+        z-index: 5 !important;
     `;
     arrowRight.onclick = () => {
         if (currentSlide < totalSlides - 1) {
