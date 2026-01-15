@@ -19,6 +19,17 @@ const injectOverlay = () => {
     // Check if duplicate
     if (document.getElementById("raku-raku-notion-overlay")) return;
 
+    // Check if this is Raku Raku Notion's OAuth flow
+    const urlParams = new URLSearchParams(window.location.search);
+    const clientId = urlParams.get('client_id');
+    const expectedClientId = process.env.PLASMO_PUBLIC_NOTION_CLIENT_ID || '';
+
+    // Only show overlay if client_id matches (and is configured)
+    if (!expectedClientId || clientId !== expectedClientId) {
+        console.log("Raku Raku Notion: Skipping overlay (different or missing client_id)");
+        return;
+    }
+
     console.log("Raku Raku Notion: Injecting Slideshow Overlay");
 
     const darkMode = isDarkMode();
