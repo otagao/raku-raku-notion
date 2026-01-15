@@ -1,0 +1,92 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # リリースノート生成のため全履歴取得
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Verify version consistency
+        run: |
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "Error: Tag version ($TAG_VERSION) does not match package.json version ($PKG_VERSION)"
+            exit 1
+          fi
+          echo "Version consistency check passed: $PKG_VERSION"
+
+      - name: Create .env file
+        run: |
+          echo "PLASMO_PUBLIC_NOTION_CLIENT_ID=${{ secrets.PLASMO_PUBLIC_NOTION_CLIENT_ID }}" >> .env
+          echo "PLASMO_PUBLIC_OAUTH_REDIRECT_URI=${{ secrets.PLASMO_PUBLIC_OAUTH_REDIRECT_URI }}" >> .env
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Create release archive
+        run: |
+          cd build/chrome-mv3-prod
+          cp ../../LICENSE .
+          cp ../../THIRD_PARTY_LICENSES.md .
+          cp ../../README.md .
+          cd ..
+          zip -r ../raku-raku-notion-${{ steps.get_version.outputs.VERSION }}-chrome.zip chrome-mv3-prod/
+
+      - name: Generate release notes
+        run: |
+          # 前のタグを取得（なければ最初のコミット）
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || git rev-list --max-parents=0 HEAD)
+
+          # コミットログからリリースノートを生成
+          echo "## 変更内容" > RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          git log --pretty=format:"- %s" ${PREV_TAG}..HEAD >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "## インストール方法" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "1. ZIPファイルをダウンロードして解凍" >> RELEASE_NOTES.md
+          echo "2. Chrome/Edgeで \`chrome://extensions\` を開く" >> RELEASE_NOTES.md
+          echo "3. 「デベロッパーモード」を有効化" >> RELEASE_NOTES.md
+          echo "4. 「パッケージ化されていない拡張機能を読み込む」をクリック" >> RELEASE_NOTES.md
+          echo "5. 解凍した \`chrome-mv3-prod\` フォルダを選択" >> RELEASE_NOTES.md
+
+          echo "--- Generated Release Notes ---"
+          cat RELEASE_NOTES.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: RELEASE_NOTES.md
+          files: |
+            raku-raku-notion-${{ steps.get_version.outputs.VERSION }}-chrome.zip
+          draft: false
+          prerelease: ${{ contains(github.ref, '-beta') || contains(github.ref, '-alpha') || contains(github.ref, '-rc') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
