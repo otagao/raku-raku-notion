@@ -38,7 +38,7 @@ const injectOverlay = () => {
         font-family: 'Segoe UI', sans-serif !important;
         display: flex !important;
         justify-content: flex-end !important;
-        align-items: flex-end !important;
+        align-items: flex-start !important;
         pointer-events: none !important;
         padding: 20px !important;
         box-sizing: border-box !important;
@@ -64,7 +64,7 @@ const injectOverlay = () => {
         pointer-events: auto !important;
         border-radius: 10px !important;
         margin-right: 20px !important;
-        margin-bottom: 20px !important;
+        margin-top: 20px !important;
     `;
 
     // 1. Header (Icon and Dynamic Title)
@@ -236,7 +236,7 @@ const showHelpButton = () => {
     btn.textContent = "？";
     btn.style.cssText = `
     position: fixed !important;
-    bottom: 20px !important;
+    top: 20px !important;
     right: 20px !important;
     width: 50px !important;
     height: 50px !important;
