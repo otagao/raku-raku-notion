@@ -19,7 +19,7 @@ const injectOverlay = () => {
     console.log("Raku Raku Notion: Injecting Slideshow Overlay");
 
     let currentSlide = 0;
-    const totalSlides = 2;
+    const totalSlides = 1;
 
     const container = document.createElement("div");
     container.id = "raku-raku-notion-overlay";
@@ -137,17 +137,27 @@ const injectOverlay = () => {
     `;
 
     const instructionsHTML = `
-        <div style="margin-bottom: 10px; font-size: 13px; color: #fff; font-weight: bold; border-left: 3px solid #00ffff; padding-left: 8px;">
+        <div style="margin-bottom: 5px; font-size: 13px; color: #fff; font-weight: bold; border-left: 3px solid #00ffff; padding-left: 8px;">
             認証画面での操作手順はこちらの通りです。
         </div>
         <div style="margin-bottom: 20px;">
-            <h3 style="color: #00ffff; font-size: 14px; margin: 0 0 5px 0; font-weight: bold;">1. 「ページを選択する」ボタンを押す</h3>
+            <h3 style="color: #00ffff; font-size: 14px; margin: 0 0 5px 0; font-weight: bold;">1. 「Notionにログイン」またはアカウントを選択</h3>
+            <p style="font-size: 13px; line-height: 1.5; color: #ccc; margin: 0;">
+                <span style="color: #ffff00; font-weight: bold;">※ログインしていない人のみ</span><br>
+                Notionにログインしていない人はNotionにログインする画面から始まります。
+            </p>
+            <div style="margin-top: 5px; text-align: center;">
+                <img src="${guideLoginUrl}" style="max-width: 150px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2);">
+            </div>
+        </div>
+        <div style="margin-bottom: 20px;">
+            <h3 style="color: #00ffff; font-size: 14px; margin: 0 0 5px 0; font-weight: bold;">2. 「ページを選択する」ボタンを押す</h3>
             <p style="font-size: 13px; line-height: 1.5; color: #ccc; margin: 0;">
                 注意事項を読んでから「ページを選択する」ボタンをクリックしてください。
             </p>
         </div>
         <div>
-            <h3 style="color: #00ffff; font-size: 14px; margin: 0 0 5px 0; font-weight: bold;">2. 「アクセスを許可する」</h3>
+            <h3 style="color: #00ffff; font-size: 14px; margin: 0 0 5px 0; font-weight: bold;">3. 「アクセスを許可する」</h3>
             <p style="font-size: 13px; line-height: 1.5; color: #ccc; margin: 0;">
                 何も選択せず「アクセスを許可する」ボタンを押せばOK。
             </p>
@@ -155,78 +165,32 @@ const injectOverlay = () => {
     `;
     slide2.innerHTML = instructionsHTML;
 
-    // Slide 3 Content (Login Info)
-    const slide3 = document.createElement("div");
-    slide3.style.cssText = `
-        display: none !important;
-        flex-direction: column !important;
-        align-items: center !important;
-        width: 100% !important;
-        transition: opacity 0.3s ease !important;
-    `;
 
-    // Image Container for Slide 3
-    const imgContainer3 = document.createElement("div");
-    imgContainer3.style.cssText = `
-        position: relative !important;
-        width: 100% !important;
-        max-width: 250px !important; /* Smaller */
-        background: rgba(255, 255, 255, 0.05) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        padding: 10px !important;
-        display: flex !important;
-        justify-content: center !important;
-        align-items: center !important;
-        margin-bottom: 10px !important;
-    `;
-
-    const img3 = document.createElement("img");
-    img3.src = guideLoginUrl;
-    img3.style.cssText = `
-        max-width: 100% !important;
-        height: auto !important;
-        display: block !important;
-        border-radius: 4px !important;
-    `;
-    imgContainer3.appendChild(img3);
-    slide3.appendChild(imgContainer3);
-
-    const textDesc3 = document.createElement("div");
-    textDesc3.innerHTML = `
-        <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px;">Notionにログインしていない場合</div>
-        <div style="font-size: 13px;">Notionにログインしていない人は<br>Notionにログインする画面から始まります。</div>
-    `;
-    textDesc3.style.cssText = `
-        font-size: 12px !important;
-        color: #d0d0d0 !important;
-        font-weight: 500 !important;
-    `;
-    slide3.appendChild(textDesc3);
 
 
     contentArea.appendChild(slide2);
-    contentArea.appendChild(slide3);
+
     modal.appendChild(contentArea);
 
     // Pagination Dots
     const dotsContainer = document.createElement("div");
     dotsContainer.style.cssText = `
-        display: flex !important;
-        justify-content: center !important;
-        margin-bottom: 10px !important;
+    display: flex!important;
+    justify - content: center!important;
+    margin - bottom: 10px!important;
     `;
 
     const createDot = (active: boolean) => {
         const span = document.createElement("span");
         span.style.cssText = `
-            display: inline-block !important;
-            width: ${active ? '6px' : '4px'} !important;
-            height: ${active ? '6px' : '4px'} !important;
-            background: ${active ? '#fff' : '#555'} !important;
-            border-radius: 50% !important;
-            margin: 0 4px !important;
-            transition: all 0.3s !important;
-        `;
+    display: inline - block!important;
+    width: ${active ? '6px' : '4px'} !important;
+    height: ${active ? '6px' : '4px'} !important;
+    background: ${active ? '#fff' : '#555'} !important;
+    border - radius: 50 % !important;
+    margin: 0 4px!important;
+    transition: all 0.3s!important;
+    `;
         return span;
     };
 
@@ -241,11 +205,11 @@ const injectOverlay = () => {
     // 3. Footer (Close Button and Dots)
     const footer = document.createElement("div");
     footer.style.cssText = `
-        padding: 0 0 15px 0 !important;
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: center !important;
-        gap: 10px !important;
+    padding: 0 0 15px 0!important;
+    display: flex!important;
+    flex - direction: column!important;
+    align - items: center!important;
+    gap: 10px!important;
     `;
 
     footer.appendChild(dotsContainer);
@@ -255,16 +219,16 @@ const injectOverlay = () => {
     const closeBtn = document.createElement("button");
     closeBtn.textContent = "閉じる";
     closeBtn.style.cssText = `
-        background: #ffffff !important;
-        color: #000000 !important;
-        border: none !important;
-        padding: 8px 40px !important;
-        font-size: 12px !important;
-        font-weight: bold !important;
-        border-radius: 50px !important;
-        cursor: pointer !important;
-        transition: transform 0.2s, box-shadow 0.2s !important;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.3) !important;
+    background: #ffffff!important;
+    color: #000000!important;
+    border: none!important;
+    padding: 8px 40px!important;
+    font - size: 12px!important;
+    font - weight: bold!important;
+    border - radius: 50px!important;
+    cursor: pointer!important;
+    transition: transform 0.2s, box - shadow 0.2s!important;
+    box - shadow: 0 2px 5px rgba(0, 0, 0, 0.3)!important;
     `;
     closeBtn.onclick = () => {
         container.style.opacity = "0";
@@ -281,14 +245,14 @@ const injectOverlay = () => {
     const closeIcon = document.createElement("div");
     closeIcon.innerHTML = "×";
     closeIcon.style.cssText = `
-        position: absolute !important;
-        top: 10px !important;
-        right: 15px !important;
-        font-size: 24px !important;
-        color: rgba(255, 255, 255, 0.7) !important;
-        cursor: pointer !important;
-        font-weight: bold !important;
-        z-index: 10 !important;
+    position: absolute!important;
+    top: 10px!important;
+    right: 15px!important;
+    font - size: 24px!important;
+    color: rgba(255, 255, 255, 0.7)!important;
+    cursor: pointer!important;
+    font - weight: bold!important;
+    z - index: 10!important;
     `;
     closeIcon.onclick = () => {
         container.style.opacity = "0";
@@ -305,87 +269,13 @@ const injectOverlay = () => {
     // Navigation Logic
     const updateSlides = () => {
         // Reset styles
-        slide2.style.display = "none";
-        slide3.style.display = "none";
+        slide2.style.display = "flex";
+        title.textContent = "手順"; // Title for Page 1
+    }
 
-        // Show current
-        if (currentSlide === 0) {
-            slide2.style.display = "flex";
-            title.textContent = "手順"; // Title for Page 1
-        } else if (currentSlide === 1) {
-            slide3.style.display = "flex";
-            title.textContent = "ログイン"; // Title for Page 2
-        }
+    updateDots();
 
-        updateDots();
 
-        // Arrow visibility
-        if (currentSlide === 0) {
-            arrowLeft.style.opacity = "0.3";
-            arrowLeft.style.pointerEvents = "none";
-            arrowRight.style.opacity = "1";
-            arrowRight.style.pointerEvents = "auto";
-        } else if (currentSlide === totalSlides - 1) {
-            arrowRight.style.opacity = "0.3";
-            arrowRight.style.pointerEvents = "none";
-            arrowLeft.style.opacity = "1";
-            arrowLeft.style.pointerEvents = "auto";
-        } else {
-            arrowLeft.style.opacity = "1";
-            arrowLeft.style.pointerEvents = "auto";
-            arrowRight.style.opacity = "1";
-            arrowRight.style.pointerEvents = "auto";
-        }
-    };
-
-    // Side arrows (Buttons)
-    const arrowLeft = document.createElement("div");
-    arrowLeft.innerHTML = "&#10094;"; // <
-    arrowLeft.style.cssText = `
-        position: absolute !important;
-        left: 10px !important;
-        top: 50% !important;
-        transform: translateY(-50%) !important;
-        font-size: 24px !important;
-        color: rgba(255,255,255,1) !important;
-        font-weight: 100 !important;
-        cursor: pointer !important;
-        padding: 10px !important;
-        user-select: none !important;
-        transition: transform 0.2s !important;
-        z-index: 5 !important;
-    `;
-    arrowLeft.onclick = () => {
-        if (currentSlide > 0) {
-            currentSlide--;
-            updateSlides();
-        }
-    };
-    modal.appendChild(arrowLeft);
-
-    const arrowRight = document.createElement("div");
-    arrowRight.innerHTML = "&#10095;"; // >
-    arrowRight.style.cssText = `
-        position: absolute !important;
-        right: 10px !important;
-        top: 50% !important;
-        transform: translateY(-50%) !important;
-        font-size: 24px !important;
-        color: rgba(255,255,255,1) !important;
-        font-weight: 100 !important;
-        cursor: pointer !important;
-        padding: 10px !important;
-        user-select: none !important;
-        transition: transform 0.2s !important;
-        z-index: 5 !important;
-    `;
-    arrowRight.onclick = () => {
-        if (currentSlide < totalSlides - 1) {
-            currentSlide++;
-            updateSlides();
-        }
-    };
-    modal.appendChild(arrowRight);
 
     // Initial State
     updateSlides();
@@ -408,25 +298,25 @@ const showHelpButton = () => {
     btn.id = "raku-raku-notion-help-btn";
     btn.textContent = "？";
     btn.style.cssText = `
-        position: fixed !important;
-        bottom: 20px !important;
-        right: 20px !important;
-        width: 50px !important;
-        height: 50px !important;
-        background: #000000 !important;
-        color: #ffffff !important;
-        border: 2px solid #00ffff !important;
-        border-radius: 50% !important;
-        display: flex !important;
-        justify-content: center !important;
-        align-items: center !important;
-        font-size: 24px !important;
-        font-weight: bold !important;
-        cursor: pointer !important;
-        z-index: 2147483646 !important;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important;
-        transition: transform 0.2s, box-shadow 0.2s !important;
-        font-family: 'Segoe UI', sans-serif !important;
+    position: fixed!important;
+    bottom: 20px!important;
+    right: 20px!important;
+    width: 50px!important;
+    height: 50px!important;
+    background: #000000!important;
+    color: #ffffff!important;
+    border: 2px solid #00ffff!important;
+    border - radius: 50 % !important;
+    display: flex!important;
+    justify - content: center!important;
+    align - items: center!important;
+    font - size: 24px!important;
+    font - weight: bold!important;
+    cursor: pointer!important;
+    z - index: 2147483646!important;
+    box - shadow: 0 4px 10px rgba(0, 0, 0, 0.5)!important;
+    transition: transform 0.2s, box - shadow 0.2s!important;
+    font - family: 'Segoe UI', sans - serif!important;
     `;
 
     btn.onmouseover = () => {
