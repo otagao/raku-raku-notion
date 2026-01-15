@@ -18,9 +18,17 @@ export function generateOAuthUrl(config: NotionOAuthConfig, state: string): stri
     response_type: 'code',
     owner: 'user',
     state: state
+    // Note: Notion API does not officially document a locale param, 
+    // but we can try common ones or rely on browser headers if this doesn't work.
+    // 'hl': 'ja' is common for Google, 'locale': 'ja' for others.
+    // We will append it just in case it's supported or affects the view.
   })
+  // Manually select Japanese if possible
+  if (config.redirectUri.includes('raku-raku-notion.pages.dev')) {
+    // Just a marker, no actual effect on API unless API supports it
+  }
 
-  return `${NOTION_OAUTH_URL}?${params.toString()}`
+  return `${NOTION_OAUTH_URL}?${params.toString()}&locale=ja&hl=ja`
 }
 
 /**
