@@ -13,7 +13,7 @@ const targetDirs = [
   path.join(__dirname, '..', 'build', 'chrome-mv3-prod')
 ];
 
-const filesToCopy = ['oauth-callback.html', 'oauth-callback.js'];
+const filesToCopy = ['oauth-callback.html', 'oauth-callback.js', 'guide-icons.png', 'guide-login.png'];
 
 targetDirs.forEach(targetDir => {
   // ディレクトリが存在しない場合は作成
