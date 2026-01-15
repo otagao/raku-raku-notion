@@ -89,6 +89,7 @@ const buildOverlay = () => {
   closeButton.style.borderRadius = "999px"
   closeButton.style.border = "1px solid #e0e0e0"
   closeButton.style.background = "#ffffff"
+  closeButton.style.color = "#1f1f1f"
   closeButton.style.cursor = "pointer"
 
   const iframe = document.createElement("iframe")

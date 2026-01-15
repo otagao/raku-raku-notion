@@ -9,7 +9,6 @@ import { createNotionClient } from "~services/notion"
 
 import type { Screen, Clipboard, NotionDatabaseSummary, Language } from "~types"
 import "~styles/global.css"
-import { requestUiClose } from "~utils/ui-close"
 
 function IndexPopup() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('home')
@@ -49,9 +48,10 @@ function IndexPopup() {
           setClipProgress('✓ クリップ完了！');
           setMemoDraft("");
 
-          // 成功時は1.5秒後に自動的に閉じる
+          // 成功時は1.5秒後にホーム画面へ戻る（UIは閉じない）
           setTimeout(() => {
-            requestUiClose()
+            setIsClipping(false);
+            setCurrentScreen('home');
           }, 1500);
         } else {
           setClipProgress(`✗ クリップ失敗: ${message.error || '不明なエラー'}`);
