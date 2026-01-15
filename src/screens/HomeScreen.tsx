@@ -38,6 +38,10 @@ const translations: Record<Language, {
   destinationPlaceholder: string
   tagLabel: string
   addedTagsLabel: string
+  tagNoneOption: string
+  tagNewOption: string
+  tagNamePlaceholder: string
+  tagAddButton: string
   tooltipDestination: string
   tooltipWorkspace: string
   tooltipTag: string
@@ -70,6 +74,10 @@ const translations: Record<Language, {
     destinationPlaceholder: '保存先を選択してください',
     tagLabel: 'タグ付与',
     addedTagsLabel: '付与タグ',
+    tagNoneOption: '（選択なし）',
+    tagNewOption: '新規タグ',
+    tagNamePlaceholder: 'タグ名を入力',
+    tagAddButton: '付与',
     tooltipDestination: 'ページの保存先となるNotionデータベースを選択します',
     tooltipWorkspace: 'Notion上のワークスペース（チームまたは個人アカウント）',
     tooltipTag: 'ページに追加するタグ。既存タグから選択、または新規作成できます',
@@ -102,6 +110,10 @@ const translations: Record<Language, {
     destinationPlaceholder: 'Select a destination',
     tagLabel: 'Add tags',
     addedTagsLabel: 'Tags to add',
+    tagNoneOption: '(None)',
+    tagNewOption: 'New tag',
+    tagNamePlaceholder: 'Enter tag name',
+    tagAddButton: 'Add',
     tooltipDestination: 'Select a Notion database where pages will be saved',
     tooltipWorkspace: 'A workspace in Notion (team or personal account)',
     tooltipTag: 'Tags to add to the page. Choose from existing tags or create new ones',
@@ -514,8 +526,8 @@ const HomeScreen: FC<HomeScreenProps> = ({
                   cursor: 'pointer'
                 }}
               >
-                <option value="">（選択なし）</option>
-                <option value="new">新規タグ</option>
+                <option value="">{t.tagNoneOption}</option>
+                <option value="new">{t.tagNewOption}</option>
                 {existingTags.map(tag => (
                   <option key={tag} value={tag}>{tag}</option>
                 ))}
@@ -524,7 +536,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
                 type="text"
                 value={newTagName}
                 onChange={(e) => setNewTagName(e.target.value)}
-                placeholder="タグ名を入力"
+                placeholder={t.tagNamePlaceholder}
                 disabled={pendingTag !== 'new'}
                 style={{
                   flex: 1,
@@ -577,7 +589,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
                       : 'pointer'
                 }}
               >
-                付与
+                {t.tagAddButton}
               </button>
             </div>
           </div>
