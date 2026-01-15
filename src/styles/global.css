@@ -5,7 +5,7 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", YuGothic, Meiryo, "Helvetica Neue", Arial, sans-serif;
   font-size: 14px;
   line-height: 1.5;
   color: #37352f;
@@ -59,6 +59,7 @@ body {
   font-weight: 500;
   cursor: pointer;
   transition: background 0.2s;
+  line-height: 1.2;
 }
 
 .button:hover {
@@ -68,6 +69,7 @@ body {
 .button-secondary {
   background: #f1f1ef;
   color: #37352f;
+  line-height: 1.2;
 }
 
 .button-secondary:hover {
