@@ -1,5 +1,5 @@
 import type { PlasmoCSConfig } from "plasmo"
-import guideIconsUrl from "data-base64:../../assets/guide-icons.png"
+
 import guideLoginUrl from "data-base64:../../assets/guide-login.png"
 
 export const config: PlasmoCSConfig = {
@@ -19,7 +19,7 @@ const injectOverlay = () => {
     console.log("Raku Raku Notion: Injecting Slideshow Overlay");
 
     let currentSlide = 0;
-    const totalSlides = 3;
+    const totalSlides = 2;
 
     const container = document.createElement("div");
     container.id = "raku-raku-notion-overlay";
@@ -86,7 +86,7 @@ const injectOverlay = () => {
 
     // Title Element
     const title = document.createElement("h2");
-    title.textContent = "認証"; // Default for Page 1
+    title.textContent = "手順"; // Default for Page 1
     title.style.cssText = `
         font-size: 18px !important;
         margin: 2px 0 0 0 !important;
@@ -122,68 +122,7 @@ const injectOverlay = () => {
         overflow-y: auto !important;
     `;
 
-    // Slide 1 Content (Main Guide)
-    const slide1 = document.createElement("div");
-    slide1.style.cssText = `
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: center !important;
-        width: 100% !important;
-        transition: opacity 0.3s ease !important;
-    `;
 
-    // Image Container for Slide 1
-    const imgContainer = document.createElement("div");
-    imgContainer.style.cssText = `
-        position: relative !important;
-        width: 100% !important;
-        max-width: 200px !important; /* Smaller image */
-        background: rgba(255, 255, 255, 0.05) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        padding: 10px !important;
-        display: flex !important;
-        justify-content: center !important;
-        align-items: center !important;
-        margin-bottom: 10px !important;
-    `;
-
-    // Decoration corners
-    const corners = ["top-left", "top-right", "bottom-left", "bottom-right"];
-    corners.forEach(pos => {
-        const corner = document.createElement("div");
-        let style = "position: absolute !important; width: 6px !important; height: 6px !important; border-color: rgba(255,255,255,0.5) !important; border-style: solid !important;";
-        if (pos === "top-left") style += "top: 0; left: 0; border-width: 1px 0 0 1px !important;";
-        if (pos === "top-right") style += "top: 0; right: 0; border-width: 1px 1px 0 0 !important;";
-        if (pos === "bottom-left") style += "bottom: 0; left: 0; border-width: 0 0 1px 1px !important;";
-        if (pos === "bottom-right") style += "bottom: 0; right: 0; border-width: 0 1px 1px 0 !important;";
-        corner.style.cssText = style;
-        imgContainer.appendChild(corner);
-    });
-
-    const img = document.createElement("img");
-    img.src = guideIconsUrl;
-    img.style.cssText = `
-        max-width: 100% !important;
-        height: auto !important;
-        display: block !important;
-        filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.2)) !important;
-    `;
-    imgContainer.appendChild(img);
-    slide1.appendChild(imgContainer);
-
-    const textDesc1 = document.createElement("div");
-    textDesc1.innerHTML = `
-        <div style="font-size: 13px;">拡張機能のボタンをもう一度押すと、認証画面の操作手順が出てきます</div>
-        <div style="font-size: 12px; color: #aaa; margin-top: 5px;">
-            右上の<span style="color: #00ffff; font-weight: bold;">✕ボタン</span>で閉じると<br><span style="color: #00ffff; font-weight: bold;">？ボタン</span>になります
-        </div>
-    `;
-    textDesc1.style.cssText = `
-        font-size: 13px !important;
-        color: #d0d0d0 !important;
-        font-weight: 500 !important;
-    `;
-    slide1.appendChild(textDesc1);
 
     // Slide 2 Content (Text Instructions)
     const slide2 = document.createElement("div");
@@ -199,7 +138,7 @@ const injectOverlay = () => {
 
     const instructionsHTML = `
         <div style="margin-bottom: 10px; font-size: 13px; color: #fff; font-weight: bold; border-left: 3px solid #00ffff; padding-left: 8px;">
-            このような手順の説明の文章が表示されます。
+            認証画面での操作手順はこちらの通りです。
         </div>
         <div style="margin-bottom: 20px;">
             <h3 style="color: #00ffff; font-size: 14px; margin: 0 0 5px 0; font-weight: bold;">1. 「ページを選択する」ボタンを押す</h3>
@@ -264,7 +203,7 @@ const injectOverlay = () => {
     `;
     slide3.appendChild(textDesc3);
 
-    contentArea.appendChild(slide1);
+
     contentArea.appendChild(slide2);
     contentArea.appendChild(slide3);
     modal.appendChild(contentArea);
@@ -366,20 +305,16 @@ const injectOverlay = () => {
     // Navigation Logic
     const updateSlides = () => {
         // Reset styles
-        slide1.style.display = "none";
         slide2.style.display = "none";
         slide3.style.display = "none";
 
         // Show current
         if (currentSlide === 0) {
-            slide1.style.display = "flex";
-            title.textContent = "認証"; // Title for Page 1
-        } else if (currentSlide === 1) {
             slide2.style.display = "flex";
-            title.textContent = "手順"; // Title for Page 2
-        } else if (currentSlide === 2) {
+            title.textContent = "手順"; // Title for Page 1
+        } else if (currentSlide === 1) {
             slide3.style.display = "flex";
-            title.textContent = "ログイン"; // Title for Page 3
+            title.textContent = "ログイン"; // Title for Page 2
         }
 
         updateDots();
