@@ -14,6 +14,16 @@ import { extractYouTubeVideoId, getYouTubeThumb } from "~utils/youtube"
 import { isIgnoredImage, collectImagesFromDoc, collectVideosFromDoc, extractTextFromElement } from "~utils/content-extraction"
 import type { NotionOAuthConfig, WebClipData } from "~types"
 
+const disableActionPopup = () => {
+  try {
+    chrome.action.setPopup({ popup: "" })
+  } catch (error) {
+    console.warn("[Background] Failed to disable action popup:", error)
+  }
+}
+
+disableActionPopup()
+
 // メッセージリスナー
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('[Background] Received message:', message.type, 'from:', sender.url || sender.id);
@@ -50,9 +60,9 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 chrome.commands.onCommand.addListener(async (command) => {
   if (command === "open-popup") {
     try {
-      await chrome.action.openPopup()
+      await openIframeUiForActiveTab()
     } catch (error) {
-      console.error("[Background] Failed to open popup from command:", error)
+      console.error("[Background] Failed to open iframe UI from command:", error)
     }
   }
 })
@@ -61,6 +71,7 @@ chrome.commands.onCommand.addListener(async (command) => {
 const CONTEXT_MENU_ID = "open-popup-context"
 chrome.runtime.onInstalled.addListener(() => {
   try {
+    disableActionPopup()
     chrome.contextMenus.create({
       id: CONTEXT_MENU_ID,
       title: "Raku Raku Notion を開く",
@@ -71,13 +82,25 @@ chrome.runtime.onInstalled.addListener(() => {
   }
 })
 
+chrome.runtime.onStartup.addListener(() => {
+  disableActionPopup()
+})
+
+chrome.action.onClicked.addListener(async (tab) => {
+  try {
+    await openIframeUiForActiveTab(tab?.id)
+  } catch (error) {
+    console.error("[Background] Failed to open iframe UI from action:", error)
+  }
+})
+
 // コンテキストメニュークリック時の処理（将来他の処理に差し替え可）
 chrome.contextMenus.onClicked.addListener(async (info) => {
   if (info.menuItemId === CONTEXT_MENU_ID) {
     try {
-      await chrome.action.openPopup()
+      await openIframeUiForActiveTab(info.tabId)
     } catch (error) {
-      console.error("[Background] Failed to open popup from context menu:", error)
+      console.error("[Background] Failed to open iframe UI from context menu:", error)
     }
   }
 })
@@ -112,6 +135,10 @@ async function handleMessage(
         await handleClipPage(message.data, sender, sendResponse)
         break
 
+      case "close-iframe-ui":
+        await handleCloseIframeUi(sendResponse)
+        break
+
       case "clip-now-youtube":
         await handleClipNowYouTube(message.data, sender, sendResponse)
         break
@@ -136,6 +163,82 @@ async function handleMessage(
     sendResponse({
       success: false,
       error: error instanceof Error ? error.message : "Unknown error"
+    })
+  }
+}
+
+async function openIframeUiForActiveTab(tabId?: number) {
+  let targetTabId = tabId
+
+  if (!targetTabId) {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
+    targetTabId = tabs[0]?.id
+  }
+
+  if (!targetTabId) {
+    throw new Error("No active tab available for iframe UI")
+  }
+
+  const tab = await chrome.tabs.get(targetTabId)
+  const url = tab.url || ""
+  const isRestrictedUrl =
+    url.startsWith("chrome://") ||
+    url.startsWith("edge://") ||
+    url.startsWith("about:") ||
+    url.startsWith("chrome-extension://") ||
+    url.startsWith("https://chrome.google.com/webstore") ||
+    url.startsWith("https://chromewebstore.google.com/")
+
+  if (isRestrictedUrl) {
+    await openActionPopup(targetTabId)
+    return
+  }
+
+  try {
+    await chrome.tabs.sendMessage(targetTabId, { type: "open-iframe-ui" })
+  } catch (error) {
+    console.warn("[Background] Failed to open iframe UI in tab, falling back:", error)
+    await openActionPopup(targetTabId)
+  }
+}
+
+async function openActionPopup(tabId?: number) {
+  const fallbackPopup = "popup.html"
+  let previousPopup = ""
+  try {
+    previousPopup = await chrome.action.getPopup({ tabId })
+  } catch {
+    previousPopup = ""
+  }
+
+  try {
+    await chrome.action.setPopup({ popup: fallbackPopup, tabId })
+    await chrome.action.openPopup()
+  } catch (error) {
+    console.error("[Background] Failed to open action popup fallback:", error)
+  } finally {
+    try {
+      await chrome.action.setPopup({ popup: previousPopup || "", tabId })
+    } catch {
+      // ignore restore errors
+    }
+  }
+}
+
+async function handleCloseIframeUi(sendResponse: (response?: any) => void) {
+  try {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
+    const tabId = tabs[0]?.id
+    if (!tabId) {
+      sendResponse({ success: false, error: "No active tab found" })
+      return
+    }
+    await chrome.tabs.sendMessage(tabId, { type: "close-iframe-ui" })
+    sendResponse({ success: true })
+  } catch (error) {
+    sendResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to close iframe UI"
     })
   }
 }

@@ -38,6 +38,10 @@ const translations: Record<Language, {
   destinationPlaceholder: string
   tagLabel: string
   addedTagsLabel: string
+  tagNoneOption: string
+  tagNewOption: string
+  tagNamePlaceholder: string
+  tagAddButton: string
   tooltipDestination: string
   tooltipWorkspace: string
   tooltipTag: string
@@ -60,16 +64,20 @@ const translations: Record<Language, {
     memoLabel: 'メモ（任意）',
     memoPlaceholder: 'ページについてのメモを入力できます',
     clipButton: 'このページを保存',
-    clipNowButton: '再生時間を\n維持して保存',
+    clipNowButton: '再生時間情報も保存',
     disconnect: '連携解除',
     listButton: '保存先一覧',
-    createButton: '保存先を作成',
+    createButton: '新規作成',
     checking: '接続状態を確認中...',
     connected: (name) => `接続中: ${name || 'Notionワークスペース'}`,
     destinationLabel: '保存先',
     destinationPlaceholder: '保存先を選択してください',
     tagLabel: 'タグ付与',
     addedTagsLabel: '付与タグ',
+    tagNoneOption: '（選択なし）',
+    tagNewOption: '新規タグ',
+    tagNamePlaceholder: 'タグ名を入力',
+    tagAddButton: '付与',
     tooltipDestination: 'ページの保存先となるNotionデータベースを選択します',
     tooltipWorkspace: 'Notion上のワークスペース（チームまたは個人アカウント）',
     tooltipTag: 'ページに追加するタグ。既存タグから選択、または新規作成できます',
@@ -95,13 +103,17 @@ const translations: Record<Language, {
     clipNowButton: 'Save with\nplayback time',
     disconnect: 'Disconnect',
     listButton: 'Destinations',
-    createButton: 'Create destination',
+    createButton: 'Create',
     checking: 'Checking connection...',
     connected: (name) => `Connected: ${name || 'Notion workspace'}`,
     destinationLabel: 'Destination',
     destinationPlaceholder: 'Select a destination',
     tagLabel: 'Add tags',
     addedTagsLabel: 'Tags to add',
+    tagNoneOption: '(None)',
+    tagNewOption: 'New tag',
+    tagNamePlaceholder: 'Enter tag name',
+    tagAddButton: 'Add',
     tooltipDestination: 'Select a Notion database where pages will be saved',
     tooltipWorkspace: 'A workspace in Notion (team or personal account)',
     tooltipTag: 'Tags to add to the page. Choose from existing tags or create new ones',
@@ -305,9 +317,9 @@ const HomeScreen: FC<HomeScreenProps> = ({
         <div style={{
           padding: '12px',
           marginBottom: '10px',
-          backgroundColor: isConnected ? '#e8f4f8' : '#f5f5f5',
+          backgroundColor: isConnected ? '#ffe6e6' : '#f5f5f5',
           borderRadius: '4px',
-          border: `1px solid ${isConnected ? '#b3d9e8' : '#ddd'}`,
+          border: `1px solid ${isConnected ? '#f5caca' : '#ddd'}`,
           minHeight: '44px',
           display: 'flex',
           alignItems: 'center',
@@ -433,7 +445,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
             className="button"
             style={{
               width: '100%',
-              background: isAuthLoading || !oauthClientId ? undefined : '#0078d4',
+              background: isAuthLoading || !oauthClientId ? undefined : '#f2a8a8',
               fontSize: '15px',
               fontWeight: '600',
               padding: '14px 16px'
@@ -463,27 +475,44 @@ const HomeScreen: FC<HomeScreenProps> = ({
             {t.destinationLabel}
             <TooltipIcon text={t.tooltipDestination} style={{ marginLeft: 0 }} />
           </label>
-          <select
-            value={selectedClipboardId || ''}
-            onChange={(e) => onSelectClipboardId(e.target.value)}
-            disabled={clipboards.length === 0}
-            style={{
-              width: '100%',
-              padding: '6px',
-              border: '1px solid #ddd',
-              borderRadius: '6px',
-              fontSize: '14px',
-              backgroundColor: clipboards.length === 0 ? '#f5f5f5' : 'white',
-              cursor: clipboards.length === 0 ? 'not-allowed' : 'pointer'
-            }}
-          >
-            <option value="" disabled>{t.destinationPlaceholder}</option>
-            {clipboards.map(cb => (
-              <option key={cb.id} value={cb.notionDatabaseId}>
-                {cb.name}
-              </option>
-            ))}
-          </select>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <select
+              value={selectedClipboardId || ''}
+              onChange={(e) => onSelectClipboardId(e.target.value)}
+              disabled={clipboards.length === 0}
+              style={{
+                flex: 1,
+                padding: '6px',
+                border: '1px solid #ddd',
+                borderRadius: '6px',
+                fontSize: '14px',
+                backgroundColor: clipboards.length === 0 ? '#f5f5f5' : 'white',
+                cursor: clipboards.length === 0 ? 'not-allowed' : 'pointer'
+              }}
+            >
+              <option value="" disabled>{t.destinationPlaceholder}</option>
+              {clipboards.map(cb => (
+                <option key={cb.id} value={cb.notionDatabaseId}>
+                  {cb.name}
+                </option>
+              ))}
+            </select>
+            <button
+              className="button button-secondary"
+              onClick={() => onNavigate('create-clipboard')}
+              style={{
+                width: '100px',
+                padding: '8px 4px',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                backgroundColor: '#f2a8a8',
+                borderColor: '#f2a8a8',
+                color: 'white'
+              }}
+            >
+              {t.createButton}
+            </button>
+          </div>
         </div>
       )}
 
@@ -514,8 +543,8 @@ const HomeScreen: FC<HomeScreenProps> = ({
                   cursor: 'pointer'
                 }}
               >
-                <option value="">（選択なし）</option>
-                <option value="new">新規タグ</option>
+                <option value="">{t.tagNoneOption}</option>
+                <option value="new">{t.tagNewOption}</option>
                 {existingTags.map(tag => (
                   <option key={tag} value={tag}>{tag}</option>
                 ))}
@@ -524,7 +553,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
                 type="text"
                 value={newTagName}
                 onChange={(e) => setNewTagName(e.target.value)}
-                placeholder="タグ名を入力"
+                placeholder={t.tagNamePlaceholder}
                 disabled={pendingTag !== 'new'}
                 style={{
                   flex: 1,
@@ -562,8 +591,8 @@ const HomeScreen: FC<HomeScreenProps> = ({
                   padding: '8px 4px',
                   whiteSpace: 'nowrap',
                   flexShrink: 0,
-                  backgroundColor: '#1976d2',
-                  borderColor: '#1976d2',
+                  backgroundColor: '#f2a8a8',
+                  borderColor: '#f2a8a8',
                   color: 'white',
                   opacity:
                     pendingTag === '' ||
@@ -577,7 +606,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
                       : 'pointer'
                 }}
               >
-                付与
+                {t.tagAddButton}
               </button>
             </div>
           </div>
@@ -595,10 +624,10 @@ const HomeScreen: FC<HomeScreenProps> = ({
                     gap: '4px',
                     padding: '4px 8px',
                     marginLeft: idx === 0 ? 8 : 4,
-                    background: '#eef4ff',
+                    background: '#fbe3e3',
                     borderRadius: '12px',
                     fontSize: '12px',
-                    color: '#334'
+                    color: '#6a4a4a'
                   }}
                 >
                   {tag}
@@ -707,38 +736,19 @@ const HomeScreen: FC<HomeScreenProps> = ({
                 }}
               />
             </div>
-            <div style={{ position: 'relative', flex: 1 }}>
+            <div style={{ flex: 1 }}>
               <button
+                onClick={onToggleLanguage}
                 className="button button-secondary"
-                onClick={() => onNavigate('create-clipboard')}
-                style={{ width: '100%' }}
-              >
-                {t.createButton}
-              </button>
-              <TooltipIcon
-                text={t.tooltipCreateButton}
                 style={{
-                  position: 'absolute',
-                  right: '8px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  zIndex: 1
+                  width: '100%',
+                  fontSize: '12px'
                 }}
-              />
+                title={language === 'ja' ? 'English display' : '日本語表示'}
+              >
+                {language === 'ja' ? 'English' : '日本語'}
+              </button>
             </div>
-          </div>
-          <div style={{ marginTop: '12px' }}>
-            <button
-              onClick={onToggleLanguage}
-              className="button button-secondary"
-              style={{
-                width: '100%',
-                fontSize: '12px'
-              }}
-              title={language === 'ja' ? 'English display' : '日本語表示'}
-            >
-              {language === 'ja' ? 'English' : '日本語'}
-            </button>
           </div>
         </div>
       )}
