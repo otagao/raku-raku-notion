@@ -490,8 +490,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === 'get-youtube-time') {
     try {
-      const video = document.querySelector('video') as HTMLVideoElement | null
-      const currentTime = video ? Math.floor(video.currentTime || 0) : 0
+      const videos = Array.from(document.querySelectorAll('video'))
+      const activeVideo = videos.find(video => Number.isFinite(video.currentTime)) || videos[0]
+      const currentTime = activeVideo ? Math.floor(activeVideo.currentTime || 0) : 0
       sendResponse({ success: true, currentTime })
     } catch (error) {
       console.error('[Content Script] Error getting YouTube time:', error)

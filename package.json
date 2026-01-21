@@ -1,6 +1,6 @@
 {
   "name": "raku-raku-notion",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Simplified Notion web clipper browser extension",
   "displayName": "Raku Raku Notion",
   "scripts": {
@@ -15,7 +15,7 @@
     "url": "git+https://github.com/otagao/raku-raku-notion.git"
   },
   "keywords": [],
-  "author": "",
+  "author": "Team Bookmark (True)",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
@@ -56,7 +56,8 @@
         "resources": [
           "oauth-callback.html",
           "oauth-callback.js",
-          "assets/tutorial.html"
+          "assets/tutorial.html",
+          "popup.html"
         ],
         "matches": [
           "<all_urls>"

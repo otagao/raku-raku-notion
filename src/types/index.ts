@@ -1,4 +1,4 @@
-export type Screen = 'home' | 'create-clipboard' | 'clipboard-list' | 'select-clipboard' | 'settings'
+export type Screen = 'home' | 'create-clipboard' | 'clipboard-list' | 'select-clipboard'
 
 // クリップボード: Notionのデータベースに紐づく
 export interface Clipboard {

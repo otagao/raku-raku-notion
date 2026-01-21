@@ -1,18 +1,21 @@
 import { useState, type FC } from "react"
 import type { Language } from "~types"
+import { TooltipIcon } from "~components/TooltipIcon"
 
 interface CreateClipboardScreenProps {
   onNavigate: (screen: string) => void
   onCreateClipboard: (clipboardName: string) => void
   language: Language
   countdown: number
+  status?: string
 }
 
 const CreateClipboardScreen: FC<CreateClipboardScreenProps> = ({
   onNavigate,
   onCreateClipboard,
   language,
-  countdown
+  countdown,
+  status
 }) => {
   const [clipboardName, setClipboardName] = useState("")
   const [isCreating, setIsCreating] = useState(false)
@@ -25,7 +28,8 @@ const CreateClipboardScreen: FC<CreateClipboardScreenProps> = ({
       placeholder: "例: 記事クリップ、参考リンクなど",
       hint: "Notionに新しいデータベースを作成します",
       submit: isCreating ? "作成中..." : "保存先データベースを作成",
-      back: "← 戻る"
+      back: "← 戻る",
+      tooltip: "ウェブページを保存するためのNotionデータベースを新規作成します"
     },
     en: {
       title: "Create Destination Database",
@@ -33,7 +37,8 @@ const CreateClipboardScreen: FC<CreateClipboardScreenProps> = ({
       placeholder: "e.g. Article clips, Reference links",
       hint: "Create a new database in Notion",
       submit: isCreating ? "Creating..." : "Create destination database",
-      back: "← Back"
+      back: "← Back",
+      tooltip: "Create a new Notion database to save web pages"
     }
   }[language]
 
@@ -46,7 +51,7 @@ const CreateClipboardScreen: FC<CreateClipboardScreenProps> = ({
 
     try {
       await onCreateClipboard(clipboardName)
-      onNavigate('clipboard-list')
+      onNavigate('home')
     } catch (err) {
       setError(err instanceof Error ? err.message : '保存先データベースの作成に失敗しました')
       setIsCreating(false)
@@ -64,7 +69,10 @@ const CreateClipboardScreen: FC<CreateClipboardScreenProps> = ({
 
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label htmlFor="clipboard-name">{t.label}</label>
+          <label htmlFor="clipboard-name" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {t.label}
+            <TooltipIcon text={t.tooltip} style={{ marginLeft: 0 }} />
+          </label>
           <input
             id="clipboard-name"
             type="text"
@@ -98,6 +106,11 @@ const CreateClipboardScreen: FC<CreateClipboardScreenProps> = ({
             <p style={{ color: '#d9534f', fontSize: '12px', marginTop: '10px', textAlign: 'center', fontWeight: 'bold' }}>
               完了するまで、この画面を閉じたり別のタブに移動したりしないでください。
             </p>
+            {status && (
+              <p style={{ color: '#0066cc', fontSize: '12px', marginTop: '5px', textAlign: 'center', fontWeight: 'bold' }}>
+                {status}
+              </p>
+            )}
             {countdown > 0 && (
               <p style={{ color: '#666', fontSize: '12px', marginTop: '5px', textAlign: 'center' }}>
                 {language === 'ja'
