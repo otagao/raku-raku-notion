@@ -1,5 +1,4 @@
 import type { NotionConfig, NotionDatabaseSummary, NotionPageData, WebClipData } from "~types"
-import { convertToYouTubeEmbedUrl } from "~utils/youtube"
 
 const NOTION_VERSION = "2022-06-28"
 const NOTION_API_BASE = "https://api.notion.com/v1"
@@ -16,6 +15,54 @@ function extractViewIdFromUrl(url: string): string | undefined {
   } catch {
     return undefined
   }
+}
+
+function extractYouTubeIdFromUrl(url: string): string | undefined {
+  try {
+    const u = new URL(url)
+    if (u.hostname.includes('youtube.com')) {
+      if (u.pathname.startsWith('/shorts/')) {
+        return u.pathname.split('/shorts/')[1]?.split(/[?/]/)[0] || undefined
+      }
+      return u.searchParams.get('v') || undefined
+    }
+    if (u.hostname.includes('youtu.be')) {
+      return u.pathname.replace('/', '') || undefined
+    }
+  } catch {
+    return undefined
+  }
+  return undefined
+}
+
+function parseYouTubeStartSeconds(url: string): number | undefined {
+  try {
+    const u = new URL(url)
+    const t = u.searchParams.get('t') || u.searchParams.get('start')
+    if (!t) return undefined
+    if (/^\d+$/.test(t)) return parseInt(t, 10)
+    let total = 0
+    const re = /(\d+)(h|m|s)/g
+    let match: RegExpExecArray | null
+    while ((match = re.exec(t)) !== null) {
+      const value = parseInt(match[1], 10)
+      const unit = match[2]
+      if (unit === 'h') total += value * 3600
+      if (unit === 'm') total += value * 60
+      if (unit === 's') total += value
+    }
+    return total > 0 ? total : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function buildYouTubeEmbedUrl(videoId: string, startSeconds?: number): string {
+  const base = `https://www.youtube.com/embed/${videoId}`
+  if (startSeconds && startSeconds > 0) {
+    return `${base}?start=${startSeconds}`
+  }
+  return base
 }
 
 /**
@@ -266,6 +313,21 @@ export class NotionService {
       .trim()
   }
 
+  private getTitlePropertyName(properties?: Record<string, any>): string | undefined {
+    if (!properties) return undefined
+    const entry = Object.entries(properties).find(([, value]) => value?.type === "title")
+    return entry?.[0]
+  }
+
+  private getPageTitleFromProperties(properties?: Record<string, any>, titlePropName?: string): string {
+    if (!properties) return ""
+    const name = titlePropName || this.getTitlePropertyName(properties)
+    if (!name) return ""
+    const prop = properties[name]
+    if (!prop || prop.type !== "title") return ""
+    return this.getPlainText(prop.title)
+  }
+
   /**
    * ワークスペース直下に新しいページを作成する
    */
@@ -306,6 +368,99 @@ export class NotionService {
     const result = await response.json()
     console.log('[NotionService.createWorkspacePage] Page created:', result.id)
     return result.id
+  }
+
+  private async findDatabaseIdByTitle(title: string, parentPageId?: string): Promise<string | undefined> {
+    const response = await fetch(`${NOTION_API_BASE}/search`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${this.getAuthToken()}`,
+        "Notion-Version": NOTION_VERSION,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        query: title,
+        filter: { property: "object", value: "database" },
+        page_size: 20
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      console.error('[NotionService.findDatabaseIdByTitle] Error:', errorData)
+      return undefined
+    }
+
+    const result = await response.json()
+    const databases = Array.isArray(result.results) ? result.results : []
+    const matched = databases.find((db: any) => {
+      const dbTitle = this.getPlainText(db?.title)
+      if (dbTitle !== title) return false
+      if (!parentPageId) return true
+      return db?.parent?.type === "page_id" && db?.parent?.page_id === parentPageId
+    })
+    return matched?.id
+  }
+
+  private async getOrCreateTagDatabaseId(parentPageId: string): Promise<string> {
+    const tagDbTitle = "Raku Raku Notion - タグ"
+    const existingId = await this.findDatabaseIdByTitle(tagDbTitle, parentPageId)
+    if (existingId) return existingId
+
+    const response = await fetch(`${NOTION_API_BASE}/databases`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${this.getAuthToken()}`,
+        "Notion-Version": NOTION_VERSION,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        parent: {
+          type: "page_id",
+          page_id: parentPageId
+        },
+        title: [
+          {
+            type: "text",
+            text: {
+              content: tagDbTitle
+            }
+          }
+        ],
+        properties: {
+          "名前": {
+            title: {}
+          },
+          "作成日時": {
+            created_time: {}
+          }
+        }
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      console.error('[NotionService.createTagDatabase] Error:', errorData)
+      throw new Error(`タグDBの作成に失敗しました: ${errorData.message || response.statusText}`)
+    }
+
+    const result = await response.json()
+    return result.id
+  }
+
+  private async fetchDatabase(databaseId: string): Promise<any> {
+    const response = await fetch(`${NOTION_API_BASE}/databases/${databaseId}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${this.getAuthToken()}`,
+        "Notion-Version": NOTION_VERSION
+      }
+    })
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.message || response.statusText)
+    }
+    return response.json()
   }
 
   /**
@@ -354,7 +509,13 @@ export class NotionService {
    * 新しいフルページデータベースを作成する（クリップボード用）
    * 共有コンテナページの下にデータベースを配置
    */
-  async createDatabase(name: string): Promise<{ id: string; url: string; properties: Record<string, string>; defaultViewId?: string }> {
+  async createDatabase(name: string): Promise<{
+    id: string
+    url: string
+    properties: Record<string, string>  // エンコード済み（公式API用）
+    propertiesDecoded: Record<string, string>  // デコード済み（内部API用）
+    defaultViewId?: string
+  }> {
     try {
       console.log('[NotionService.createDatabase] Creating database:', name)
 
@@ -362,6 +523,7 @@ export class NotionService {
       console.log('[NotionService.createDatabase] Resolving shared container page...')
       const parentPageId = await this.getOrCreateContainerPageId(containerTitle)
       console.log('[NotionService.createDatabase] Container page id:', parentPageId)
+      const tagDatabaseId = await this.getOrCreateTagDatabaseId(parentPageId)
 
       // データベースを作成
       console.log('[NotionService.createDatabase] Creating database under page:', parentPageId)
@@ -396,7 +558,10 @@ export class NotionService {
               rich_text: {}
             },
             "タグ": {
-              multi_select: {}
+              relation: {
+                database_id: tagDatabaseId,
+                single_property: {}
+              }
             },
             "作成日時": {
               created_time: {}
@@ -415,15 +580,22 @@ export class NotionService {
       console.log('[NotionService.createDatabase] Database created successfully:', result)
       console.log('[NotionService.createDatabase] Database URL:', result.url)
 
-      // プロパティIDを抽出
+      // プロパティIDを両形式で抽出（エンコード済み + デコード済み）
       const propertyIds: Record<string, string> = {}
+      const propertyIdsDecoded: Record<string, string> = {}
+
       if (result.properties) {
         Object.keys(result.properties).forEach(key => {
           if (result.properties[key] && result.properties[key].id) {
-            propertyIds[key] = result.properties[key].id
+            const encodedId = result.properties[key].id
+            propertyIds[key] = encodedId  // エンコード済み（公式API用）
+            propertyIdsDecoded[key] = decodeURIComponent(encodedId)  // デコード済み（内部API用）
           }
         })
       }
+
+      console.log('[NotionService.createDatabase] Property IDs (encoded):', propertyIds)
+      console.log('[NotionService.createDatabase] Property IDs (decoded):', propertyIdsDecoded)
 
       // URLからデフォルトビューIDを抽出
       const defaultViewId = extractViewIdFromUrl(result.url)
@@ -438,6 +610,7 @@ export class NotionService {
         id: result.id,
         url: result.url,
         properties: propertyIds,
+        propertiesDecoded: propertyIdsDecoded,
         defaultViewId
       }
     } catch (error) {
@@ -455,9 +628,22 @@ export class NotionService {
     try {
       const children: any[] = []
 
+      const youtubeVideoId = extractYouTubeIdFromUrl(url)
+      const youtubeStart = parseYouTubeStartSeconds(url)
+      const youtubeEmbedUrl = youtubeVideoId ? buildYouTubeEmbedUrl(youtubeVideoId, youtubeStart) : undefined
+
+      const normalizedVideos = videos?.map(v => {
+        const isBlob = v.url.startsWith('blob:')
+        const isYouTubeUrl = v.url.includes('youtube.com') || v.url.includes('youtu.be')
+        if (youtubeEmbedUrl && (isBlob || isYouTubeUrl)) {
+          return { ...v, url: youtubeEmbedUrl }
+        }
+        return { ...v, url: isBlob ? url : v.url }
+      })
+
       const imageUrls = images && images.length > 0 ? images : (thumbnail ? [thumbnail] : [])
       const bodyImages = imageUrls ? imageUrls.slice(0, 10) : []
-      const coverUrl = videos?.[0]?.poster || imageUrls?.[0] || thumbnail
+      const coverUrl = normalizedVideos?.[0]?.poster || imageUrls?.[0] || thumbnail
       let hostname = ''
       try {
         hostname = new URL(url).hostname
@@ -478,17 +664,15 @@ export class NotionService {
         })
       } else {
         // 動画ブロックを追加（最大3件程度）
-        if (videos && videos.length > 0) {
-          videos.slice(0, 3).forEach(video => {
-            // YouTube URLの場合は埋め込み形式に変換（タイムスタンプ対応）
-            const videoUrl = convertToYouTubeEmbedUrl(video.url)
+        if (normalizedVideos && normalizedVideos.length > 0) {
+          normalizedVideos.slice(0, 3).forEach(video => {
             children.push({
               object: "block",
               type: "video",
               video: {
                 type: "external",
                 external: {
-                  url: videoUrl
+                  url: video.url
                 }
               }
             })
@@ -561,11 +745,81 @@ export class NotionService {
         }
       }
 
-      // タグ（マルチセレクト）を追加（タグA/B固定の簡易実験）
+      // タグ付与（マルチセレクト / リレーション）
       if (tags && tags.length > 0) {
-        const multiSelectValue = tags.map(name => ({ name }))
-        // デフォルトで作成している「タグ」プロパティにのみ付与する
-        pageData.properties["タグ"] = { multi_select: multiSelectValue }
+        try {
+          const db = await this.fetchDatabase(databaseId)
+          const tagProp = db.properties?.["タグ"]
+          if (tagProp?.type === "multi_select") {
+            const multiSelectValue = tags.map(name => ({ name }))
+            pageData.properties["タグ"] = { multi_select: multiSelectValue }
+          } else if (tagProp?.type === "relation" && tagProp.relation?.database_id) {
+            const tagDbId = tagProp.relation.database_id
+            const tagDb = await this.fetchDatabase(tagDbId)
+            const titlePropName = this.getTitlePropertyName(tagDb?.properties)
+
+            const response = await fetch(`${NOTION_API_BASE}/databases/${tagDbId}/query`, {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${this.getAuthToken()}`,
+                "Notion-Version": NOTION_VERSION,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({ page_size: 100 })
+            })
+            if (!response.ok) {
+              const errorData = await response.json()
+              throw new Error(errorData.message || response.statusText)
+            }
+            const data = await response.json()
+            const pages = Array.isArray(data.results) ? data.results : []
+            const existingByName = new Map<string, string>()
+            pages.forEach((page: any) => {
+              const name = this.getPageTitleFromProperties(page?.properties, titlePropName).trim()
+              if (name) existingByName.set(name, page.id)
+            })
+
+            const relationIds: { id: string }[] = []
+            for (const raw of tags) {
+              const name = raw.trim()
+              if (!name) continue
+              const existingId = existingByName.get(name)
+              if (existingId) {
+                relationIds.push({ id: existingId })
+                continue
+              }
+              const createRes = await fetch(`${NOTION_API_BASE}/pages`, {
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${this.getAuthToken()}`,
+                  "Notion-Version": NOTION_VERSION,
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                  parent: { database_id: tagDbId },
+                  properties: {
+                    [titlePropName || "名前"]: {
+                      title: [{ text: { content: name } }]
+                    }
+                  }
+                })
+              })
+              if (!createRes.ok) {
+                const errorData = await createRes.json()
+                throw new Error(errorData.message || createRes.statusText)
+              }
+              const created = await createRes.json()
+              relationIds.push({ id: created.id })
+              existingByName.set(name, created.id)
+            }
+
+            if (relationIds.length > 0) {
+              pageData.properties["タグ"] = { relation: relationIds }
+            }
+          }
+        } catch (error) {
+          console.warn('Failed to set tag relation:', error)
+        }
       }
 
       // アイコンがある場合はページアイコンとして設定
@@ -615,29 +869,40 @@ export class NotionService {
   }
 
   /**
-   * 指定したデータベースの「タグ」マルチセレクトプロパティから選択肢を取得
+   * 指定したデータベースの「タグ」プロパティから選択肢を取得
+   * マルチセレクト/リレーション両対応
    */
   async getTagOptions(databaseId: string): Promise<string[]> {
     try {
-      const response = await fetch(`${NOTION_API_BASE}/databases/${databaseId}`, {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${this.getAuthToken()}`,
-          "Notion-Version": NOTION_VERSION
-        }
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || response.statusText)
-      }
-
-      const result = await response.json()
+      const result = await this.fetchDatabase(databaseId)
       const tagProp = result.properties?.["タグ"]
       if (tagProp?.type === "multi_select" && Array.isArray(tagProp.multi_select?.options)) {
         return tagProp.multi_select.options
           .map((opt: any) => opt?.name)
           .filter((name: any): name is string => typeof name === 'string' && name.trim().length > 0)
+      }
+      if (tagProp?.type === "relation" && tagProp.relation?.database_id) {
+        const tagDbId = tagProp.relation.database_id
+        const tagDb = await this.fetchDatabase(tagDbId)
+        const titlePropName = this.getTitlePropertyName(tagDb?.properties)
+        const response = await fetch(`${NOTION_API_BASE}/databases/${tagDbId}/query`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${this.getAuthToken()}`,
+            "Notion-Version": NOTION_VERSION,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ page_size: 100 })
+        })
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.message || response.statusText)
+        }
+        const data = await response.json()
+        const pages = Array.isArray(data.results) ? data.results : []
+        return pages
+          .map((page: any) => this.getPageTitleFromProperties(page?.properties, titlePropName))
+          .filter((name: any): name is string => typeof name === "string" && name.trim().length > 0)
       }
       return []
     } catch (error) {

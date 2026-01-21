@@ -1,5 +1,7 @@
 import React, { type FC } from "react"
 import type { Clipboard, NotionDatabaseSummary, Language } from "~types"
+import { TooltipIcon } from "~components/TooltipIcon"
+import { requestUiClose } from "~utils/ui-close"
 
 interface ClipboardListScreenProps {
   clipboards: Clipboard[]
@@ -36,6 +38,7 @@ const translations: Record<Language, {
   deleteConfirm: string
   updatedAt: string
   noClipboards: string
+  tooltipExistingDatabases: string
 }> = {
   ja: {
     back: '← 戻る',
@@ -58,7 +61,8 @@ const translations: Record<Language, {
     register: '保存先データベースとして登録',
     deleteConfirm: 'この保存先データベースを保存先リストから除外しますか？',
     updatedAt: '最終更新',
-    noClipboards: 'まだ登録されたクリップボードはありません。'
+    noClipboards: 'まだ登録されたクリップボードはありません。',
+    tooltipExistingDatabases: 'Notionワークスペースにある既存のデータベースで、まだ保存先として登録されていないものを表示します'
   },
   en: {
     back: '← Back',
@@ -81,7 +85,8 @@ const translations: Record<Language, {
     register: 'Register as destination',
     deleteConfirm: 'Delete this destination database?',
     updatedAt: 'Last updated',
-    noClipboards: 'No clipboards registered yet.'
+    noClipboards: 'No clipboards registered yet.',
+    tooltipExistingDatabases: 'Shows existing databases in your Notion workspace that are not yet registered as destinations'
   }
 }
 
@@ -104,7 +109,7 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
     // Notionデータベースを新しいタブで開く
     if (clipboard.notionDatabaseUrl) {
       chrome.tabs.create({ url: clipboard.notionDatabaseUrl })
-      window.close()
+      requestUiClose()
     }
   }
 
@@ -128,7 +133,10 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
     <div style={{ marginTop: '24px' }}>
       <div style={{ marginBottom: '8px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ margin: 0, fontSize: '16px' }}>{t.availableTitle}</h2>
+          <h2 style={{ margin: 0, fontSize: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {t.availableTitle}
+            <TooltipIcon text={t.tooltipExistingDatabases} style={{ marginLeft: 0 }} />
+          </h2>
           <button
             className="button button-secondary"
             onClick={() => onRefreshDatabases?.()}
@@ -157,9 +165,9 @@ const ClipboardListScreen: FC<ClipboardListScreenProps> = ({
         <div style={{
           marginBottom: '8px',
           padding: '12px',
-          backgroundColor: '#e3f2fd',
+          backgroundColor: '#ffe3e3',
           borderRadius: '4px',
-          color: '#1976d2',
+          color: '#b45c5c',
           fontSize: '13px'
         }}>
           {databaseInfoMessage}

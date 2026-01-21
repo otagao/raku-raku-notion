@@ -2,15 +2,18 @@ import { type FC, useState, useEffect } from "react"
 import { StorageService } from "~services/storage"
 import { createNotionClient } from "~services/notion"
 import type { Language, Clipboard } from "~types"
+import { TooltipIcon } from "~components/TooltipIcon"
 
 interface HomeScreenProps {
   onNavigate: (screen: string) => void
   onClipPage?: () => void
+  onClipNow?: () => void
+  onDisconnect?: () => void
+  isYouTubeTab?: boolean
   language: Language
   onToggleLanguage: () => void
   memo: string
   onMemoChange: (value: string) => void
-  onOpenTutorial: () => void
   clipboards: Clipboard[]
   selectedClipboardId?: string
   onSelectClipboardId: (id: string) => void
@@ -18,71 +21,135 @@ interface HomeScreenProps {
   onAddTag: (tag: string) => void
   onRemoveTag: (tag: string) => void
   existingTags?: string[]
-  isYouTubeTab?: boolean
-  onClipNow?: () => void
 }
 
 const translations: Record<Language, {
   saving: string
-  tutorial: string
   memoLabel: string
   memoPlaceholder: string
   clipButton: string
+  clipNowButton: string
+  disconnect: string
   listButton: string
   createButton: string
   checking: string
   connected: (name: string) => string
-  disconnected: string
   destinationLabel: string
   destinationPlaceholder: string
+  tagLabel: string
+  addedTagsLabel: string
+  tagNoneOption: string
+  tagNewOption: string
+  tagNamePlaceholder: string
+  tagAddButton: string
+  tooltipDestination: string
+  tooltipWorkspace: string
+  tooltipTag: string
+  tooltipListButton: string
+  tooltipCreateButton: string
+  oauthButtonIdle: string
+  oauthButtonLoading: string
+  successSaved: string
+  uiSimplifyLabel: string
+  tooltipUISimplify: string
+  authGuideTitle: string
+  authGuideStep1: string
+  authGuideStep1Desc: string
+  authGuideStep2: string
+  authGuideStep2Desc: string
+  authGuideNote: string
 }> = {
   ja: {
-    saving: 'ウェブページをNotionに簡単保存',
-    tutorial: 'チュートリアル',
+    saving: '',
     memoLabel: 'メモ（任意）',
     memoPlaceholder: 'ページについてのメモを入力できます',
-    clipButton: '📎 このページを保存',
-    listButton: '保存先データベース一覧を見る',
-    createButton: '+ 新しい保存先データベースを作成',
+    clipButton: 'このページを保存',
+    clipNowButton: '再生時間情報も保存',
+    disconnect: '連携解除',
+    listButton: '保存先一覧',
+    createButton: '新規作成',
     checking: '接続状態を確認中...',
     connected: (name) => `接続中: ${name || 'Notionワークスペース'}`,
-    disconnected: '設定からNotionに接続してください',
     destinationLabel: '保存先',
-    destinationPlaceholder: '保存先を選択してください'
+    destinationPlaceholder: '保存先を選択してください',
+    tagLabel: 'タグ付与',
+    addedTagsLabel: '付与タグ',
+    tagNoneOption: '（選択なし）',
+    tagNewOption: '新規タグ',
+    tagNamePlaceholder: 'タグ名を入力',
+    tagAddButton: '付与',
+    tooltipDestination: 'ページの保存先となるNotionデータベースを選択します',
+    tooltipWorkspace: 'Notion上のワークスペース（チームまたは個人アカウント）',
+    tooltipTag: 'ページに追加するタグ。既存タグから選択、または新規作成できます',
+    tooltipListButton: '登録済みの保存先一覧を表示します',
+    tooltipCreateButton: 'Notion上に新しい保存先を作成します',
+    oauthButtonIdle: 'Notionで認証して接続',
+    oauthButtonLoading: '処理中...',
+    successSaved: '設定を保存しました',
+    uiSimplifyLabel: 'Notion UI簡略化',
+    tooltipUISimplify: 'Notion.so上でサイドバーやツールバーを非表示にし、シンプルな表示にします',
+    authGuideTitle: '認証画面での操作手順',
+    authGuideStep1: '1. 「ページを選択する」ボタンを押す',
+    authGuideStep1Desc: '注意事項を読んでから「ページを選択する」ボタンをクリックしてください。',
+    authGuideStep2: '2. 何も選択せず「アクセスを許可する」',
+    authGuideStep2Desc: '公開/非公開ページともに、何も選択せずに「アクセスを許可する」ボタンを押せばOKです。',
+    authGuideNote: '※ データベースへのアクセス権限は、保存先作成時に個別に付与されます。'
   },
   en: {
-    saving: 'Save web pages to Notion easily',
-    tutorial: 'Tutorial',
+    saving: '',
     memoLabel: 'Memo (optional)',
     memoPlaceholder: 'Add a note about this page',
-    clipButton: '📎 Save this page',
-    listButton: 'View destination databases',
-    createButton: '+ Create a new destination database',
+    clipButton: 'Save this page',
+    clipNowButton: 'Save with\nplayback time',
+    disconnect: 'Disconnect',
+    listButton: 'Destinations',
+    createButton: 'Create',
     checking: 'Checking connection...',
     connected: (name) => `Connected: ${name || 'Notion workspace'}`,
-    disconnected: 'Connect to Notion in Settings',
     destinationLabel: 'Destination',
-    destinationPlaceholder: 'Select a destination'
+    destinationPlaceholder: 'Select a destination',
+    tagLabel: 'Add tags',
+    addedTagsLabel: 'Tags to add',
+    tagNoneOption: '(None)',
+    tagNewOption: 'New tag',
+    tagNamePlaceholder: 'Enter tag name',
+    tagAddButton: 'Add',
+    tooltipDestination: 'Select a Notion database where pages will be saved',
+    tooltipWorkspace: 'A workspace in Notion (team or personal account)',
+    tooltipTag: 'Tags to add to the page. Choose from existing tags or create new ones',
+    tooltipListButton: 'View and manage your registered databases',
+    tooltipCreateButton: 'Create a new destination database in Notion',
+    oauthButtonIdle: 'Connect with Notion',
+    oauthButtonLoading: 'Processing...',
+    successSaved: 'Settings saved',
+    uiSimplifyLabel: 'Notion UI simplify',
+    tooltipUISimplify: 'Hide sidebar and toolbar on Notion.so for a cleaner display',
+    authGuideTitle: 'Steps on the auth screen',
+    authGuideStep1: '1. Click "Select pages"',
+    authGuideStep1Desc: 'Read the notice and then click the "Select pages" button.',
+    authGuideStep2: '2. Click "Allow access" without selecting',
+    authGuideStep2Desc: 'For both public and private pages, just click "Allow access" without selecting any pages.',
+    authGuideNote: '* Database access permissions will be granted individually when creating a destination.'
   }
 }
 
 const HomeScreen: FC<HomeScreenProps> = ({
   onNavigate,
   onClipPage,
+  onClipNow,
+  onDisconnect,
+  isYouTubeTab = false,
   language,
   onToggleLanguage,
   memo,
   onMemoChange,
-  onOpenTutorial,
   clipboards,
   selectedClipboardId,
   onSelectClipboardId,
   selectedTags,
   onAddTag,
   onRemoveTag,
-  existingTags = [],
-  isYouTubeTab = false,
-  onClipNow
+  existingTags = []
 }) => {
   const t = translations[language]
   const [isConnected, setIsConnected] = useState<boolean>(false)
@@ -90,13 +157,44 @@ const HomeScreen: FC<HomeScreenProps> = ({
   const [isCheckingConnection, setIsCheckingConnection] = useState<boolean>(true)
   const [pendingTag, setPendingTag] = useState<string>('') // 未選択スタート
   const [newTagName, setNewTagName] = useState<string>('') // 新規タグ名
+  const [uiSimplifyEnabled, setUiSimplifyEnabled] = useState<boolean | null>(null)
+
+  // 認証UI用のステート
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(false)
+  const [authError, setAuthError] = useState<string>('')
+  const [authSuccess, setAuthSuccess] = useState<string>('')
+  const [oauthClientId, setOauthClientId] = useState<string>('')
+
+  // OAuth設定を初期化
+  useEffect(() => {
+    const initOAuthConfig = async () => {
+      const clientId = process.env.PLASMO_PUBLIC_NOTION_CLIENT_ID || ''
+      setOauthClientId(clientId)
+    }
+    initOAuthConfig()
+  }, [])
 
   useEffect(() => {
     checkConnection()
+    loadUISimplify()
 
     // ストレージ変更を監視して、接続状態が変わったら再チェック
-    const handleStorageChange = () => {
-      checkConnection()
+    const handleStorageChange = async (changes: { [key: string]: chrome.storage.StorageChange }) => {
+      // OAuth完了を検出
+      if (changes['raku-oauth-pending'] && changes['raku-oauth-pending'].oldValue && !changes['raku-oauth-pending'].newValue) {
+        setTimeout(async () => {
+          const config = await StorageService.getNotionConfig()
+          if (config.authMethod === 'oauth' && config.accessToken) {
+            checkConnection()
+            setAuthSuccess(t.successSaved)
+            setTimeout(() => setAuthSuccess(''), 3000)
+          } else {
+            checkConnection()
+          }
+        }, 500)
+      } else {
+        checkConnection()
+      }
     }
 
     chrome.storage.onChanged.addListener(handleStorageChange)
@@ -104,7 +202,17 @@ const HomeScreen: FC<HomeScreenProps> = ({
     return () => {
       chrome.storage.onChanged.removeListener(handleStorageChange)
     }
-  }, [])
+  }, [t])
+
+  const loadUISimplify = async () => {
+    const config = await StorageService.getUISimplifyConfig()
+    setUiSimplifyEnabled(config.enabled)
+  }
+
+  const handleUISimplifyToggle = async (enabled: boolean) => {
+    setUiSimplifyEnabled(enabled)
+    await StorageService.saveUISimplifyConfig({ enabled })
+  }
 
   const checkConnection = async () => {
     setIsCheckingConnection(true)
@@ -123,8 +231,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
       }
 
       // 認証情報が存在するかチェック
-      const hasAuth = (config.authMethod === 'oauth' && config.accessToken) ||
-                     (config.authMethod === 'manual' && config.apiKey)
+      const hasAuth = config.authMethod === 'oauth' && config.accessToken
 
       if (hasAuth) {
         // 接続テスト
@@ -144,348 +251,507 @@ const HomeScreen: FC<HomeScreenProps> = ({
     }
   }
 
+  const handleOAuthLogin = async () => {
+    setAuthError('')
+    setAuthSuccess('')
+
+    try {
+      if (!oauthClientId) {
+        throw new Error('Notion Client ID is missing')
+      }
+
+      setIsAuthLoading(true)
+      const redirectUri = process.env.PLASMO_PUBLIC_OAUTH_REDIRECT_URI || 'https://raku-raku-notion.pages.dev/callback.html'
+
+      chrome.runtime.sendMessage(
+        {
+          type: 'start-oauth',
+          data: {
+            clientId: oauthClientId,
+            redirectUri: redirectUri
+          }
+        },
+        (response) => {
+          console.log('[HomeScreen] OAuth start response:', response)
+        }
+      )
+
+      setTimeout(() => {
+        setIsAuthLoading(false)
+      }, 100)
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : 'OAuth認証に失敗しました')
+      setIsAuthLoading(false)
+    }
+  }
+
   return (
     <div className="container">
-      <div className="header" style={{ position: 'relative' }}>
-        <h1>Raku Raku Notion</h1>
+      <div className="header" style={{ position: 'relative', marginBottom: '8px', paddingBottom: '8px' }}>
+        <h1 style={{ margin: 0 }}>Raku Raku Notion</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            onClick={onOpenTutorial}
-            style={{
-              background: 'transparent',
-              border: '1px solid #ddd',
-              fontSize: '12px',
-              cursor: 'pointer',
-              padding: '4px 8px',
-              borderRadius: '4px',
-              color: '#666'
-            }}
-          >
-            {t.tutorial}
-          </button>
-          <button
-            onClick={onToggleLanguage}
-            style={{
-              background: 'transparent',
-              border: '1px solid #ddd',
-              fontSize: '12px',
-              cursor: 'pointer',
-              padding: '4px 8px',
-              borderRadius: '4px',
-              color: '#666'
-            }}
-            title={language === 'ja' ? '日本語表示中' : 'English display'}
-          >
-            {language === 'ja' ? '日本語' : 'English'}
-          </button>
-          <button
-            onClick={() => onNavigate('settings')}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              fontSize: '20px',
-              cursor: 'pointer',
-              padding: '4px 8px'
-            }}
-            title="設定"
-          >
-            ⚙️
-          </button>
+          {isConnected && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <label className="toggle-switch" style={{ cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={!!uiSimplifyEnabled}
+                  onChange={(e) => handleUISimplifyToggle(e.target.checked)}
+                  disabled={uiSimplifyEnabled === null}
+                />
+                <span className="toggle-track" aria-hidden="true">
+                  <span className="toggle-thumb" />
+                </span>
+              </label>
+              <span style={{ fontSize: '12px', color: '#666', whiteSpace: 'nowrap' }}>
+                {t.uiSimplifyLabel}
+              </span>
+              <TooltipIcon text={t.tooltipUISimplify} style={{ marginLeft: 0 }} />
+            </div>
+          )}
         </div>
       </div>
 
       {/* 接続状態ボックス */}
-      <div style={{
-        padding: '12px',
-        marginBottom: '16px',
-        backgroundColor: isConnected ? '#e8f4f8' : '#f5f5f5',
-        borderRadius: '4px',
-        border: `1px solid ${isConnected ? '#b3d9e8' : '#ddd'}`,
-        minHeight: '44px',
-        display: 'flex',
-        alignItems: 'center'
-      }}>
-        {isCheckingConnection ? (
-          <span style={{ color: '#666' }}>{t.checking}</span>
-        ) : isConnected ? (
-          <span>{t.connected(workspaceName)}</span>
-        ) : (
-          <span style={{ color: '#666' }}>
-            未接続 - <button
-              onClick={() => onNavigate('settings')}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#0078d4',
-                cursor: 'pointer',
-                textDecoration: 'underline',
-                padding: 0,
-                fontSize: 'inherit'
-              }}
-            >
-              {t.disconnected}
-            </button>
-          </span>
-        )}
-      </div>
-
-      {/* 保存先ドロップダウン */}
-      <div style={{ marginBottom: '12px', textAlign: 'left' }}>
-        <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
-          {t.destinationLabel}
-        </label>
-        <select
-          value={selectedClipboardId || ''}
-          onChange={(e) => onSelectClipboardId(e.target.value)}
-          disabled={!isConnected || clipboards.length === 0}
-          style={{
-            width: '100%',
-            padding: '8px',
-            border: '1px solid #ddd',
-            borderRadius: '6px',
-            fontSize: '14px',
-            backgroundColor: !isConnected || clipboards.length === 0 ? '#f5f5f5' : 'white',
-            cursor: !isConnected || clipboards.length === 0 ? 'not-allowed' : 'pointer'
-          }}
-        >
-          <option value="" disabled>{t.destinationPlaceholder}</option>
-          {clipboards.map(cb => (
-            <option key={cb.id} value={cb.notionDatabaseId}>
-              {cb.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* タグ付与UI */}
-      <div style={{ marginBottom: '8px', textAlign: 'left' }}>
-        <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
-          タグ付与
-        </label>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <select
-            value={pendingTag}
-            onChange={(e) => {
-              setPendingTag(e.target.value)
-              if (e.target.value !== 'new') {
-                setNewTagName('')
-              }
-            }}
-            style={{
-              width: '40%',
-              minWidth: '100px',
-              padding: '8px',
-              border: '1px solid #ddd',
-              borderRadius: '6px',
-              fontSize: '14px',
-              backgroundColor: 'white',
-              cursor: 'pointer'
-            }}
-          >
-            <option value="">（選択なし）</option>
-            <option value="new">新規タグ</option>
-            {existingTags.map(tag => (
-              <option key={tag} value={tag}>{tag}</option>
-            ))}
-          </select>
-          {pendingTag === 'new' && (
-            <input
-              type="text"
-              value={newTagName}
-              onChange={(e) => setNewTagName(e.target.value)}
-              placeholder="タグ名を入力"
-              style={{
-                flex: 1,
-                minWidth: '120px',
-                padding: '8px',
-                border: '1px solid #ddd',
-                borderRadius: '6px',
-                fontSize: '14px'
-              }}
-            />
+      {(isCheckingConnection || isConnected) && (
+        <div style={{
+          padding: '12px',
+          marginBottom: '10px',
+          backgroundColor: isConnected ? '#ffe6e6' : '#f5f5f5',
+          borderRadius: '4px',
+          border: `1px solid ${isConnected ? '#f5caca' : '#ddd'}`,
+          minHeight: '44px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px'
+        }}>
+          {isCheckingConnection ? (
+            <span style={{ color: '#666' }}>{t.checking}</span>
+          ) : (
+            <span>{t.connected(workspaceName)}</span>
           )}
-          <button
-            className="button button-secondary"
-            onClick={() => {
-              if (pendingTag === 'new') {
-                const trimmed = newTagName.trim()
-                if (trimmed) {
-                  onAddTag(trimmed)
-                  setNewTagName('')
-                  setPendingTag('')
-                }
-              } else if (pendingTag !== '') {
-                onAddTag(pendingTag)
-              }
-            }}
-            disabled={
-              pendingTag === '' ||
-              (pendingTag === 'new' && newTagName.trim().length === 0)
-            }
-            style={{
-              padding: '8px 12px',
-              whiteSpace: 'nowrap',
-              opacity:
-                pendingTag === '' ||
-                (pendingTag === 'new' && newTagName.trim().length === 0)
-                  ? 0.6
-                  : 1,
-              cursor:
-                pendingTag === '' ||
-                (pendingTag === 'new' && newTagName.trim().length === 0)
-                  ? 'not-allowed'
-                  : 'pointer'
-            }}
-          >
-            付与
-          </button>
-        </div>
-      </div>
-
-      {/* 付与予定のタグ表示 */}
-      {selectedTags.length > 0 && (
-        <div style={{ marginBottom: '8px', textAlign: 'left' }}>
-          <span style={{ fontWeight: 600, fontSize: '13px', color: '#444' }}>付与タグ:</span>{' '}
-          {selectedTags.map((tag, idx) => (
-            <span
-              key={tag}
+          {isConnected && !isCheckingConnection && onDisconnect && (
+            <button
+              onClick={onDisconnect}
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '4px 8px',
-                marginLeft: idx === 0 ? 8 : 4,
-                background: '#eef4ff',
-                borderRadius: '12px',
                 fontSize: '12px',
-                color: '#334'
+                padding: '4px 8px',
+                background: '#fff',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
               }}
             >
-              {tag}
-              <button
-                onClick={() => onRemoveTag(tag)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#556',
-                  cursor: 'pointer',
-                  padding: 0,
-                  fontSize: '12px',
-                  lineHeight: 1
-                }}
-                aria-label={`${tag} を除外`}
-                title="削除"
-              >
-                ×
-              </button>
-            </span>
-          ))}
+              {t.disconnect}
+            </button>
+          )}
         </div>
       )}
 
-      <div className="empty-state" style={{ alignItems: 'stretch' }}>
-        <div className="empty-state-text" style={{ textAlign: 'left' }}>
-          {t.saving}
+      {/* 認証エラー・成功メッセージ */}
+      {authError && (
+        <div style={{
+          padding: '12px',
+          marginBottom: '16px',
+          backgroundColor: '#fee',
+          color: '#c00',
+          borderRadius: '4px'
+        }}>
+          {authError}
         </div>
+      )}
 
-        <div style={{ marginTop: '12px', textAlign: 'left' }}>
-          <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
-            {t.memoLabel}
-          </label>
-          <textarea
-            value={memo}
-            onChange={(e) => onMemoChange(e.target.value)}
-            placeholder={t.memoPlaceholder}
+      {authSuccess && (
+        <div style={{
+          padding: '12px',
+          marginBottom: '16px',
+          backgroundColor: '#efe',
+          color: '#0a0',
+          borderRadius: '4px'
+        }}>
+          {authSuccess}
+        </div>
+      )}
+
+      {/* 未接続時: 認証UI */}
+      {!isConnected && !isCheckingConnection && (
+        <div style={{ marginBottom: '24px' }}>
+          {/* 認証ガイド */}
+          <div style={{
+            backgroundColor: '#f8f9fa',
+            borderRadius: '8px',
+            padding: '16px',
+            marginBottom: '16px'
+          }}>
+            <h3 style={{
+              fontSize: '14px',
+              fontWeight: 600,
+              marginBottom: '12px',
+              color: '#333'
+            }}>
+              {t.authGuideTitle}
+            </h3>
+            <div style={{ marginBottom: '12px' }}>
+              <p style={{
+                fontSize: '13px',
+                fontWeight: 600,
+                marginBottom: '4px',
+                color: '#333'
+              }}>
+                {t.authGuideStep1}
+              </p>
+              <p style={{
+                fontSize: '12px',
+                color: '#666',
+                margin: 0,
+                lineHeight: '1.4'
+              }}>
+                {t.authGuideStep1Desc}
+              </p>
+            </div>
+            <div style={{ marginBottom: '12px' }}>
+              <p style={{
+                fontSize: '13px',
+                fontWeight: 600,
+                marginBottom: '4px',
+                color: '#333'
+              }}>
+                {t.authGuideStep2}
+              </p>
+              <p style={{
+                fontSize: '12px',
+                color: '#666',
+                margin: 0,
+                lineHeight: '1.4'
+              }}>
+                {t.authGuideStep2Desc}
+              </p>
+            </div>
+            <p style={{
+              fontSize: '11px',
+              color: '#888',
+              margin: 0,
+              fontStyle: 'italic'
+            }}>
+              {t.authGuideNote}
+            </p>
+          </div>
+
+          <button
+            onClick={handleOAuthLogin}
+            disabled={isAuthLoading || !oauthClientId}
+            className="button"
             style={{
               width: '100%',
-              minHeight: '80px',
-              border: '1px solid #ddd',
-              borderRadius: '6px',
-              padding: '8px',
-              fontSize: '14px',
-              resize: 'vertical',
-              boxSizing: 'border-box'
+              background: isAuthLoading || !oauthClientId ? undefined : '#f2a8a8',
+              fontSize: '15px',
+              fontWeight: '600',
+              padding: '14px 16px'
             }}
-          />
+          >
+            {isAuthLoading ? t.oauthButtonLoading : t.oauthButtonIdle}
+          </button>
+          {!oauthClientId && (
+            <div style={{
+              padding: '12px',
+              marginTop: '12px',
+              backgroundColor: '#fff3cd',
+              color: '#856404',
+              borderRadius: '4px',
+              fontSize: '14px'
+            }}>
+              {language === 'ja' ? 'OAuth設定が未構成です。開発者に連絡してください。' : 'OAuth is not configured. Please contact the developer.'}
+            </div>
+          )}
         </div>
+      )}
 
-        {isYouTubeTab ? (
-          <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+      {/* 接続時のみ表示: 保存先ドロップダウン */}
+      {isConnected && (
+        <div style={{ marginBottom: '10px', textAlign: 'left' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+            {t.destinationLabel}
+            <TooltipIcon text={t.tooltipDestination} style={{ marginLeft: 0 }} />
+          </label>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <select
+              value={selectedClipboardId || ''}
+              onChange={(e) => onSelectClipboardId(e.target.value)}
+              disabled={clipboards.length === 0}
+              style={{
+                flex: 1,
+                padding: '6px',
+                border: '1px solid #ddd',
+                borderRadius: '6px',
+                fontSize: '14px',
+                backgroundColor: clipboards.length === 0 ? '#f5f5f5' : 'white',
+                cursor: clipboards.length === 0 ? 'not-allowed' : 'pointer'
+              }}
+            >
+              <option value="" disabled>{t.destinationPlaceholder}</option>
+              {clipboards.map(cb => (
+                <option key={cb.id} value={cb.notionDatabaseId}>
+                  {cb.name}
+                </option>
+              ))}
+            </select>
+            <button
+              className="button button-secondary"
+              onClick={() => onNavigate('create-clipboard')}
+              style={{
+                width: '100px',
+                padding: '8px 4px',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                backgroundColor: '#f2a8a8',
+                borderColor: '#f2a8a8',
+                color: 'white'
+              }}
+            >
+              {t.createButton}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 接続時のみ表示: タグ付与UI */}
+      {isConnected && (
+        <>
+          <div style={{ marginBottom: '10px', textAlign: 'left' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+              {t.tagLabel}
+              <TooltipIcon text={t.tooltipTag} style={{ marginLeft: 0 }} />
+            </label>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <select
+                value={pendingTag}
+                onChange={(e) => {
+                  setPendingTag(e.target.value)
+                  if (e.target.value !== 'new') {
+                    setNewTagName('')
+                  }
+                }}
+                style={{
+                  width: '120px',
+                  padding: '6px',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  backgroundColor: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="">{t.tagNoneOption}</option>
+                <option value="new">{t.tagNewOption}</option>
+                {existingTags.map(tag => (
+                  <option key={tag} value={tag}>{tag}</option>
+                ))}
+              </select>
+              <input
+                type="text"
+                value={newTagName}
+                onChange={(e) => setNewTagName(e.target.value)}
+                placeholder={t.tagNamePlaceholder}
+                disabled={pendingTag !== 'new'}
+                style={{
+                  flex: 1,
+                  minWidth: '120px',
+                  padding: '6px',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  backgroundColor: pendingTag !== 'new' ? '#f5f5f5' : 'white',
+                  color: pendingTag !== 'new' ? '#999' : 'inherit',
+                  cursor: pendingTag !== 'new' ? 'not-allowed' : 'text'
+                }}
+              />
+              <button
+                className="button button-secondary"
+                onClick={() => {
+                  if (pendingTag === 'new') {
+                    const trimmed = newTagName.trim()
+                    if (trimmed) {
+                      onAddTag(trimmed)
+                      setNewTagName('')
+                      setPendingTag('')
+                    }
+                  } else if (pendingTag !== '') {
+                    onAddTag(pendingTag)
+                    setPendingTag('')
+                  }
+                }}
+                disabled={
+                  pendingTag === '' ||
+                  (pendingTag === 'new' && newTagName.trim().length === 0)
+                }
+                style={{
+                  width: '54px',
+                  padding: '8px 4px',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                  backgroundColor: '#f2a8a8',
+                  borderColor: '#f2a8a8',
+                  color: 'white',
+                  opacity:
+                    pendingTag === '' ||
+                    (pendingTag === 'new' && newTagName.trim().length === 0)
+                      ? 0.6
+                      : 1,
+                  cursor:
+                    pendingTag === '' ||
+                    (pendingTag === 'new' && newTagName.trim().length === 0)
+                      ? 'not-allowed'
+                      : 'pointer'
+                }}
+              >
+                {t.tagAddButton}
+              </button>
+            </div>
+          </div>
+
+          {/* 付与予定のタグ表示 */}
+          {selectedTags.length > 0 && (
+            <div style={{ marginBottom: '8px', textAlign: 'left' }}>
+              <span style={{ fontWeight: 600, fontSize: '13px', color: '#444' }}>{t.addedTagsLabel}:</span>{' '}
+              {selectedTags.map((tag, idx) => (
+                <span
+                  key={tag}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '4px 8px',
+                    marginLeft: idx === 0 ? 8 : 4,
+                    background: '#fbe3e3',
+                    borderRadius: '12px',
+                    fontSize: '12px',
+                    color: '#6a4a4a'
+                  }}
+                >
+                  {tag}
+                  <button
+                    onClick={() => onRemoveTag(tag)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#556',
+                      cursor: 'pointer',
+                      padding: 0,
+                      fontSize: '12px',
+                      lineHeight: 1
+                    }}
+                    aria-label={`${tag} を除外`}
+                    title="削除"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+      {/* 接続時のみ表示: メモ入力と保存ボタン */}
+      {isConnected && (
+        <div style={{ textAlign: 'left' }}>
+          <div style={{ marginBottom: '10px' }}>
+            <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+              {t.memoLabel}
+            </label>
+            <textarea
+              value={memo}
+              onChange={(e) => onMemoChange(e.target.value)}
+              placeholder={t.memoPlaceholder}
+              style={{
+                width: '100%',
+                minHeight: '80px',
+                border: '1px solid #ddd',
+                borderRadius: '6px',
+                padding: '8px',
+                fontSize: '14px',
+                resize: 'vertical',
+                boxSizing: 'border-box'
+              }}
+            />
+          </div>
+
+          {isYouTubeTab ? (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                className="button"
+                onClick={onClipPage}
+                style={{ flex: 1 }}
+              >
+                {t.clipButton}
+              </button>
+              <button
+                className="button button-secondary"
+                onClick={onClipNow}
+                disabled={!onClipNow}
+                style={{
+                  flex: 1,
+                  opacity: !onClipNow ? 0.6 : 1,
+                  cursor: !onClipNow ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'pre-line'
+                }}
+                title="現在の再生位置で保存"
+              >
+                {t.clipNowButton}
+              </button>
+            </div>
+          ) : (
             <button
               className="button"
               onClick={onClipPage}
-              disabled={!isConnected}
-              style={{
-                flex: 1,
-                opacity: !isConnected ? 0.5 : 1,
-                cursor: !isConnected ? 'not-allowed' : 'pointer'
-              }}
-              title={!isConnected ? 'Notionに接続してください' : ''}
             >
               {t.clipButton}
             </button>
-            <button
-              className="button button-secondary"
-              onClick={onClipNow}
-              disabled={!isConnected || !onClipNow}
-              style={{
-                flex: 1,
-                opacity: !isConnected || !onClipNow ? 0.6 : 1,
-                cursor: !isConnected || !onClipNow ? 'not-allowed' : 'pointer'
-              }}
-              title={!isConnected ? 'Notionに接続してください' : '現在の再生位置で保存'}
-            >
-              今保存
-            </button>
-          </div>
-        ) : (
-          <button
-            className="button"
-            onClick={onClipPage}
-            disabled={!isConnected}
-            style={{
-              marginTop: '12px',
-              opacity: !isConnected ? 0.5 : 1,
-              cursor: !isConnected ? 'not-allowed' : 'pointer'
-            }}
-            title={!isConnected ? 'Notionに接続してください' : ''}
-          >
-            {t.clipButton}
-          </button>
-        )}
+          )}
 
-        <div style={{
-          marginTop: '24px',
-          paddingTop: '24px',
-          borderTop: '1px solid #e9e9e7'
-        }}>
-          <button
-            className="button button-secondary"
-            onClick={() => onNavigate('clipboard-list')}
-            disabled={!isConnected}
-            style={{
-              opacity: !isConnected ? 0.5 : 1,
-              cursor: !isConnected ? 'not-allowed' : 'pointer'
-            }}
-            title={!isConnected ? 'Notionに接続してください' : ''}
-          >
-            {t.listButton}
-          </button>
-          <button
-            className="button button-secondary"
-            onClick={() => onNavigate('create-clipboard')}
-            disabled={!isConnected}
-            style={{
-              marginTop: '12px',
-              opacity: !isConnected ? 0.5 : 1,
-              cursor: !isConnected ? 'not-allowed' : 'pointer'
-            }}
-            title={!isConnected ? 'Notionに接続してください' : ''}
-          >
-            {t.createButton}
-          </button>
+          <div style={{
+            marginTop: '24px',
+            paddingTop: '24px',
+            borderTop: '1px solid #e9e9e7',
+            display: 'flex',
+            gap: '12px'
+          }}>
+            <div style={{ position: 'relative', flex: 1 }}>
+              <button
+                className="button button-secondary"
+                onClick={() => onNavigate('clipboard-list')}
+                style={{ width: '100%' }}
+              >
+                {t.listButton}
+              </button>
+              <TooltipIcon
+                text={t.tooltipListButton}
+                style={{
+                  position: 'absolute',
+                  right: '8px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  zIndex: 1
+                }}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <button
+                onClick={onToggleLanguage}
+                className="button button-secondary"
+                style={{
+                  width: '100%',
+                  fontSize: '12px'
+                }}
+                title={language === 'ja' ? 'English display' : '日本語表示'}
+              >
+                {language === 'ja' ? 'English' : '日本語'}
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

@@ -82,11 +82,11 @@ src/
 ├── popup.tsx              # メインエントリーポイント
 ├── screens/               # 画面コンポーネント
 │   ├── HomeScreen.tsx     # ホーム画面
+│   ├── LoginScreen.tsx    # ログイン画面（未認証時に表示）
 │   ├── CreateClipboardScreen.tsx # クリップボード作成画面
 │   ├── ClipboardListScreen.tsx # クリップボード一覧画面
 │   ├── SelectClipboardScreen.tsx # クリップボード選択画面
-│   ├── ClippingProgressScreen.tsx # クリップ進行状況画面
-│   └── SettingsScreen.tsx # 設定画面
+│   └── ClippingProgressScreen.tsx # クリップ進行状況画面
 ├── components/            # 再利用可能コンポーネント
 ├── contents/              # Content Scripts
 │   ├── extract-content.ts # ページコンテンツ抽出
@@ -138,10 +138,12 @@ workers/                   # Cloudflare Workers OAuth バックエンド
 ```typescript
 // Chrome Storage Local
 {
-  'raku-clipboards': Clipboard[],           // クリップボードリスト
-  'raku-notion-config': NotionConfig,       // Notion設定
+  'raku-clipboards': Clipboard[],              // クリップボードリスト
+  'raku-notion-config': NotionConfig,          // Notion設定
   'raku-ui-simplify-config': UISimplifyConfig, // UI簡略化設定
-  'raku-language-config': LanguageConfig    // 言語設定（ja/en）
+  'raku-language-config': LanguageConfig,      // 言語設定（ja/en）
+  'raku-selected-clipboard-id': string,        // 選択中クリップボードID
+  'raku-tag-options-map': Record<string, string[]> // DBごとのタグ候補キャッシュ
 }
 ```
 
@@ -150,7 +152,7 @@ workers/                   # Cloudflare Workers OAuth バックエンド
 詳細は [src/types/index.ts](src/types/index.ts) を参照。
 
 主要な型:
-- `Screen`: 画面タイプ（'home' | 'create-clipboard' | 'clipboard-list' | 'select-clipboard' | 'settings'）
+- `Screen`: 画面タイプ（'home' | 'create-clipboard' | 'clipboard-list' | 'select-clipboard'）
 - `Clipboard`: クリップボード定義
 - `NotionConfig`: Notion認証設定 (OAuth/手動トークン両対応)
 - `WebClipData`: Webクリップデータ
@@ -162,19 +164,17 @@ workers/                   # Cloudflare Workers OAuth バックエンド
 ### 3. 画面遷移フロー
 
 ```
-HomeScreen（起点）
-  ├─ 📎 このページをクリップ（メモ入力可能）
+LoginScreen（未認証時のみ表示）
+  └─ OAuth認証 / 手動トークン入力 → HomeScreen
+
+HomeScreen（起点、認証済み時）
+  ├─ 📎 このページをクリップ（メモ・タグ入力可能）
   │   ├─ (0個) → CreateClipboardScreen
-  │   ├─ (1個) → ClippingProgressScreen → 完了
-  │   └─ (複数) → SelectClipboardScreen → ClippingProgressScreen → 完了
+  │   └─ (1個以上) → ClippingProgressScreen → 完了
   ├─ ClipboardListScreen（クリップボード一覧）
   │   ├─ 登録済みクリップボード表示・削除
   │   └─ 既存データベース取り込み
-  └─ SettingsScreen（⚙️設定）
-      ├─ Notion UI簡略化（有効/無効切り替え）
-      ├─ OAuth認証フロー
-      ├─ 手動トークン入力
-      └─ 内部APIテスト（開発用）
+  └─ 連携解除ボタン → LoginScreen
 ```
 
 **クリップ実行フロー**:
@@ -199,13 +199,13 @@ HomeScreen（起点）
 - 環境変数の扱い: OAuth設定はbackgroundで環境変数から直接取得
 
 **認証フロー**:
-1. SettingsScreen → `start-oauth` メッセージ → backgroundがOAuth URL生成、`raku-oauth-pending: true`を保存
+1. LoginScreen → `start-oauth` メッセージ → backgroundがOAuth URL生成、`raku-oauth-pending: true`を保存
 2. Notion認証画面 → 拡張機能の`oauth-callback.html`にリダイレクト
 3. `oauth-callback.js` → Cloudflare Workersにトークン交換リクエスト（code, state, extensionId）
 4. Workers → Notionにトークン交換リクエスト（CLIENT_SECRETを使用）、アクセストークンを返却
 5. `oauth-callback.js` → backgroundに`complete-oauth`メッセージ（tokenResponseのみ）
 6. backgroundが設定保存、`raku-oauth-pending`削除
-7. SettingsScreenが`chrome.storage.onChanged`で完了を検出、成功メッセージ表示
+7. LoginScreenが`chrome.storage.onChanged`で完了を検出、HomeScreenへ遷移
 
 ### 5. 既存データベース取り込み機能
 
@@ -223,21 +223,21 @@ HomeScreen（起点）
 
 **機能概要**:
 - クリップボード（データベース）作成時に、Notion内部API (v3) を使用してギャラリービューを自動追加
-- デフォルトのテーブルビューを自動削除し、ギャラリービューのみを表示
+- **既存のテーブルビューは削除せず保持**し、ギャラリービューを先頭（デフォルト）に配置
+- データベースURLに`?v={galleryViewId}`を付加し、ギャラリービューがデフォルトで開かれるようにする
 
 **実装詳細**:
 - **Content Script経由で内部APIを呼び出し**: Notion.soページ上でCookie認証を利用
 - フロー: `Popup → Background → Content Script (notion.so) → Notion Internal API`
 - `src/contents/notion-api-helper.ts`: Notion.so上で実行されるContent Script
-  - `addGalleryView()`: ギャラリービュー追加＋デフォルトビュー削除
+  - `addGalleryView()`: ギャラリービューを先頭に追加（既存ビュー削除なし）
   - `getDatabaseViews()`: ビュー一覧取得
 - `src/background/index.ts`: Content Scriptとの仲介
   - `handleAddGalleryViewViaContent()`: ギャラリービュー追加ハンドラ
   - `handleGetDatabaseViewsViaContent()`: ビュー取得ハンドラ
   - `ensureContentScriptInjected()`: Content Scriptの動的注入
-- URLから取得したビューIDを使用してデフォルトビューを特定
-- URLにビューIDがない場合は、内部APIで取得（10秒待機後）
-- 表示プロパティ: URL、メモ
+- `src/popup.tsx`: ギャラリービュー作成後にデータベースURLを更新（`?v={galleryViewId}`を付加）
+- 表示プロパティ: 名前（タイトル）、URL、メモ、タグ
 - 内部API失敗時も警告のみで、クリップボード作成は成功とする
 
 **技術的詳細**:
@@ -247,6 +247,7 @@ HomeScreen（起点）
 - manifest.jsonから実際のビルド済みファイル名を取得して注入
 - ユーザーID取得: `loadPageChunk`レスポンスからデータベースの親ページの権限情報を解析
 - 権限エラー対策: データベース作成直後にビュー操作を実行（権限が正しく設定された状態を利用）
+- **既存ビュー削除なし**: トランザクションが単純化され、競合リスクが低減（v1.0.6以降）
 
 ### 7. Notion UI簡略化機能
 
@@ -394,5 +395,5 @@ await client.createWebClip({ title, url, databaseId })
 
 ---
 
-**バージョン**: 1.0.5
-**最終更新**: 2025-12-29
+**バージョン**: 1.0.6
+**最終更新**: 2026-01-20
