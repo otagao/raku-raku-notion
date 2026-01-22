@@ -89,36 +89,51 @@ async function injectContentScripts(tabId: number): Promise<{ success: boolean; 
 
     console.log('[Background] Injecting content scripts into tab:', tabId)
 
-    // manifest.jsonからContent Scriptファイル名を取得
-    const manifest = chrome.runtime.getManifest()
+    // manifest.jsonから動的注入専用のContent Scriptファイル名を取得
+    // これらのスクリプトは "https://plasmo-dynamic-inject-never-match.invalid/*" パターンで登録されています
+    try {
+      const manifest = chrome.runtime.getManifest()
+      const dynamicScripts = manifest.content_scripts?.filter(cs =>
+        cs.matches?.includes('https://plasmo-dynamic-inject-never-match.invalid/*')
+      )
 
-    const extractContentScript = manifest.content_scripts?.find(cs => {
-      return cs.js?.some(file => file.includes('extract-content'))
-    })
+      if (!dynamicScripts || dynamicScripts.length === 0) {
+        throw new Error('Dynamic content scripts not found in manifest')
+      }
 
-    const iframeUiScript = manifest.content_scripts?.find(cs => {
-      return cs.js?.some(file => file.includes('iframe-ui'))
-    })
+      // ファイル名を取得（Plasmoがハッシュを付加している）
+      const extractScript = dynamicScripts.find(cs =>
+        cs.js?.some(file => file.includes('extract-content'))
+      )
+      const iframeScript = dynamicScripts.find(cs =>
+        cs.js?.some(file => file.includes('iframe-ui'))
+      )
 
-    if (!extractContentScript || !iframeUiScript) {
-      throw new Error('Content script files not found in manifest')
+      if (!extractScript || !iframeScript) {
+        throw new Error('Extract or iframe script not found in manifest')
+      }
+
+      // 注入順序: extract-content → iframe-ui
+      console.log('[Background] Injecting extract-content:', extractScript.js)
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        files: extractScript.js || []
+      })
+
+      console.log('[Background] Injecting iframe-ui:', iframeScript.js)
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        files: iframeScript.js || []
+      })
+
+      // 注入完了待機（初期化時間を確保）
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      console.log('[Background] Content scripts injected successfully')
+    } catch (innerError) {
+      console.error('[Background] Failed to inject content scripts:', innerError)
+      throw new Error('Failed to inject content scripts: ' + (innerError instanceof Error ? innerError.message : 'Unknown error'))
     }
-
-    // 注入順序: extract-content → iframe-ui
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      files: extractContentScript.js || []
-    })
-
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      files: iframeUiScript.js || []
-    })
-
-    // 注入完了待機（初期化時間を確保）
-    await new Promise(resolve => setTimeout(resolve, 100))
-
-    console.log('[Background] Content scripts injected successfully')
     return { success: true }
 
   } catch (error) {
