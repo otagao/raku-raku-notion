@@ -60,6 +60,31 @@ npm run dev
 - [プロジェクト構造](docs/ARCHITECTURE.md) - アーキテクチャの詳細
 - [OAuth設定ガイド](docs/OAUTH_SETUP_GUIDE.md) - OAuth認証の詳細設定
 - [Workersセットアップ](docs/WORKERS_SETUP_GUIDE.md) - Cloudflare Workers設定
+- [権限とプライバシー](docs/PERMISSIONS.md) - 拡張機能の権限とプライバシー保護について
+
+## 🔐 プライバシーとセキュリティ
+
+この拡張機能は**最小権限の原則（Principle of Least Privilege）**に基づいて設計されています。
+
+### 権限の要求範囲
+
+- **Notionページのみアクセス**: デフォルトでは `https://*.notion.so/*` のみ
+- **ユーザーアクション時のみ実行**: 明示的なショートカット（Ctrl+Shift+Y）、コンテキストメニュー、拡張機能アイコンクリック時のみ動作
+- **動的スクリプト注入**: ユーザーがアクションを起こしたタブにのみContent Scriptsを注入（自動注入なし）
+
+### データの扱い
+
+- **データ送信先はNotionのみ**: クリップしたページ情報（テキスト、画像URL、動画URL、メタデータ）はNotionにのみ送信されます
+- **第三者への送信なし**: Google Analytics等の追跡ツール、広告ネットワーク、その他の第三者サーバーへのデータ送信は一切行いません
+- **ローカルストレージのみ**: 設定はChrome Storage API（`chrome.storage.local`）でローカルに保存され、クラウド同期はされません
+
+### セキュリティ対策
+
+- **OAuth CLIENT_SECRETの保護**: Cloudflare Workers上で管理され、クライアントサイドには露出しません
+- **CSRF対策**: OAuth認証時にstateパラメータによる検証を実施
+- **CSP対応**: Content Security Policyに準拠した実装
+
+詳細は [docs/PERMISSIONS.md](docs/PERMISSIONS.md) を参照してください。
 
 ## 📁 プロジェクト構造
 

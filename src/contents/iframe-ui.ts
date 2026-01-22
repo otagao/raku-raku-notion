@@ -3,7 +3,7 @@ import { StorageService } from "~services/storage"
 import type { Language } from "~types"
 
 export const config: PlasmoCSConfig = {
-  matches: ["<all_urls>"]
+  matches: []  // 動的注入のため自動注入を無効化
 }
 
 const HOST_ID = "raku-raku-notion-iframe-host"
@@ -252,6 +252,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message?.type === "close-iframe-ui") {
     closeOverlay()
+    sendResponse?.({ success: true })
+    return true
+  }
+
+  // ping応答（Content Script注入確認用）
+  if (message?.type === "ping-iframe-ui") {
     sendResponse?.({ success: true })
     return true
   }
