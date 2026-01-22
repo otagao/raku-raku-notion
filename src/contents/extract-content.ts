@@ -7,9 +7,9 @@ import type { PlasmoCSConfig } from "plasmo"
 import { extractYouTubeVideoId, getYouTubeThumb } from "~utils/youtube"
 import { isIgnoredImage, extractTextFromElement } from "~utils/content-extraction"
 
-// すべてのHTTPページで実行
+// 動的注入のため自動注入を無効化
 export const config: PlasmoCSConfig = {
-  matches: ["<all_urls>"],
+  matches: [],
   all_frames: false
 }
 

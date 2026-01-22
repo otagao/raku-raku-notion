@@ -24,6 +24,112 @@ const disableActionPopup = () => {
 
 disableActionPopup()
 
+/**
+ * Content Scriptが注入されているか確認
+ */
+async function isContentScriptInjected(tabId: number): Promise<boolean> {
+  try {
+    await chrome.tabs.sendMessage(tabId, { type: 'ping-iframe-ui' })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * extract-content.ts と iframe-ui.ts を動的に注入
+ * @param tabId 対象タブID
+ * @returns 注入成功/失敗
+ */
+async function injectContentScripts(tabId: number): Promise<{ success: boolean; error?: string }> {
+  try {
+    // タブ情報取得
+    const tab = await chrome.tabs.get(tabId)
+    const url = tab.url || ""
+
+    // 制限URLチェック（chrome://, edge://, about:, 拡張機能ページなど）
+    const isRestrictedUrl =
+      url.startsWith("chrome://") ||
+      url.startsWith("edge://") ||
+      url.startsWith("about:") ||
+      url.startsWith("chrome-extension://") ||
+      url.startsWith("https://chrome.google.com/webstore") ||
+      url.startsWith("https://chromewebstore.google.com/")
+
+    if (isRestrictedUrl) {
+      return { success: false, error: 'Cannot inject scripts into restricted pages' }
+    }
+
+    // タブのロード状態確認
+    if (tab.status !== 'complete') {
+      console.log('[Background] Tab is still loading, waiting...')
+      await new Promise<void>((resolve) => {
+        const listener = (tabId_: number, changeInfo: chrome.tabs.TabChangeInfo) => {
+          if (tabId_ === tabId && changeInfo.status === 'complete') {
+            chrome.tabs.onUpdated.removeListener(listener)
+            resolve()
+          }
+        }
+        chrome.tabs.onUpdated.addListener(listener)
+
+        // タイムアウト（5秒）
+        setTimeout(() => {
+          chrome.tabs.onUpdated.removeListener(listener)
+          resolve()
+        }, 5000)
+      })
+    }
+
+    // 既に注入済みかチェック
+    const isInjected = await isContentScriptInjected(tabId)
+    if (isInjected) {
+      console.log('[Background] Content scripts already injected')
+      return { success: true }
+    }
+
+    console.log('[Background] Injecting content scripts into tab:', tabId)
+
+    // manifest.jsonからContent Scriptファイル名を取得
+    const manifest = chrome.runtime.getManifest()
+
+    const extractContentScript = manifest.content_scripts?.find(cs => {
+      return cs.js?.some(file => file.includes('extract-content'))
+    })
+
+    const iframeUiScript = manifest.content_scripts?.find(cs => {
+      return cs.js?.some(file => file.includes('iframe-ui'))
+    })
+
+    if (!extractContentScript || !iframeUiScript) {
+      throw new Error('Content script files not found in manifest')
+    }
+
+    // 注入順序: extract-content → iframe-ui
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: extractContentScript.js || []
+    })
+
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: iframeUiScript.js || []
+    })
+
+    // 注入完了待機（初期化時間を確保）
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    console.log('[Background] Content scripts injected successfully')
+    return { success: true }
+
+  } catch (error) {
+    console.error('[Background] Failed to inject content scripts:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }
+  }
+}
+
 // メッセージリスナー
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('[Background] Received message:', message.type, 'from:', sender.url || sender.id);
@@ -190,6 +296,15 @@ async function openIframeUiForActiveTab(tabId?: number) {
     url.startsWith("https://chromewebstore.google.com/")
 
   if (isRestrictedUrl) {
+    await openActionPopup(targetTabId)
+    return
+  }
+
+  // Content Scripts動的注入を試行
+  const injectionResult = await injectContentScripts(targetTabId)
+
+  if (!injectionResult.success) {
+    console.warn("[Background] Cannot inject scripts, falling back to popup:", injectionResult.error)
     await openActionPopup(targetTabId)
     return
   }
@@ -444,23 +559,30 @@ async function handleClipPage(
     let fallbackContent: { text?: string; thumbnail?: string; images?: string[]; videos?: { url: string; poster?: string }[] } | null = null
     if (data.tabId) {
       try {
-        console.log('[Background] Extracting content from tab:', data.tabId)
-        sendProgress('ページの情報を取得中...');
-        // 遅延ロード対策: 少し待ってから抽出
-        await new Promise(resolve => setTimeout(resolve, 2000))
-        const response = await chrome.tabs.sendMessage(data.tabId, { type: 'extract-content' })
+        // Content Scripts注入を試行
+        const injectionResult = await injectContentScripts(data.tabId)
 
-        if (response?.success && response.content) {
-          extractedContent = {
-            text: response.content.text,
-            thumbnail: response.content.thumbnail,
-            images: response.content.images,
-            videos: response.content.videos,
-            icon: response.content.icon
+        if (injectionResult.success) {
+          console.log('[Background] Extracting content from tab:', data.tabId)
+          sendProgress('ページの情報を取得中...');
+          // 遅延ロード対策: 少し待ってから抽出
+          await new Promise(resolve => setTimeout(resolve, 2000))
+          const response = await chrome.tabs.sendMessage(data.tabId, { type: 'extract-content' })
+
+          if (response?.success && response.content) {
+            extractedContent = {
+              text: response.content.text,
+              thumbnail: response.content.thumbnail,
+              images: response.content.images,
+              videos: response.content.videos,
+              icon: response.content.icon
+            }
+            console.log('[Background] Content extracted successfully')
+          } else {
+            console.warn('[Background] Failed to extract content:', response?.error)
           }
-          console.log('[Background] Content extracted successfully')
         } else {
-          console.warn('[Background] Failed to extract content:', response?.error)
+          console.warn('[Background] Cannot inject scripts for content extraction:', injectionResult.error)
         }
       } catch (error) {
         // Content Scriptが読み込まれていない場合など

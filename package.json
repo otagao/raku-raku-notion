@@ -36,7 +36,7 @@
   },
   "manifest": {
     "host_permissions": [
-      "https://*/*"
+      "https://*.notion.so/*"
     ],
     "permissions": [
       "storage",
@@ -45,6 +45,10 @@
       "tabs",
       "scripting",
       "contextMenus"
+    ],
+    "optional_host_permissions": [
+      "https://*/*",
+      "http://*/*"
     ],
     "externally_connectable": {
       "matches": [
@@ -55,12 +59,21 @@
       {
         "resources": [
           "oauth-callback.html",
-          "oauth-callback.js",
+          "oauth-callback.js"
+        ],
+        "matches": [
+          "https://www.notion.so/*",
+          "https://raku-raku-notion.pages.dev/*"
+        ]
+      },
+      {
+        "resources": [
           "assets/tutorial.html",
           "popup.html"
         ],
         "matches": [
-          "<all_urls>"
+          "https://*/*",
+          "http://*/*"
         ]
       }
     ],
