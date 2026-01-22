@@ -2,8 +2,10 @@ import type { PlasmoCSConfig } from "plasmo"
 import { StorageService } from "~services/storage"
 import type { Language } from "~types"
 
+// このContent Scriptは動的注入専用です
+// マッチパターンを実際にはマッチしないURLに設定することで、自動注入を防ぎます
 export const config: PlasmoCSConfig = {
-  matches: []  // 動的注入のため自動注入を無効化
+  matches: ["https://plasmo-dynamic-inject-never-match.invalid/*"]
 }
 
 const HOST_ID = "raku-raku-notion-iframe-host"
