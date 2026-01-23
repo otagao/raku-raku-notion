@@ -3,6 +3,7 @@ import { StorageService } from "~services/storage"
 import { createNotionClient } from "~services/notion"
 import type { Language, Clipboard } from "~types"
 import { TooltipIcon } from "~components/TooltipIcon"
+import { MultiSelectTagDropdown } from "~components/MultiSelectTagDropdown"
 
 interface HomeScreenProps {
   onNavigate: (screen: string) => void
@@ -166,8 +167,6 @@ const HomeScreen: FC<HomeScreenProps> = ({
   const [isConnected, setIsConnected] = useState<boolean>(false)
   const [workspaceName, setWorkspaceName] = useState<string>('')
   const [isCheckingConnection, setIsCheckingConnection] = useState<boolean>(true)
-  const [pendingTag, setPendingTag] = useState<string>('') // 未選択スタート
-  const [newTagName, setNewTagName] = useState<string>('') // 新規タグ名
   const [uiSimplifyEnabled, setUiSimplifyEnabled] = useState<boolean | null>(null)
   const [newClipboardName, setNewClipboardName] = useState<string>('')
   const [isCreatingClipboard, setIsCreatingClipboard] = useState<boolean>(false)
@@ -576,92 +575,19 @@ const HomeScreen: FC<HomeScreenProps> = ({
               {t.tagLabel}
               <TooltipIcon text={t.tooltipTag} style={{ marginLeft: 0 }} />
             </label>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <select
-                value={pendingTag}
-                onChange={(e) => {
-                  setPendingTag(e.target.value)
-                  if (e.target.value !== 'new') {
-                    setNewTagName('')
-                  }
-                }}
-                style={{
-                  flex: '0 1 42%',
-                  minWidth: 0,
-                  padding: '6px',
-                  border: '1px solid #ddd',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  backgroundColor: 'white',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="" disabled>{t.tagPlaceholder}</option>
-                <option value="new">{t.tagNewOption}</option>
-                {existingTags.map(tag => (
-                  <option key={tag} value={tag}>{tag}</option>
-                ))}
-              </select>
-              <input
-                type="text"
-                value={newTagName}
-                onChange={(e) => setNewTagName(e.target.value)}
-                placeholder={t.tagNamePlaceholder}
-                disabled={pendingTag !== 'new'}
-                style={{
-                  flex: '1 1 44%',
-                  minWidth: 0,
-                  padding: '6px',
-                  border: '1px solid #ddd',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  backgroundColor: pendingTag !== 'new' ? '#f5f5f5' : 'white',
-                  color: pendingTag !== 'new' ? '#999' : 'inherit',
-                  cursor: pendingTag !== 'new' ? 'not-allowed' : 'text'
-                }}
-              />
-              <button
-                className="button button-secondary"
-                onClick={() => {
-                  if (pendingTag === 'new') {
-                    const trimmed = newTagName.trim()
-                    if (trimmed) {
-                      onAddTag(trimmed)
-                      setNewTagName('')
-                      setPendingTag('')
-                    }
-                  } else if (pendingTag !== '') {
-                    onAddTag(pendingTag)
-                    setPendingTag('')
-                  }
-                }}
-                disabled={
-                  pendingTag === '' ||
-                  (pendingTag === 'new' && newTagName.trim().length === 0)
+            <MultiSelectTagDropdown
+              existingTags={existingTags}
+              selectedTags={selectedTags}
+              onToggleTag={(tag) => {
+                if (selectedTags.includes(tag)) {
+                  onRemoveTag(tag)
+                } else {
+                  onAddTag(tag)
                 }
-                style={{
-                  width: '56px',
-                  padding: '8px 4px',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0,
-                  backgroundColor: '#f2a8a8',
-                  borderColor: '#f2a8a8',
-                  color: 'white',
-                  opacity:
-                    pendingTag === '' ||
-                    (pendingTag === 'new' && newTagName.trim().length === 0)
-                      ? 0.6
-                      : 1,
-                  cursor:
-                    pendingTag === '' ||
-                    (pendingTag === 'new' && newTagName.trim().length === 0)
-                      ? 'not-allowed'
-                      : 'pointer'
-                }}
-              >
-                {t.tagAddButton}
-              </button>
-            </div>
+              }}
+              onAddNewTag={onAddTag}
+              language={language}
+            />
           </div>
 
           {/* 付与予定のタグ表示 */}
