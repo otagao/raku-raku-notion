@@ -446,8 +446,6 @@ async function handleClipPage(
       try {
         console.log('[Background] Extracting content from tab:', data.tabId)
         sendProgress('ページの情報を取得中...');
-        // 遅延ロード対策: 少し待ってから抽出
-        await new Promise(resolve => setTimeout(resolve, 2000))
         const response = await chrome.tabs.sendMessage(data.tabId, { type: 'extract-content' })
 
         if (response?.success && response.content) {
