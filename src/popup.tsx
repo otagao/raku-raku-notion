@@ -48,11 +48,11 @@ function IndexPopup() {
           setClipProgress('✓ クリップ完了！');
           setMemoDraft("");
 
-          // 成功時は1.5秒後にホーム画面へ戻る（UIは閉じない）
+          // 成功時は1秒後にホーム画面へ戻る（UIは閉じない）
           setTimeout(() => {
             setIsClipping(false);
             setCurrentScreen('home');
-          }, 1500);
+          }, 1000);
         } else {
           setClipProgress(`✗ クリップ失敗: ${message.error || '不明なエラー'}`);
 
