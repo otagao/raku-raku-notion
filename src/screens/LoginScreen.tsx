@@ -134,7 +134,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, langua
                 }
             )
             // ローディング状態は少し維持するが、実際は別ウィンドウでの操作になる
-            setTimeout(() => setIsLoading(false), 2000)
+            setTimeout(() => setIsLoading(false), 100)
         } catch (err) {
             setError(err instanceof Error ? err.message : t.errorOAuth)
             setIsLoading(false)
