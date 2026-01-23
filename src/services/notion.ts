@@ -287,7 +287,7 @@ export class NotionService {
       const databases = result.results || []
 
       return databases
-        .filter((item: any) => item.object === "database")
+        .filter((item: any) => item.object === "database" && !item.archived)
         .map((db: any): NotionDatabaseSummary => ({
           id: db.id,
           title: this.getPlainText(db.title) || '無題のデータベース',
