@@ -704,7 +704,6 @@ const HomeScreen: FC<HomeScreenProps> = ({
             paddingTop: '24px',
             borderTop: '1px solid #e9e9e7',
             display: 'flex',
-            flexDirection: 'column',
             gap: '12px'
           }}>
             <div style={{ position: 'relative', flex: 1 }}>
@@ -726,7 +725,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
                 }}
               />
             </div>
-            <div>
+            <div style={{ flex: 1 }}>
               <button
                 onClick={onToggleLanguage}
                 className="button button-secondary"
