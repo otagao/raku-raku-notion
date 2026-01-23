@@ -43,7 +43,6 @@ const translations: Record<Language, {
   tagLabel: string
   addedTagsLabel: string
   tagPlaceholder: string
-  tagNoneOption: string
   tagNewOption: string
   tagNamePlaceholder: string
   tagAddButton: string
@@ -79,13 +78,12 @@ const translations: Record<Language, {
     connected: (name) => `接続中: ${name || 'Notionワークスペース'}`,
     destinationLabel: '保存先',
     destinationPlaceholder: '保存先を選択してください',
-    destinationNamePlaceholder: '新規保存先名',
-    tagLabel: 'タグ付与',
+    destinationNamePlaceholder: '新規保存先を入力',
+    tagLabel: 'タグ',
     addedTagsLabel: '付与タグ',
     tagPlaceholder: '付与するタグを選択してください',
-    tagNoneOption: '（選択なし）',
     tagNewOption: '新規タグ',
-    tagNamePlaceholder: 'タグ名を入力',
+    tagNamePlaceholder: '新規タグを入力',
     tagAddButton: '付与',
     tooltipDestination: 'ページの保存先となるNotionデータベースを選択します',
     tooltipWorkspace: 'Notion上のワークスペース（チームまたは個人アカウント）',
@@ -119,13 +117,12 @@ const translations: Record<Language, {
     connected: (name) => `Connected: ${name || 'Notion workspace'}`,
     destinationLabel: 'Destination',
     destinationPlaceholder: 'Select a destination',
-    destinationNamePlaceholder: 'New destination name',
-    tagLabel: 'Add tags',
+    destinationNamePlaceholder: 'Enter new destination',
+    tagLabel: 'Tags',
     addedTagsLabel: 'Tags to add',
     tagPlaceholder: 'Select tags to add',
-    tagNoneOption: '(None)',
     tagNewOption: 'New tag',
-    tagNamePlaceholder: 'Enter tag name',
+    tagNamePlaceholder: 'Enter new tag',
     tagAddButton: 'Add',
     tooltipDestination: 'Select a Notion database where pages will be saved',
     tooltipWorkspace: 'A workspace in Notion (team or personal account)',
@@ -600,7 +597,6 @@ const HomeScreen: FC<HomeScreenProps> = ({
                 }}
               >
                 <option value="" disabled>{t.tagPlaceholder}</option>
-                <option value="__none__">{t.tagNoneOption}</option>
                 <option value="new">{t.tagNewOption}</option>
                 {existingTags.map(tag => (
                   <option key={tag} value={tag}>{tag}</option>
@@ -634,14 +630,13 @@ const HomeScreen: FC<HomeScreenProps> = ({
                       setNewTagName('')
                       setPendingTag('')
                     }
-                  } else if (pendingTag !== '' && pendingTag !== '__none__') {
+                  } else if (pendingTag !== '') {
                     onAddTag(pendingTag)
                     setPendingTag('')
                   }
                 }}
                 disabled={
                   pendingTag === '' ||
-                  pendingTag === '__none__' ||
                   (pendingTag === 'new' && newTagName.trim().length === 0)
                 }
                 style={{
@@ -654,13 +649,11 @@ const HomeScreen: FC<HomeScreenProps> = ({
                   color: 'white',
                   opacity:
                     pendingTag === '' ||
-                    pendingTag === '__none__' ||
                     (pendingTag === 'new' && newTagName.trim().length === 0)
                       ? 0.6
                       : 1,
                   cursor:
                     pendingTag === '' ||
-                    pendingTag === '__none__' ||
                     (pendingTag === 'new' && newTagName.trim().length === 0)
                       ? 'not-allowed'
                       : 'pointer'
