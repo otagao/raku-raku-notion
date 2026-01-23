@@ -42,6 +42,7 @@ const translations: Record<Language, {
   destinationNamePlaceholder: string
   tagLabel: string
   addedTagsLabel: string
+  tagPlaceholder: string
   tagNoneOption: string
   tagNewOption: string
   tagNamePlaceholder: string
@@ -81,6 +82,7 @@ const translations: Record<Language, {
     destinationNamePlaceholder: '新規保存先名',
     tagLabel: 'タグ付与',
     addedTagsLabel: '付与タグ',
+    tagPlaceholder: '付与するタグを選択してください',
     tagNoneOption: '（選択なし）',
     tagNewOption: '新規タグ',
     tagNamePlaceholder: 'タグ名を入力',
@@ -120,6 +122,7 @@ const translations: Record<Language, {
     destinationNamePlaceholder: 'New destination name',
     tagLabel: 'Add tags',
     addedTagsLabel: 'Tags to add',
+    tagPlaceholder: 'Select tags to add',
     tagNoneOption: '(None)',
     tagNewOption: 'New tag',
     tagNamePlaceholder: 'Enter tag name',
@@ -586,7 +589,8 @@ const HomeScreen: FC<HomeScreenProps> = ({
                   }
                 }}
                 style={{
-                  width: '120px',
+                  flex: '0 1 42%',
+                  minWidth: 0,
                   padding: '6px',
                   border: '1px solid #ddd',
                   borderRadius: '6px',
@@ -595,7 +599,8 @@ const HomeScreen: FC<HomeScreenProps> = ({
                   cursor: 'pointer'
                 }}
               >
-                <option value="">{t.tagNoneOption}</option>
+                <option value="" disabled>{t.tagPlaceholder}</option>
+                <option value="__none__">{t.tagNoneOption}</option>
                 <option value="new">{t.tagNewOption}</option>
                 {existingTags.map(tag => (
                   <option key={tag} value={tag}>{tag}</option>
@@ -608,8 +613,8 @@ const HomeScreen: FC<HomeScreenProps> = ({
                 placeholder={t.tagNamePlaceholder}
                 disabled={pendingTag !== 'new'}
                 style={{
-                  flex: 1,
-                  minWidth: '120px',
+                  flex: '1 1 44%',
+                  minWidth: 0,
                   padding: '6px',
                   border: '1px solid #ddd',
                   borderRadius: '6px',
@@ -629,17 +634,18 @@ const HomeScreen: FC<HomeScreenProps> = ({
                       setNewTagName('')
                       setPendingTag('')
                     }
-                  } else if (pendingTag !== '') {
+                  } else if (pendingTag !== '' && pendingTag !== '__none__') {
                     onAddTag(pendingTag)
                     setPendingTag('')
                   }
                 }}
                 disabled={
                   pendingTag === '' ||
+                  pendingTag === '__none__' ||
                   (pendingTag === 'new' && newTagName.trim().length === 0)
                 }
                 style={{
-                  width: '54px',
+                  width: '56px',
                   padding: '8px 4px',
                   whiteSpace: 'nowrap',
                   flexShrink: 0,
@@ -648,11 +654,13 @@ const HomeScreen: FC<HomeScreenProps> = ({
                   color: 'white',
                   opacity:
                     pendingTag === '' ||
+                    pendingTag === '__none__' ||
                     (pendingTag === 'new' && newTagName.trim().length === 0)
                       ? 0.6
                       : 1,
                   cursor:
                     pendingTag === '' ||
+                    pendingTag === '__none__' ||
                     (pendingTag === 'new' && newTagName.trim().length === 0)
                       ? 'not-allowed'
                       : 'pointer'
