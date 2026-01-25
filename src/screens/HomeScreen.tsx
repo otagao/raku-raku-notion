@@ -168,6 +168,10 @@ const HomeScreen: FC<HomeScreenProps> = ({
   const [workspaceName, setWorkspaceName] = useState<string>('')
   const [isCheckingConnection, setIsCheckingConnection] = useState<boolean>(true)
   const [uiSimplifyEnabled, setUiSimplifyEnabled] = useState<boolean | null>(null)
+  const [isHeaderExpanded, setIsHeaderExpanded] = useState<boolean>(true)
+  const [isFooterExpanded, setIsFooterExpanded] = useState<boolean>(true)
+  const [isTagSectionExpanded, setIsTagSectionExpanded] = useState<boolean>(true)
+  const [isMemoSectionExpanded, setIsMemoSectionExpanded] = useState<boolean>(true)
   const [newClipboardName, setNewClipboardName] = useState<string>('')
   const [isCreatingClipboard, setIsCreatingClipboard] = useState<boolean>(false)
 
@@ -316,67 +320,81 @@ const HomeScreen: FC<HomeScreenProps> = ({
 
   return (
     <div className="container">
-      <div className="header" style={{ position: 'relative', marginBottom: '8px', paddingBottom: '8px' }}>
-        <h1 style={{ margin: 0 }}>Raku Raku Notion</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {isConnected && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <label className="toggle-switch" style={{ cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={!!uiSimplifyEnabled}
-                  onChange={(e) => handleUISimplifyToggle(e.target.checked)}
-                  disabled={uiSimplifyEnabled === null}
-                />
-                <span className="toggle-track" aria-hidden="true">
-                  <span className="toggle-thumb" />
-                </span>
-              </label>
-              <span style={{ fontSize: '12px', color: '#666', whiteSpace: 'nowrap' }}>
-                {t.uiSimplifyLabel}
-              </span>
-              <TooltipIcon text={t.tooltipUISimplify} style={{ marginLeft: 0 }} />
+      {isHeaderExpanded && (
+        <>
+          <div className="header" style={{ position: 'relative', marginBottom: '8px', paddingBottom: '8px' }}>
+            <h1 style={{ margin: 0 }}>Raku Raku Notion</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {isConnected && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <label className="toggle-switch" style={{ cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!uiSimplifyEnabled}
+                      onChange={(e) => handleUISimplifyToggle(e.target.checked)}
+                      disabled={uiSimplifyEnabled === null}
+                    />
+                    <span className="toggle-track" aria-hidden="true">
+                      <span className="toggle-thumb" />
+                    </span>
+                  </label>
+                  <span style={{ fontSize: '12px', color: '#666', whiteSpace: 'nowrap' }}>
+                    {t.uiSimplifyLabel}
+                  </span>
+                  <TooltipIcon text={t.tooltipUISimplify} style={{ marginLeft: 0 }} />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 接続状態ボックス */}
+          {(isCheckingConnection || isConnected) && (
+            <div style={{
+              padding: '12px',
+              marginBottom: '10px',
+              backgroundColor: isConnected ? '#ffe6e6' : '#f5f5f5',
+              borderRadius: '4px',
+              border: `1px solid ${isConnected ? '#f5caca' : '#ddd'}`,
+              minHeight: '44px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsHeaderExpanded(false)}
+                  className="accordion-toggle"
+                  aria-expanded={true}
+                >
+                  <span className="accordion-icon">▴</span>
+                </button>
+                {isCheckingConnection ? (
+                  <span style={{ color: '#666' }}>{t.checking}</span>
+                ) : (
+                  <span>{t.connected(workspaceName)}</span>
+                )}
+              </div>
+              {isConnected && !isCheckingConnection && onDisconnect && (
+                <button
+                  onClick={onDisconnect}
+                  style={{
+                    fontSize: '12px',
+                    padding: '4px 8px',
+                    background: '#fff',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {t.disconnect}
+                </button>
+              )}
             </div>
           )}
-        </div>
-      </div>
-
-      {/* 接続状態ボックス */}
-      {(isCheckingConnection || isConnected) && (
-        <div style={{
-          padding: '12px',
-          marginBottom: '10px',
-          backgroundColor: isConnected ? '#ffe6e6' : '#f5f5f5',
-          borderRadius: '4px',
-          border: `1px solid ${isConnected ? '#f5caca' : '#ddd'}`,
-          minHeight: '44px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '12px'
-        }}>
-          {isCheckingConnection ? (
-            <span style={{ color: '#666' }}>{t.checking}</span>
-          ) : (
-            <span>{t.connected(workspaceName)}</span>
-          )}
-          {isConnected && !isCheckingConnection && onDisconnect && (
-            <button
-              onClick={onDisconnect}
-              style={{
-                fontSize: '12px',
-                padding: '4px 8px',
-                background: '#fff',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              {t.disconnect}
-            </button>
-          )}
-        </div>
+        </>
       )}
 
       {/* 認証エラー・成功メッセージ */}
@@ -501,6 +519,16 @@ const HomeScreen: FC<HomeScreenProps> = ({
       {isConnected && (
         <div style={{ marginBottom: '10px', textAlign: 'left' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+            {!isHeaderExpanded && (
+              <button
+                type="button"
+                onClick={() => setIsHeaderExpanded(true)}
+                className="accordion-toggle"
+                aria-expanded={false}
+              >
+                <span className="accordion-icon">▸</span>
+              </button>
+            )}
             {t.destinationLabel}
             <TooltipIcon text={t.tooltipDestination} style={{ marginLeft: 0 }} />
           </label>
@@ -571,89 +599,113 @@ const HomeScreen: FC<HomeScreenProps> = ({
       {isConnected && (
         <div style={{ marginBottom: '10px', textAlign: 'left' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
-            {t.tagLabel}
-            <TooltipIcon text={t.tooltipTag} style={{ marginLeft: 0 }} />
+            <button
+              type="button"
+              onClick={() => {
+                setIsTagSectionExpanded(prev => {
+                  const next = !prev
+                  setIsMemoSectionExpanded(next)
+                  return next
+                })
+              }}
+              className="accordion-toggle"
+              aria-expanded={isTagSectionExpanded}
+            >
+              <span className="accordion-icon">{isTagSectionExpanded ? '▴' : '▸'}</span>
+            </button>
+            {isTagSectionExpanded && (
+              <>
+                {t.tagLabel}
+                <TooltipIcon text={t.tooltipTag} style={{ marginLeft: 0 }} />
+              </>
+            )}
           </label>
 
-          {/* 付与予定のタグ表示 */}
-          {selectedTags.length > 0 && (
-            <div style={{ marginBottom: '8px' }}>
-              {selectedTags.map((tag) => (
-                <span
-                  key={tag}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '4px 8px',
-                    marginRight: '4px',
-                    marginBottom: '4px',
-                    background: '#fbe3e3',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                    color: '#6a4a4a'
-                  }}
-                >
-                  {tag}
-                  <button
-                    onClick={() => onRemoveTag(tag)}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#556',
-                      cursor: 'pointer',
-                      padding: 0,
-                      fontSize: '12px',
-                      lineHeight: 1
-                    }}
-                    aria-label={`${tag} を除外`}
-                    title="削除"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
+          {isTagSectionExpanded && (
+            <>
+              {/* 付与予定のタグ表示 */}
+              {selectedTags.length > 0 && (
+                <div style={{ marginBottom: '8px' }}>
+                  {selectedTags.map((tag) => (
+                    <span
+                      key={tag}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '4px 8px',
+                        marginRight: '4px',
+                        marginBottom: '4px',
+                        background: '#fbe3e3',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                        color: '#6a4a4a'
+                      }}
+                    >
+                      {tag}
+                      <button
+                        onClick={() => onRemoveTag(tag)}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#556',
+                          cursor: 'pointer',
+                          padding: 0,
+                          fontSize: '12px',
+                          lineHeight: 1
+                        }}
+                        aria-label={`${tag} を除外`}
+                        title="削除"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
 
-          <MultiSelectTagDropdown
-            existingTags={existingTags}
-            selectedTags={selectedTags}
-            onToggleTag={(tag) => {
-              if (selectedTags.includes(tag)) {
-                onRemoveTag(tag)
-              } else {
-                onAddTag(tag)
-              }
-            }}
-            onAddNewTag={onAddTag}
-            language={language}
-          />
+              <MultiSelectTagDropdown
+                existingTags={existingTags}
+                selectedTags={selectedTags}
+                onToggleTag={(tag) => {
+                  if (selectedTags.includes(tag)) {
+                    onRemoveTag(tag)
+                  } else {
+                    onAddTag(tag)
+                  }
+                }}
+                onAddNewTag={onAddTag}
+                language={language}
+              />
+            </>
+          )}
         </div>
       )}
       {/* 接続時のみ表示: メモ入力と保存ボタン */}
       {isConnected && (
         <div style={{ textAlign: 'left' }}>
-          <div style={{ marginBottom: '10px' }}>
-            <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
-              {t.memoLabel}
-            </label>
-            <textarea
-              value={memo}
-              onChange={(e) => onMemoChange(e.target.value)}
-              placeholder={t.memoPlaceholder}
-              style={{
-                width: '100%',
-                minHeight: '80px',
-                border: '1px solid #ddd',
-                borderRadius: '6px',
-                padding: '8px',
-                fontSize: '14px',
-                resize: 'vertical',
-                boxSizing: 'border-box'
-              }}
-            />
-          </div>
+          {isMemoSectionExpanded && (
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+                {t.memoLabel}
+              </label>
+              <textarea
+                value={memo}
+                onChange={(e) => onMemoChange(e.target.value)}
+                placeholder={t.memoPlaceholder}
+                style={{
+                  width: '100%',
+                  minHeight: '80px',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  padding: '8px',
+                  fontSize: '14px',
+                  resize: 'vertical',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+          )}
 
           {isYouTubeTab ? (
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -698,46 +750,72 @@ const HomeScreen: FC<HomeScreenProps> = ({
             </button>
           )}
 
-          <div style={{
-            marginTop: '24px',
-            paddingTop: '24px',
-            borderTop: '1px solid #e9e9e7',
-            display: 'flex',
-            gap: '12px'
-          }}>
-            <div style={{ position: 'relative', flex: 1 }}>
+          {!isFooterExpanded && (
+            <div style={{ marginTop: '8px' }}>
               <button
-                className="button button-secondary"
-                onClick={() => onNavigate('clipboard-list')}
-                style={{ width: '100%' }}
+                type="button"
+                onClick={() => setIsFooterExpanded(true)}
+                className="accordion-toggle"
+                aria-expanded={false}
               >
-                {t.listButton}
-              </button>
-              <TooltipIcon
-                text={t.tooltipListButton}
-                style={{
-                  position: 'absolute',
-                  right: '8px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  zIndex: 1
-                }}
-              />
-            </div>
-            <div style={{ flex: 1 }}>
-              <button
-                onClick={onToggleLanguage}
-                className="button button-secondary"
-                style={{
-                  width: '100%',
-                  fontSize: '12px'
-                }}
-                title={language === 'ja' ? 'English display' : '日本語表示'}
-              >
-                {language === 'ja' ? 'English' : '日本語'}
+                <span className="accordion-icon">▸</span>
               </button>
             </div>
-          </div>
+          )}
+
+          {isFooterExpanded && (
+            <div style={{
+              marginTop: '24px',
+              paddingTop: '24px',
+              borderTop: '1px solid #e9e9e7',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsFooterExpanded(false)}
+                  className="accordion-toggle"
+                  aria-expanded={true}
+                >
+                  <span className="accordion-icon">▴</span>
+                </button>
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <button
+                    className="button button-secondary"
+                    onClick={() => onNavigate('clipboard-list')}
+                    style={{ width: '100%' }}
+                  >
+                    {t.listButton}
+                  </button>
+                  <TooltipIcon
+                    text={t.tooltipListButton}
+                    style={{
+                      position: 'absolute',
+                      right: '8px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      zIndex: 1
+                    }}
+                  />
+                </div>
+              </div>
+              <div>
+                <button
+                  onClick={onToggleLanguage}
+                  className="button button-secondary"
+                  style={{
+                    width: '100%',
+                    fontSize: '12px'
+                  }}
+                  title={language === 'ja' ? 'English display' : '日本語表示'}
+                >
+                  {language === 'ja' ? 'English' : '日本語'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
