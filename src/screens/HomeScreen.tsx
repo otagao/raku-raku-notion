@@ -80,7 +80,7 @@ const translations: Record<Language, {
     destinationLabel: '保存先',
     destinationPlaceholder: '保存先を選択してください',
     destinationNamePlaceholder: '新規保存先を入力',
-    tagLabel: 'タグ',
+    tagLabel: 'タグ（任意）',
     addedTagsLabel: '付与タグ',
     tagPlaceholder: '付与するタグを選択してください',
     tagNewOption: '新規タグ',
@@ -119,7 +119,7 @@ const translations: Record<Language, {
     destinationLabel: 'Destination',
     destinationPlaceholder: 'Select a destination',
     destinationNamePlaceholder: 'Enter new destination',
-    tagLabel: 'Tags',
+    tagLabel: 'Tags (optional)',
     addedTagsLabel: 'Tags to add',
     tagPlaceholder: 'Select tags to add',
     tagNewOption: 'New tag',
@@ -569,32 +569,16 @@ const HomeScreen: FC<HomeScreenProps> = ({
 
       {/* 接続時のみ表示: タグ付与UI */}
       {isConnected && (
-        <>
-          <div style={{ marginBottom: '10px', textAlign: 'left' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
-              {t.tagLabel}
-              <TooltipIcon text={t.tooltipTag} style={{ marginLeft: 0 }} />
-            </label>
-            <MultiSelectTagDropdown
-              existingTags={existingTags}
-              selectedTags={selectedTags}
-              onToggleTag={(tag) => {
-                if (selectedTags.includes(tag)) {
-                  onRemoveTag(tag)
-                } else {
-                  onAddTag(tag)
-                }
-              }}
-              onAddNewTag={onAddTag}
-              language={language}
-            />
-          </div>
+        <div style={{ marginBottom: '10px', textAlign: 'left' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+            {t.tagLabel}
+            <TooltipIcon text={t.tooltipTag} style={{ marginLeft: 0 }} />
+          </label>
 
           {/* 付与予定のタグ表示 */}
           {selectedTags.length > 0 && (
-            <div style={{ marginBottom: '8px', textAlign: 'left' }}>
-              <span style={{ fontWeight: 600, fontSize: '13px', color: '#444' }}>{t.addedTagsLabel}:</span>{' '}
-              {selectedTags.map((tag, idx) => (
+            <div style={{ marginBottom: '8px' }}>
+              {selectedTags.map((tag) => (
                 <span
                   key={tag}
                   style={{
@@ -602,7 +586,8 @@ const HomeScreen: FC<HomeScreenProps> = ({
                     alignItems: 'center',
                     gap: '4px',
                     padding: '4px 8px',
-                    marginLeft: idx === 0 ? 8 : 4,
+                    marginRight: '4px',
+                    marginBottom: '4px',
                     background: '#fbe3e3',
                     borderRadius: '12px',
                     fontSize: '12px',
@@ -630,7 +615,21 @@ const HomeScreen: FC<HomeScreenProps> = ({
               ))}
             </div>
           )}
-        </>
+
+          <MultiSelectTagDropdown
+            existingTags={existingTags}
+            selectedTags={selectedTags}
+            onToggleTag={(tag) => {
+              if (selectedTags.includes(tag)) {
+                onRemoveTag(tag)
+              } else {
+                onAddTag(tag)
+              }
+            }}
+            onAddNewTag={onAddTag}
+            language={language}
+          />
+        </div>
       )}
       {/* 接続時のみ表示: メモ入力と保存ボタン */}
       {isConnected && (

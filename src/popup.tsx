@@ -690,13 +690,13 @@ function IndexPopup() {
   }
 
   return (
-    <>
+    <div style={{ minHeight: 'fit-content' }}>
       {isClipping ? (
         <ClippingProgressScreen progressMessage={clipProgress} />
       ) : (
         renderScreen()
       )}
-    </>
+    </div>
   )
 }
 
