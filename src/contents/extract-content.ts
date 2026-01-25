@@ -103,7 +103,7 @@ function getYouTubeCurrentVideoId(): string | undefined {
   return domId || undefined
 }
 
-function getYouTubeDescription(): string | undefined {
+async function getYouTubeDescription(): Promise<string | undefined> {
   const grabText = (el: Element | null) => el ? (el.textContent || '').trim() : ''
 
   const currentVideoId = getYouTubeCurrentVideoId()
@@ -151,18 +151,46 @@ function getYouTubeDescription(): string | undefined {
     }
   }
 
-  // DOM内の説明テキストを取得（SPA更新に追随しやすい要素から）
-  const selectors = [
-    'ytd-watch-metadata #description',
-    'ytd-watch-metadata #description-inline-expander',
-    '#description',
-    '#description-inline-expander',
-    'ytd-text-inline-expander'
-  ]
-  for (const sel of selectors) {
-    const text = grabText(document.querySelector(sel))
-    if (text) return text
+  const readDomDescription = () => {
+    const selectors = [
+      'ytd-watch-metadata #description',
+      'ytd-watch-metadata #description-inline-expander',
+      '#description',
+      '#description-inline-expander',
+      'ytd-text-inline-expander'
+    ]
+    for (const sel of selectors) {
+      const text = grabText(document.querySelector(sel))
+      if (text) return text
+    }
+    return ''
   }
+
+  let domText = readDomDescription()
+
+  const needsExpand = domText.includes('…もっと見る') || domText.includes('...more') || domText.includes('もっと見る')
+  if (needsExpand) {
+    const expandSelectors = [
+      'ytd-text-inline-expander #expand',
+      'ytd-text-inline-expander button#expand',
+      'tp-yt-paper-button#expand',
+      'button[aria-label*="もっと見る"]',
+      'button[aria-label*="Show more"]',
+      'tp-yt-paper-button[aria-label*="もっと見る"]',
+      'tp-yt-paper-button[aria-label*="Show more"]'
+    ]
+    for (const sel of expandSelectors) {
+      const btn = document.querySelector<HTMLElement>(sel)
+      if (btn) {
+        btn.click()
+        await new Promise(resolve => setTimeout(resolve, 120))
+        break
+      }
+    }
+    domText = readDomDescription()
+  }
+
+  if (domText) return domText
 
   // 最後の保険: meta description（古い可能性がある）
   const metaDesc = document.querySelector('meta[name="description"]')?.getAttribute('content')
@@ -394,7 +422,7 @@ function getPageTitle(): string {
 /**
  * ページからコンテンツを抽出
  */
-export function extractContent(): ExtractedContent {
+export async function extractContent(): Promise<ExtractedContent> {
   const images = getImages()
   const videos = getVideos()
   const hostname = (() => {
@@ -443,9 +471,9 @@ export function extractContent(): ExtractedContent {
   const firstImage = filteredImages?.[0]
   const firstVideoPoster = videos && videos.length > 0 ? videos[0].poster : undefined
   const isTwitter = hostname.includes('twitter.com') || hostname.includes('x.com')
-  const text = (() => {
+  const text = await (async () => {
     if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
-      return getYouTubeDescription() || getPageText()
+      return (await getYouTubeDescription()) || getPageText()
     }
     return getPageText()
   })()
@@ -476,8 +504,15 @@ export function extractContent(): ExtractedContent {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'extract-content') {
     try {
-      const content = extractContent()
-      sendResponse({ success: true, content })
+      Promise.resolve(extractContent())
+        .then(content => sendResponse({ success: true, content }))
+        .catch(error => {
+          console.error('[Content Script] Error extracting content:', error)
+          sendResponse({
+            success: false,
+            error: error instanceof Error ? error.message : '不明なエラー'
+          })
+        })
     } catch (error) {
       console.error('[Content Script] Error extracting content:', error)
       sendResponse({
