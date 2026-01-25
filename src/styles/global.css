@@ -56,7 +56,7 @@ body {
 .button {
   width: 100%;
   padding: 12px 16px;
-  background: #f2a8a8;
+  background: #e08080;
   color: white;
   border: none;
   border-radius: 6px;
@@ -68,7 +68,7 @@ body {
 }
 
 .button:hover {
-  background: #e89a9a;
+  background: #d47070;
 }
 
 .button-secondary {
@@ -93,7 +93,7 @@ body {
 
 .input:focus {
   outline: none;
-  border-color: #f2a8a8;
+  border-color: #e08080;
 }
 
 .form-group {
@@ -135,7 +135,7 @@ body {
 }
 
 .list-item:hover {
-  border-color: #f2a8a8;
+  border-color: #e08080;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
@@ -208,7 +208,7 @@ button:disabled {
 }
 
 .toggle-switch input:checked + .toggle-track {
-  background: #f2a8a8;
+  background: #e08080;
 }
 
 .toggle-switch input:checked + .toggle-track .toggle-thumb {
@@ -243,7 +243,7 @@ button:disabled {
 }
 
 .tag-dropdown-button:hover {
-  border-color: #f2a8a8;
+  border-color: #e08080;
 }
 
 .dropdown-arrow {
@@ -295,7 +295,7 @@ button:disabled {
   width: 16px;
   height: 16px;
   cursor: pointer;
-  accent-color: #f2a8a8;
+  accent-color: #e08080;
 }
 
 .tag-option-label {
@@ -325,7 +325,7 @@ button:disabled {
 
 .tag-new-button {
   padding: 6px 12px;
-  background: #f2a8a8;
+  background: #e08080;
   color: white;
   border: none;
   border-radius: 6px;
