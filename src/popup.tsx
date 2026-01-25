@@ -82,7 +82,12 @@ function IndexPopup() {
   // クリップボードリストが変わったときに選択状態を同期
   useEffect(() => {
     if (clipboards.length === 0) {
-      setSelectedClipboardId(undefined)
+      if (selectedClipboardId !== '__new__') {
+        setSelectedClipboardId(undefined)
+      }
+      return
+    }
+    if (selectedClipboardId === '__new__') {
       return
     }
     if (!selectedClipboardId || !clipboards.find(cb => cb.notionDatabaseId === selectedClipboardId)) {
@@ -109,7 +114,7 @@ function IndexPopup() {
   // 選択中DBのタグを取得
   useEffect(() => {
     const fetchTags = async () => {
-      if (!selectedClipboardId) {
+      if (!selectedClipboardId || selectedClipboardId === '__new__') {
         setTagOptions([])
         return
       }
@@ -480,6 +485,11 @@ function IndexPopup() {
       return
     }
 
+    if (selectedClipboardId === '__new__') {
+      alert('保存先を作成してください')
+      return
+    }
+
     const targetId = selectedClipboardId || clipboards[0].notionDatabaseId
     await performClip(targetId, memoDraft || undefined)
   }
@@ -490,7 +500,7 @@ function IndexPopup() {
 
   // 選択した保存先を保存（ポップアップ再オープン時に復元）
   useEffect(() => {
-    if (selectedClipboardId) {
+    if (selectedClipboardId && selectedClipboardId !== '__new__') {
       StorageService.saveSelectedClipboardId(selectedClipboardId)
     }
   }, [selectedClipboardId])
@@ -556,6 +566,10 @@ function IndexPopup() {
       handleNavigate('create-clipboard')
       return
     }
+    if (selectedClipboardId === '__new__') {
+      alert('保存先を作成してください')
+      return
+    }
     const tabInfo = await StorageService.getCurrentTabInfo()
     if (!tabInfo) {
       alert('ページ情報を取得できませんでした')
@@ -612,9 +626,8 @@ function IndexPopup() {
             onAddTag={addTagAndPersist}
             onRemoveTag={(tag) => setSelectedTags(prev => prev.filter(t => t !== tag))}
             existingTags={tagOptions}
-            isYouTubeTab={isYouTubeTab}
-            onClipNow={handleClipNow}
             onDisconnect={handleDisconnect}
+            onCreateClipboard={handleCreateClipboard}
           />
         )
       case 'create-clipboard':
@@ -670,19 +683,20 @@ function IndexPopup() {
             isYouTubeTab={isYouTubeTab}
             onClipNow={handleClipNow}
             onDisconnect={handleDisconnect}
+            onCreateClipboard={handleCreateClipboard}
           />
         )
     }
   }
 
   return (
-    <>
+    <div style={{ minHeight: 'fit-content' }}>
       {isClipping ? (
         <ClippingProgressScreen progressMessage={clipProgress} />
       ) : (
         renderScreen()
       )}
-    </>
+    </div>
   )
 }
 

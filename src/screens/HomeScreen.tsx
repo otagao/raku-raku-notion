@@ -3,12 +3,14 @@ import { StorageService } from "~services/storage"
 import { createNotionClient } from "~services/notion"
 import type { Language, Clipboard } from "~types"
 import { TooltipIcon } from "~components/TooltipIcon"
+import { MultiSelectTagDropdown } from "~components/MultiSelectTagDropdown"
 
 interface HomeScreenProps {
   onNavigate: (screen: string) => void
   onClipPage?: () => void
   onClipNow?: () => void
   onDisconnect?: () => void
+  onCreateClipboard?: (name: string) => Promise<void> | void
   isYouTubeTab?: boolean
   language: Language
   onToggleLanguage: () => void
@@ -32,13 +34,16 @@ const translations: Record<Language, {
   disconnect: string
   listButton: string
   createButton: string
+  createButtonLoading: string
+  newDestinationOption: string
   checking: string
   connected: (name: string) => string
   destinationLabel: string
   destinationPlaceholder: string
+  destinationNamePlaceholder: string
   tagLabel: string
   addedTagsLabel: string
-  tagNoneOption: string
+  tagPlaceholder: string
   tagNewOption: string
   tagNamePlaceholder: string
   tagAddButton: string
@@ -67,16 +72,19 @@ const translations: Record<Language, {
     clipNowButton: '再生時間情報も保存',
     disconnect: '連携解除',
     listButton: '保存先一覧',
-    createButton: '新規作成',
+    createButton: '作成',
+    createButtonLoading: '作成中...',
+    newDestinationOption: '新規保存先',
     checking: '接続状態を確認中...',
     connected: (name) => `接続中: ${name || 'Notionワークスペース'}`,
     destinationLabel: '保存先',
     destinationPlaceholder: '保存先を選択してください',
-    tagLabel: 'タグ付与',
+    destinationNamePlaceholder: '新規保存先を入力',
+    tagLabel: 'タグ（任意）',
     addedTagsLabel: '付与タグ',
-    tagNoneOption: '（選択なし）',
+    tagPlaceholder: '付与するタグを選択してください',
     tagNewOption: '新規タグ',
-    tagNamePlaceholder: 'タグ名を入力',
+    tagNamePlaceholder: '新規タグを入力',
     tagAddButton: '付与',
     tooltipDestination: 'ページの保存先となるNotionデータベースを選択します',
     tooltipWorkspace: 'Notion上のワークスペース（チームまたは個人アカウント）',
@@ -104,15 +112,18 @@ const translations: Record<Language, {
     disconnect: 'Disconnect',
     listButton: 'Destinations',
     createButton: 'Create',
+    createButtonLoading: 'Creating...',
+    newDestinationOption: 'New destination',
     checking: 'Checking connection...',
     connected: (name) => `Connected: ${name || 'Notion workspace'}`,
     destinationLabel: 'Destination',
     destinationPlaceholder: 'Select a destination',
-    tagLabel: 'Add tags',
+    destinationNamePlaceholder: 'Enter new destination',
+    tagLabel: 'Tags (optional)',
     addedTagsLabel: 'Tags to add',
-    tagNoneOption: '(None)',
+    tagPlaceholder: 'Select tags to add',
     tagNewOption: 'New tag',
-    tagNamePlaceholder: 'Enter tag name',
+    tagNamePlaceholder: 'Enter new tag',
     tagAddButton: 'Add',
     tooltipDestination: 'Select a Notion database where pages will be saved',
     tooltipWorkspace: 'A workspace in Notion (team or personal account)',
@@ -138,6 +149,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
   onClipPage,
   onClipNow,
   onDisconnect,
+  onCreateClipboard,
   isYouTubeTab = false,
   language,
   onToggleLanguage,
@@ -155,9 +167,9 @@ const HomeScreen: FC<HomeScreenProps> = ({
   const [isConnected, setIsConnected] = useState<boolean>(false)
   const [workspaceName, setWorkspaceName] = useState<string>('')
   const [isCheckingConnection, setIsCheckingConnection] = useState<boolean>(true)
-  const [pendingTag, setPendingTag] = useState<string>('') // 未選択スタート
-  const [newTagName, setNewTagName] = useState<string>('') // 新規タグ名
   const [uiSimplifyEnabled, setUiSimplifyEnabled] = useState<boolean | null>(null)
+  const [newClipboardName, setNewClipboardName] = useState<string>('')
+  const [isCreatingClipboard, setIsCreatingClipboard] = useState<boolean>(false)
 
   // 認証UI用のステート
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(false)
@@ -212,6 +224,23 @@ const HomeScreen: FC<HomeScreenProps> = ({
   const handleUISimplifyToggle = async (enabled: boolean) => {
     setUiSimplifyEnabled(enabled)
     await StorageService.saveUISimplifyConfig({ enabled })
+  }
+
+  const isNewSelection = selectedClipboardId === '__new__'
+
+  const handleCreateNewClipboard = async () => {
+    const name = newClipboardName.trim()
+    if (!name || !onCreateClipboard || isCreatingClipboard) return
+    setIsCreatingClipboard(true)
+    try {
+      await onCreateClipboard(name)
+      setNewClipboardName('')
+      onSelectClipboardId('')
+    } catch (err) {
+      console.error('Failed to create clipboard:', err)
+    } finally {
+      setIsCreatingClipboard(false)
+    }
   }
 
   const checkConnection = async () => {
@@ -479,38 +508,60 @@ const HomeScreen: FC<HomeScreenProps> = ({
             <select
               value={selectedClipboardId || ''}
               onChange={(e) => onSelectClipboardId(e.target.value)}
-              disabled={clipboards.length === 0}
               style={{
-                flex: 1,
+                flex: '0 1 42%',
+                minWidth: 0,
                 padding: '6px',
                 border: '1px solid #ddd',
                 borderRadius: '6px',
                 fontSize: '14px',
-                backgroundColor: clipboards.length === 0 ? '#f5f5f5' : 'white',
-                cursor: clipboards.length === 0 ? 'not-allowed' : 'pointer'
+                backgroundColor: 'white',
+                cursor: 'pointer'
               }}
             >
               <option value="" disabled>{t.destinationPlaceholder}</option>
+              <option value="__new__">{t.newDestinationOption}</option>
               {clipboards.map(cb => (
                 <option key={cb.id} value={cb.notionDatabaseId}>
                   {cb.name}
                 </option>
               ))}
             </select>
+            <input
+              type="text"
+              value={newClipboardName}
+              onChange={(e) => setNewClipboardName(e.target.value)}
+              placeholder={t.destinationNamePlaceholder}
+              disabled={!isNewSelection}
+              style={{
+                flex: '1 1 44%',
+                minWidth: 0,
+                padding: '6px',
+                border: '1px solid #ddd',
+                borderRadius: '6px',
+                fontSize: '14px',
+                backgroundColor: !isNewSelection ? '#f5f5f5' : 'white',
+                color: !isNewSelection ? '#999' : 'inherit',
+                cursor: !isNewSelection ? 'not-allowed' : 'text'
+              }}
+            />
             <button
               className="button button-secondary"
-              onClick={() => onNavigate('create-clipboard')}
+              onClick={handleCreateNewClipboard}
+              disabled={!onCreateClipboard || !isNewSelection || !newClipboardName.trim() || isCreatingClipboard}
               style={{
-                width: '100px',
+                width: '56px',
                 padding: '8px 4px',
                 whiteSpace: 'nowrap',
                 flexShrink: 0,
                 backgroundColor: '#e08080',
                 borderColor: '#e08080',
-                color: 'white'
+                color: 'white',
+                opacity: !onCreateClipboard || !isNewSelection || !newClipboardName.trim() || isCreatingClipboard ? 0.6 : 1,
+                cursor: !onCreateClipboard || !isNewSelection || !newClipboardName.trim() || isCreatingClipboard ? 'not-allowed' : 'pointer'
               }}
             >
-              {t.createButton}
+              {isCreatingClipboard ? t.createButtonLoading : t.createButton}
             </button>
           </div>
         </div>
@@ -518,104 +569,16 @@ const HomeScreen: FC<HomeScreenProps> = ({
 
       {/* 接続時のみ表示: タグ付与UI */}
       {isConnected && (
-        <>
-          <div style={{ marginBottom: '10px', textAlign: 'left' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
-              {t.tagLabel}
-              <TooltipIcon text={t.tooltipTag} style={{ marginLeft: 0 }} />
-            </label>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <select
-                value={pendingTag}
-                onChange={(e) => {
-                  setPendingTag(e.target.value)
-                  if (e.target.value !== 'new') {
-                    setNewTagName('')
-                  }
-                }}
-                style={{
-                  width: '120px',
-                  padding: '6px',
-                  border: '1px solid #ddd',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  backgroundColor: 'white',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="">{t.tagNoneOption}</option>
-                <option value="new">{t.tagNewOption}</option>
-                {existingTags.map(tag => (
-                  <option key={tag} value={tag}>{tag}</option>
-                ))}
-              </select>
-              <input
-                type="text"
-                value={newTagName}
-                onChange={(e) => setNewTagName(e.target.value)}
-                placeholder={t.tagNamePlaceholder}
-                disabled={pendingTag !== 'new'}
-                style={{
-                  flex: 1,
-                  minWidth: '120px',
-                  padding: '6px',
-                  border: '1px solid #ddd',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  backgroundColor: pendingTag !== 'new' ? '#f5f5f5' : 'white',
-                  color: pendingTag !== 'new' ? '#999' : 'inherit',
-                  cursor: pendingTag !== 'new' ? 'not-allowed' : 'text'
-                }}
-              />
-              <button
-                className="button button-secondary"
-                onClick={() => {
-                  if (pendingTag === 'new') {
-                    const trimmed = newTagName.trim()
-                    if (trimmed) {
-                      onAddTag(trimmed)
-                      setNewTagName('')
-                      setPendingTag('')
-                    }
-                  } else if (pendingTag !== '') {
-                    onAddTag(pendingTag)
-                    setPendingTag('')
-                  }
-                }}
-                disabled={
-                  pendingTag === '' ||
-                  (pendingTag === 'new' && newTagName.trim().length === 0)
-                }
-                style={{
-                  width: '54px',
-                  padding: '8px 4px',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0,
-                  backgroundColor: '#e08080',
-                  borderColor: '#e08080',
-                  color: 'white',
-                  opacity:
-                    pendingTag === '' ||
-                    (pendingTag === 'new' && newTagName.trim().length === 0)
-                      ? 0.6
-                      : 1,
-                  cursor:
-                    pendingTag === '' ||
-                    (pendingTag === 'new' && newTagName.trim().length === 0)
-                      ? 'not-allowed'
-                      : 'pointer'
-                }}
-              >
-                {t.tagAddButton}
-              </button>
-            </div>
-          </div>
+        <div style={{ marginBottom: '10px', textAlign: 'left' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+            {t.tagLabel}
+            <TooltipIcon text={t.tooltipTag} style={{ marginLeft: 0 }} />
+          </label>
 
           {/* 付与予定のタグ表示 */}
           {selectedTags.length > 0 && (
-            <div style={{ marginBottom: '8px', textAlign: 'left' }}>
-              <span style={{ fontWeight: 600, fontSize: '13px', color: '#444' }}>{t.addedTagsLabel}:</span>{' '}
-              {selectedTags.map((tag, idx) => (
+            <div style={{ marginBottom: '8px' }}>
+              {selectedTags.map((tag) => (
                 <span
                   key={tag}
                   style={{
@@ -623,7 +586,8 @@ const HomeScreen: FC<HomeScreenProps> = ({
                     alignItems: 'center',
                     gap: '4px',
                     padding: '4px 8px',
-                    marginLeft: idx === 0 ? 8 : 4,
+                    marginRight: '4px',
+                    marginBottom: '4px',
                     background: '#fbe3e3',
                     borderRadius: '12px',
                     fontSize: '12px',
@@ -651,7 +615,21 @@ const HomeScreen: FC<HomeScreenProps> = ({
               ))}
             </div>
           )}
-        </>
+
+          <MultiSelectTagDropdown
+            existingTags={existingTags}
+            selectedTags={selectedTags}
+            onToggleTag={(tag) => {
+              if (selectedTags.includes(tag)) {
+                onRemoveTag(tag)
+              } else {
+                onAddTag(tag)
+              }
+            }}
+            onAddNewTag={onAddTag}
+            language={language}
+          />
+        </div>
       )}
       {/* 接続時のみ表示: メモ入力と保存ボタン */}
       {isConnected && (
@@ -682,18 +660,23 @@ const HomeScreen: FC<HomeScreenProps> = ({
               <button
                 className="button"
                 onClick={onClipPage}
-                style={{ flex: 1 }}
+                disabled={isNewSelection}
+                style={{
+                  flex: 1,
+                  opacity: isNewSelection ? 0.6 : 1,
+                  cursor: isNewSelection ? 'not-allowed' : 'pointer'
+                }}
               >
                 {t.clipButton}
               </button>
               <button
                 className="button button-secondary"
                 onClick={onClipNow}
-                disabled={!onClipNow}
+                disabled={!onClipNow || isNewSelection}
                 style={{
                   flex: 1,
-                  opacity: !onClipNow ? 0.6 : 1,
-                  cursor: !onClipNow ? 'not-allowed' : 'pointer',
+                  opacity: !onClipNow || isNewSelection ? 0.6 : 1,
+                  cursor: !onClipNow || isNewSelection ? 'not-allowed' : 'pointer',
                   whiteSpace: 'pre-line'
                 }}
                 title="現在の再生位置で保存"
@@ -705,6 +688,11 @@ const HomeScreen: FC<HomeScreenProps> = ({
             <button
               className="button"
               onClick={onClipPage}
+              disabled={isNewSelection}
+              style={{
+                opacity: isNewSelection ? 0.6 : 1,
+                cursor: isNewSelection ? 'not-allowed' : 'pointer'
+              }}
             >
               {t.clipButton}
             </button>
