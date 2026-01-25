@@ -474,7 +474,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
             className="button"
             style={{
               width: '100%',
-              background: isAuthLoading || !oauthClientId ? undefined : '#f2a8a8',
+              background: isAuthLoading || !oauthClientId ? undefined : '#e08080',
               fontSize: '15px',
               fontWeight: '600',
               padding: '14px 16px'
@@ -554,8 +554,8 @@ const HomeScreen: FC<HomeScreenProps> = ({
                 padding: '8px 4px',
                 whiteSpace: 'nowrap',
                 flexShrink: 0,
-                backgroundColor: '#f2a8a8',
-                borderColor: '#f2a8a8',
+                backgroundColor: '#e08080',
+                borderColor: '#e08080',
                 color: 'white',
                 opacity: !onCreateClipboard || !isNewSelection || !newClipboardName.trim() || isCreatingClipboard ? 0.6 : 1,
                 cursor: !onCreateClipboard || !isNewSelection || !newClipboardName.trim() || isCreatingClipboard ? 'not-allowed' : 'pointer'
