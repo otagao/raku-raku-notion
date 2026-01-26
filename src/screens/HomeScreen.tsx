@@ -168,10 +168,11 @@ const HomeScreen: FC<HomeScreenProps> = ({
   const [workspaceName, setWorkspaceName] = useState<string>('')
   const [isCheckingConnection, setIsCheckingConnection] = useState<boolean>(true)
   const [uiSimplifyEnabled, setUiSimplifyEnabled] = useState<boolean | null>(null)
-  const [isHeaderExpanded, setIsHeaderExpanded] = useState<boolean>(true)
-  const [isFooterExpanded, setIsFooterExpanded] = useState<boolean>(true)
-  const [isTagSectionExpanded, setIsTagSectionExpanded] = useState<boolean>(true)
-  const [isMemoSectionExpanded, setIsMemoSectionExpanded] = useState<boolean>(true)
+  const [isHeaderExpanded, setIsHeaderExpanded] = useState<boolean>(false)
+  const [isFooterExpanded, setIsFooterExpanded] = useState<boolean>(false)
+  const [isTagSectionExpanded, setIsTagSectionExpanded] = useState<boolean>(false)
+  const [isMemoSectionExpanded, setIsMemoSectionExpanded] = useState<boolean>(false)
+  const [hasLoadedLayout, setHasLoadedLayout] = useState<boolean>(false)
   const [newClipboardName, setNewClipboardName] = useState<string>('')
   const [isCreatingClipboard, setIsCreatingClipboard] = useState<boolean>(false)
 
@@ -180,6 +181,36 @@ const HomeScreen: FC<HomeScreenProps> = ({
   const [authError, setAuthError] = useState<string>('')
   const [authSuccess, setAuthSuccess] = useState<string>('')
   const [oauthClientId, setOauthClientId] = useState<string>('')
+
+  useEffect(() => {
+    const loadLayout = async () => {
+      const config = await StorageService.getHomeLayoutConfig()
+      setIsHeaderExpanded(config.headerExpanded)
+      setIsFooterExpanded(config.footerExpanded)
+      setIsTagSectionExpanded(config.tagExpanded)
+      setIsMemoSectionExpanded(config.memoExpanded)
+      setHasLoadedLayout(true)
+    }
+    loadLayout()
+  }, [])
+
+  useEffect(() => {
+    if (!hasLoadedLayout) {
+      return
+    }
+    StorageService.saveHomeLayoutConfig({
+      headerExpanded: isHeaderExpanded,
+      footerExpanded: isFooterExpanded,
+      tagExpanded: isTagSectionExpanded,
+      memoExpanded: isMemoSectionExpanded
+    })
+  }, [
+    hasLoadedLayout,
+    isHeaderExpanded,
+    isFooterExpanded,
+    isTagSectionExpanded,
+    isMemoSectionExpanded
+  ])
 
   // OAuth設定を初期化
   useEffect(() => {
@@ -321,7 +352,14 @@ const HomeScreen: FC<HomeScreenProps> = ({
   return (
     <div className="container">
       {isHeaderExpanded && (
-        <>
+        <div
+          style={{
+            border: '1px solid #e9e9e7',
+            borderRadius: '8px',
+            padding: '10px',
+            marginBottom: '12px'
+          }}
+        >
           <div className="header" style={{ position: 'relative', marginBottom: '8px', paddingBottom: '8px' }}>
             <h1 style={{ margin: 0 }}>Raku Raku Notion</h1>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -349,52 +387,54 @@ const HomeScreen: FC<HomeScreenProps> = ({
 
           {/* 接続状態ボックス */}
           {(isCheckingConnection || isConnected) && (
-            <div style={{
-              padding: '12px',
-              marginBottom: '10px',
-              backgroundColor: isConnected ? '#ffe6e6' : '#f5f5f5',
-              borderRadius: '4px',
-              border: `1px solid ${isConnected ? '#f5caca' : '#ddd'}`,
-              minHeight: '44px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '12px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <button
-                  type="button"
-                  onClick={() => setIsHeaderExpanded(false)}
-                  className="accordion-toggle"
-                  aria-expanded={true}
-                >
-                  <span className="accordion-icon">▴</span>
-                </button>
-                {isCheckingConnection ? (
-                  <span style={{ color: '#666' }}>{t.checking}</span>
-                ) : (
-                  <span>{t.connected(workspaceName)}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button
+                type="button"
+                onClick={() => setIsHeaderExpanded(false)}
+                className="accordion-toggle"
+                aria-expanded={true}
+              >
+                <span className="accordion-icon">▴</span>
+              </button>
+              <div style={{
+                padding: '12px',
+                backgroundColor: isConnected ? '#ffe6e6' : '#f5f5f5',
+                borderRadius: '4px',
+                border: `1px solid ${isConnected ? '#f5caca' : '#ddd'}`,
+                minHeight: '44px',
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {isCheckingConnection ? (
+                    <span style={{ color: '#666' }}>{t.checking}</span>
+                  ) : (
+                    <span>{t.connected(workspaceName)}</span>
+                  )}
+                </div>
+                {isConnected && !isCheckingConnection && onDisconnect && (
+                  <button
+                    onClick={onDisconnect}
+                    style={{
+                      fontSize: '12px',
+                      padding: '4px 8px',
+                      background: '#fff',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {t.disconnect}
+                  </button>
                 )}
               </div>
-              {isConnected && !isCheckingConnection && onDisconnect && (
-                <button
-                  onClick={onDisconnect}
-                  style={{
-                    fontSize: '12px',
-                    padding: '4px 8px',
-                    background: '#fff',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  {t.disconnect}
-                </button>
-              )}
             </div>
           )}
-        </>
+        </div>
       )}
 
       {/* 認証エラー・成功メッセージ */}
@@ -517,9 +557,9 @@ const HomeScreen: FC<HomeScreenProps> = ({
 
       {/* 接続時のみ表示: 保存先ドロップダウン */}
       {isConnected && (
-        <div style={{ marginBottom: '10px', textAlign: 'left' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
-            {!isHeaderExpanded && (
+        <div style={{ marginBottom: '8px', textAlign: 'left' }}>
+          {!isHeaderExpanded && (
+            <div style={{ marginBottom: '4px' }}>
               <button
                 type="button"
                 onClick={() => setIsHeaderExpanded(true)}
@@ -528,7 +568,9 @@ const HomeScreen: FC<HomeScreenProps> = ({
               >
                 <span className="accordion-icon">▸</span>
               </button>
-            )}
+            </div>
+          )}
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
             {t.destinationLabel}
             <TooltipIcon text={t.tooltipDestination} style={{ marginLeft: 0 }} />
           </label>
@@ -595,9 +637,17 @@ const HomeScreen: FC<HomeScreenProps> = ({
         </div>
       )}
 
-      {/* 接続時のみ表示: タグ付与UI */}
+      {/* 接続時のみ表示: タグ付与UI + メモ */}
       {isConnected && (
-        <div style={{ marginBottom: '10px', textAlign: 'left' }}>
+        <div
+          style={{
+            marginBottom: isTagSectionExpanded ? '8px' : '6px',
+            textAlign: 'left',
+            border: isTagSectionExpanded ? '1px solid #e9e9e7' : 'none',
+            borderRadius: '8px',
+            padding: isTagSectionExpanded ? '8px' : '0'
+          }}
+        >
           <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
             <button
               type="button"
@@ -611,7 +661,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
               className="accordion-toggle"
               aria-expanded={isTagSectionExpanded}
             >
-              <span className="accordion-icon">{isTagSectionExpanded ? '▴' : '▸'}</span>
+              <span className="accordion-icon">{isTagSectionExpanded ? '▾' : '▸'}</span>
             </button>
             {isTagSectionExpanded && (
               <>
@@ -679,13 +729,9 @@ const HomeScreen: FC<HomeScreenProps> = ({
               />
             </>
           )}
-        </div>
-      )}
-      {/* 接続時のみ表示: メモ入力と保存ボタン */}
-      {isConnected && (
-        <div style={{ textAlign: 'left' }}>
+
           {isMemoSectionExpanded && (
-            <div style={{ marginBottom: '10px' }}>
+            <div style={{ marginTop: '8px' }}>
               <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
                 {t.memoLabel}
               </label>
@@ -695,10 +741,10 @@ const HomeScreen: FC<HomeScreenProps> = ({
                 placeholder={t.memoPlaceholder}
                 style={{
                   width: '100%',
-                  minHeight: '80px',
+                  minHeight: '64px',
                   border: '1px solid #ddd',
                   borderRadius: '6px',
-                  padding: '8px',
+                  padding: '6px',
                   fontSize: '14px',
                   resize: 'vertical',
                   boxSizing: 'border-box'
@@ -706,7 +752,11 @@ const HomeScreen: FC<HomeScreenProps> = ({
               />
             </div>
           )}
-
+        </div>
+      )}
+      {/* 接続時のみ表示: メモ入力と保存ボタン */}
+      {isConnected && (
+        <div style={{ textAlign: 'left' }}>
           {isYouTubeTab ? (
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
@@ -765,41 +815,41 @@ const HomeScreen: FC<HomeScreenProps> = ({
 
           {isFooterExpanded && (
             <div style={{
-              marginTop: '24px',
-              paddingTop: '24px',
+              marginTop: '12px',
+              paddingTop: '10px',
               borderTop: '1px solid #e9e9e7',
               display: 'flex',
               flexDirection: 'column',
-              gap: '12px'
+              gap: '10px'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
                 <button
                   type="button"
                   onClick={() => setIsFooterExpanded(false)}
-                  className="accordion-toggle"
-                  aria-expanded={true}
+                className="accordion-toggle"
+                aria-expanded={true}
+              >
+                <span className="accordion-icon">▾</span>
+              </button>
+              </div>
+              <div style={{ position: 'relative' }}>
+                <button
+                  className="button button-secondary"
+                  onClick={() => onNavigate('clipboard-list')}
+                  style={{ width: '100%' }}
                 >
-                  <span className="accordion-icon">▴</span>
+                  {t.listButton}
                 </button>
-                <div style={{ position: 'relative', flex: 1 }}>
-                  <button
-                    className="button button-secondary"
-                    onClick={() => onNavigate('clipboard-list')}
-                    style={{ width: '100%' }}
-                  >
-                    {t.listButton}
-                  </button>
-                  <TooltipIcon
-                    text={t.tooltipListButton}
-                    style={{
-                      position: 'absolute',
-                      right: '8px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      zIndex: 1
-                    }}
-                  />
-                </div>
+                <TooltipIcon
+                  text={t.tooltipListButton}
+                  style={{
+                    position: 'absolute',
+                    right: '8px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    zIndex: 1
+                  }}
+                />
               </div>
               <div>
                 <button
