@@ -108,24 +108,47 @@ function getYouTubeDescription(): string | undefined {
 
   const currentVideoId = getYouTubeCurrentVideoId()
 
-  // window.ytInitialPlayerResponse の shortDescription を最優先（現在の動画IDと一致する場合のみ）
+  // Shortsページかどうかを判定
+  const isShorts = (() => {
+    try {
+      return new URL(window.location.href).pathname.startsWith('/shorts/')
+    } catch {
+      return false
+    }
+  })()
+
+  // Shortsの場合: DOM要素を最優先（[is-active]属性は確実に現在のShortsを示す）
+  if (isShorts) {
+    const activeShort = document.querySelector('ytd-reel-video-renderer[is-active]')
+    if (activeShort) {
+      const shortText = grabText(activeShort.querySelector('#description, #description-inline-expander, ytd-text-inline-expander'))
+      if (shortText) return shortText
+    }
+  }
+
+  // window.ytInitialPlayerResponse の shortDescription（現在の動画IDと一致する場合のみ）
   try {
     const win = window as any
     const resp = win?.ytInitialPlayerResponse
     const videoId = resp?.videoDetails?.videoId
     const desc = resp?.videoDetails?.shortDescription
-    if ((!currentVideoId || videoId === currentVideoId) && typeof desc === 'string' && desc.trim()) {
+    // 動画ID検証を厳格化: currentVideoIdが存在する場合は必ず一致を確認
+    if (currentVideoId && videoId !== currentVideoId) {
+      // ID不一致の場合はスキップ（古いデータの可能性）
+    } else if (typeof desc === 'string' && desc.trim()) {
       return desc.trim()
     }
   } catch {
     // ignore
   }
 
-  // Shortsのアクティブ要素内から説明を優先取得
-  const activeShort = document.querySelector('ytd-reel-video-renderer[is-active]')
-  if (activeShort) {
-    const shortText = grabText(activeShort.querySelector('#description, #description-inline-expander, ytd-text-inline-expander'))
-    if (shortText) return shortText
+  // 通常の動画の場合: Shortsのアクティブ要素をチェック（念のため）
+  if (!isShorts) {
+    const activeShort = document.querySelector('ytd-reel-video-renderer[is-active]')
+    if (activeShort) {
+      const shortText = grabText(activeShort.querySelector('#description, #description-inline-expander, ytd-text-inline-expander'))
+      if (shortText) return shortText
+    }
   }
 
   // DOM内の説明テキストを取得（SPA更新に追随しやすい要素から）
@@ -160,6 +183,17 @@ function getImages(): string[] | undefined {
   const tw = document.querySelector('meta[name="twitter:image"]')?.getAttribute('content')
   if (tw && !urls.includes(tw)) urls.push(tw)
 
+  // YouTube専用: 現在の動画IDを取得（再生リスト・Shortsでの不要なサムネイル除外用）
+  let currentYouTubeVideoId: string | undefined
+  try {
+    const hostname = new URL(window.location.href).hostname
+    if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
+      currentYouTubeVideoId = getYouTubeCurrentVideoId()
+    }
+  } catch {
+    // ignore
+  }
+
   const images = Array.from(document.querySelectorAll('img'))
   images.forEach(img => {
     if (urls.length >= 20) return
@@ -177,7 +211,21 @@ function getImages(): string[] | undefined {
       candidate = img.getAttribute('data-src') || img.getAttribute('data-original') || img.getAttribute('data-lazy') || ''
     }
 
-    if (candidate && isLargeEnough && !isIgnoredImage(candidate) && !urls.includes(candidate)) {
+    // YouTube専用フィルタリング: 現在の動画IDと一致するサムネイルのみ許可
+    if (currentYouTubeVideoId && candidate.includes('ytimg.com')) {
+      // YouTubeサムネイルの場合、現在の動画IDを含むもののみ許可
+      if (!candidate.includes(`/vi/${currentYouTubeVideoId}/`)) {
+        return // 他の動画のサムネイルはスキップ
+      }
+    }
+
+    // 広告関連の画像を除外
+    const isAdLike = candidate.includes('ads') ||
+                     candidate.includes('doubleclick') ||
+                     candidate.includes('ad-delivery') ||
+                     candidate.includes('imasdk')
+
+    if (candidate && isLargeEnough && !isIgnoredImage(candidate) && !isAdLike && !urls.includes(candidate)) {
       urls.push(candidate)
     }
   })

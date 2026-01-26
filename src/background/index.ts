@@ -481,15 +481,28 @@ async function handleClipPage(
 
     const notionClient = createNotionClient(config)
 
+    const contentText = extractedContent.text || fallbackContent?.text || data.content
+    let thumbnail = extractedContent.thumbnail || fallbackContent?.thumbnail || data.thumbnail
+    let images = (extractedContent.images && extractedContent.images.length > 0 ? extractedContent.images : fallbackContent?.images) || undefined
+    const videos = (extractedContent.videos && extractedContent.videos.length > 0 ? extractedContent.videos : fallbackContent?.videos) || undefined
+
+    // YouTubeはサムネイル1枚のみに制限（その他の画像は保存しない）
+    const youtubeVideoId = extractYouTubeVideoId(data.url)
+    if (youtubeVideoId) {
+      const youtubeThumb = getYouTubeThumb(youtubeVideoId)
+      thumbnail = youtubeThumb || thumbnail
+      images = youtubeThumb ? [youtubeThumb] : (thumbnail ? [thumbnail] : undefined)
+    }
+
     const webClipData: WebClipData = {
       title: data.title,
       url: data.url,
       databaseId: data.databaseId,
       // Content Scriptから取得したコンテンツを優先、なければdata引数を使用
-      content: extractedContent.text || fallbackContent?.text || data.content,
-      thumbnail: extractedContent.thumbnail || fallbackContent?.thumbnail || data.thumbnail,
-      images: (extractedContent.images && extractedContent.images.length > 0 ? extractedContent.images : fallbackContent?.images) || undefined,
-      videos: (extractedContent.videos && extractedContent.videos.length > 0 ? extractedContent.videos : fallbackContent?.videos) || undefined,
+      content: contentText,
+      thumbnail,
+      images,
+      videos,
       icon: extractedContent.icon,
       memo: data.memo,
       tags: data.tags
