@@ -1,4 +1,4 @@
-import { type FC, useState, useEffect } from "react"
+import { type FC, useState, useEffect, useLayoutEffect } from "react"
 import { StorageService } from "~services/storage"
 import { createNotionClient } from "~services/notion"
 import type { Language, Clipboard } from "~types"
@@ -57,6 +57,7 @@ const translations: Record<Language, {
   successSaved: string
   uiSimplifyLabel: string
   tooltipUISimplify: string
+  openButton: string
   authGuideTitle: string
   authGuideStep1: string
   authGuideStep1Desc: string
@@ -96,6 +97,7 @@ const translations: Record<Language, {
     successSaved: '設定を保存しました',
     uiSimplifyLabel: 'Notion UI簡略化',
     tooltipUISimplify: 'Notion.so上でサイドバーやツールバーを非表示にし、シンプルな表示にします',
+    openButton: '開く',
     authGuideTitle: '認証画面での操作手順',
     authGuideStep1: '1. 「ページを選択する」ボタンを押す',
     authGuideStep1Desc: '注意事項を読んでから「ページを選択する」ボタンをクリックしてください。',
@@ -135,6 +137,7 @@ const translations: Record<Language, {
     successSaved: 'Settings saved',
     uiSimplifyLabel: 'Notion UI simplify',
     tooltipUISimplify: 'Hide sidebar and toolbar on Notion.so for a cleaner display',
+    openButton: 'Open',
     authGuideTitle: 'Steps on the auth screen',
     authGuideStep1: '1. Click "Select pages"',
     authGuideStep1Desc: 'Read the notice and then click the "Select pages" button.',
@@ -180,6 +183,33 @@ const HomeScreen: FC<HomeScreenProps> = ({
   const [authError, setAuthError] = useState<string>('')
   const [authSuccess, setAuthSuccess] = useState<string>('')
   const [oauthClientId, setOauthClientId] = useState<string>('')
+
+  useLayoutEffect(() => {
+    const updatePopupHeight = () => {
+      document.body.style.height = 'auto'
+      document.documentElement.style.height = 'auto'
+      const height = document.body.scrollHeight
+      document.body.style.height = `${height}px`
+      document.documentElement.style.height = `${height}px`
+    }
+
+    document.body.style.minHeight = '0'
+    document.documentElement.style.minHeight = '0'
+
+    const frame = requestAnimationFrame(updatePopupHeight)
+    return () => cancelAnimationFrame(frame)
+  }, [
+    isHeaderExpanded,
+    isFooterExpanded,
+    isTagSectionExpanded,
+    isMemoSectionExpanded,
+    isConnected,
+    isCheckingConnection,
+    authError,
+    authSuccess,
+    selectedTags.length,
+    clipboards.length
+  ])
 
   // OAuth設定を初期化
   useEffect(() => {
@@ -228,6 +258,14 @@ const HomeScreen: FC<HomeScreenProps> = ({
   const handleUISimplifyToggle = async (enabled: boolean) => {
     setUiSimplifyEnabled(enabled)
     await StorageService.saveUISimplifyConfig({ enabled })
+  }
+
+  const handleOpenSelectedDatabase = () => {
+    if (!selectedClipboardId || selectedClipboardId === '__new__') return
+    const target = clipboards.find(cb => cb.notionDatabaseId === selectedClipboardId)
+    const url = target?.notionDatabaseUrl
+    if (!url) return
+    chrome.tabs.create({ url })
   }
 
   const isNewSelection = selectedClipboardId === '__new__'
@@ -615,8 +653,27 @@ const HomeScreen: FC<HomeScreenProps> = ({
             </button>
             {isTagSectionExpanded && (
               <>
-                {t.tagLabel}
-                <TooltipIcon text={t.tooltipTag} style={{ marginLeft: 0 }} />
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ whiteSpace: 'nowrap' }}>{t.tagLabel}</span>
+                  <TooltipIcon text={t.tooltipTag} style={{ marginLeft: 0 }} />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleOpenSelectedDatabase}
+                  className="button button-secondary"
+                  disabled={!selectedClipboardId || selectedClipboardId === '__new__'}
+                  style={{
+                    marginLeft: 'auto',
+                    minWidth: '10px',
+                    width: 'fit-content',
+                    padding: '4px 4px',
+                    fontSize: '12px',
+                    opacity: !selectedClipboardId || selectedClipboardId === '__new__' ? 0.5 : 1,
+                    cursor: !selectedClipboardId || selectedClipboardId === '__new__' ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {t.openButton}
+                </button>
               </>
             )}
           </label>
