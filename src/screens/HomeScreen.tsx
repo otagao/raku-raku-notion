@@ -656,68 +656,30 @@ const HomeScreen: FC<HomeScreenProps> = ({
           </div>
 
           {isYouTubeTab ? (
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                className="button"
-                onClick={onClipPage}
-                disabled={isNewSelection}
-                style={{
-                  flex: 1,
-                  opacity: isNewSelection ? 0.6 : 1,
-                  cursor: isNewSelection ? 'not-allowed' : 'pointer'
-                }}
-              >
-                {t.clipButton}
-              </button>
-              <button
-                className="button button-secondary"
-                onClick={onClipNow}
-                disabled={!onClipNow || isNewSelection}
-                style={{
-                  flex: 1,
-                  opacity: !onClipNow || isNewSelection ? 0.6 : 1,
-                  cursor: !onClipNow || isNewSelection ? 'not-allowed' : 'pointer',
-                  whiteSpace: 'pre-line',
-                  backgroundColor: '#f2a8a8',
-                  borderColor: '#f2a8a8',
-                  color: 'white'
-                }}
-                title="現在の再生位置で保存"
-              >
-                {t.clipNowButton}
-              </button>
-            </div>
+            <button
+              className="button"
+              onClick={onClipNow || onClipPage}
+              disabled={!onClipNow || isNewSelection}
+              style={{
+                opacity: !onClipNow || isNewSelection ? 0.6 : 1,
+                cursor: !onClipNow || isNewSelection ? 'not-allowed' : 'pointer'
+              }}
+              title="現在の再生位置で保存"
+            >
+              {t.clipButton}
+            </button>
           ) : (
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                className="button"
-                onClick={onClipPage}
-                disabled={isNewSelection}
-                style={{
-                  flex: 1,
-                  opacity: isNewSelection ? 0.6 : 1,
-                  cursor: isNewSelection ? 'not-allowed' : 'pointer'
-                }}
-              >
-                {t.clipButton}
-              </button>
-              <button
-                className="button button-secondary"
-                disabled={true}
-                style={{
-                  flex: 1,
-                  opacity: 0.5,
-                  cursor: 'not-allowed',
-                  whiteSpace: 'pre-line',
-                  backgroundColor: '#eee',
-                  borderColor: '#eee',
-                  color: '#888'
-                }}
-                title="YouTubeでのみ利用できます"
-              >
-                {t.clipNowButton}
-              </button>
-            </div>
+            <button
+              className="button"
+              onClick={onClipPage}
+              disabled={isNewSelection}
+              style={{
+                opacity: isNewSelection ? 0.6 : 1,
+                cursor: isNewSelection ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {t.clipButton}
+            </button>
           )}
 
           <div style={{
