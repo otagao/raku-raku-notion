@@ -27,9 +27,7 @@ div[style*="min-height: 24px"]:has(svg.templates) {
   display: none !important;
 }
 
-div[style*="min-height: 24px"]:has(svg.trash) {
-  display: none !important;
-}
+/* Trash stays visible */
 
 /* Sidebar */
 .notion-outliner-shared-header-container {
