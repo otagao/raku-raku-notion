@@ -115,3 +115,10 @@ export interface TagOption {
   name: string
   sourceDatabaseId?: string
 }
+
+export interface HomeLayoutConfig {
+  headerExpanded: boolean
+  footerExpanded: boolean
+  tagExpanded: boolean
+  memoExpanded: boolean
+}
