@@ -473,7 +473,7 @@ export async function extractContent(): Promise<ExtractedContent> {
   const isTwitter = hostname.includes('twitter.com') || hostname.includes('x.com')
   const text = await (async () => {
     if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
-      return (await getYouTubeDescription()) || getPageText()
+      return ''
     }
     return getPageText()
   })()
