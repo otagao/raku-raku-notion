@@ -80,23 +80,20 @@
     console.log('[OAuth Callback] Response received:', response)
 
     if (response?.success) {
-      // 成功表示
+      // 成功 - backgroundがタブを閉じてポップアップを開く
+      console.log('[OAuth Callback] Success! Background will close this tab and open popup.')
+
+      // 認証成功メッセージを表示（タブが閉じるまでの短い間）
       const spinnerView = document.getElementById('spinner-view')
-      const successOverlay = document.getElementById('success-overlay')
-      const closeBtn = document.getElementById('close-btn')
-
-      if (spinnerView) spinnerView.style.display = 'none'
-      if (successOverlay) successOverlay.style.display = 'flex'
-
-      console.log('[OAuth Callback] Success! Waiting for user to close...')
-
-      // 閉じるボタンのイベントリスナー
-      if (closeBtn) {
-        closeBtn.onclick = () => {
-          window.close();
-        };
+      if (spinnerView) {
+        spinnerView.innerHTML = `
+          <div style="text-align: center;">
+            <div style="font-size: 48px; margin-bottom: 16px;">✓</div>
+            <div style="color: #4CAF50; font-size: 24px; font-weight: bold; margin-bottom: 8px;">認証成功！</div>
+            <div style="color: #888; font-size: 14px;">このタブは自動的に閉じます...</div>
+          </div>
+        `
       }
-
     } else {
       throw new Error(response?.error || '認証の完了に失敗しました')
     }
