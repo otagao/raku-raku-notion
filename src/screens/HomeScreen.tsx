@@ -561,30 +561,17 @@ const HomeScreen: FC<HomeScreenProps> = ({
 
           {isDetailsExpanded && (
             <>
-              {/* 接続先表示 */}
+              {/* 折りたたみボタン */}
               <div style={{ marginBottom: '12px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
-                  <button
-                    type="button"
-                    onClick={() => setIsDetailsExpanded(false)}
-                    className="accordion-toggle"
-                    aria-expanded={true}
-                  >
-                    <span className="accordion-icon">▼</span>
-                    <span>{language === 'ja' ? '詳細を非表示' : 'Hide details'}</span>
-                  </button>
-                  接続先
-                  <TooltipIcon text={t.tooltipWorkspace} style={{ marginLeft: 0 }} />
-                </label>
-                <div style={{
-                  padding: '8px 12px',
-                  backgroundColor: '#ffe6e6',
-                  borderRadius: '4px',
-                  border: '1px solid #f5caca',
-                  fontSize: '14px'
-                }}>
-                  {workspaceName || 'Notionワークスペース'}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsDetailsExpanded(false)}
+                  className="accordion-toggle"
+                  aria-expanded={true}
+                >
+                  <span className="accordion-icon">▼</span>
+                  <span>{language === 'ja' ? '詳細を非表示' : 'Hide details'}</span>
+                </button>
               </div>
 
               {/* 保存先ドロップダウン */}
