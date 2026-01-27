@@ -534,7 +534,85 @@ const HomeScreen: FC<HomeScreenProps> = ({
         </div>
       )}
 
-      {/* 接続時のみ表示: 詳細設定（接続先、保存先、タグ、メモ） */}
+      {/* 接続時のみ表示: 保存先（常時表示） */}
+      {isConnected && (
+        <div
+          style={{
+            marginBottom: '12px',
+            textAlign: 'left'
+          }}
+        >
+          {/* 保存先ドロップダウン */}
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+              {t.destinationLabel}
+              <TooltipIcon text={t.tooltipDestination} style={{ marginLeft: 0 }} />
+            </label>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <select
+                value={selectedClipboardId || ''}
+                onChange={(e) => onSelectClipboardId(e.target.value)}
+                style={{
+                  flex: '0 1 42%',
+                  minWidth: 0,
+                  padding: '6px',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  backgroundColor: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="" disabled>{t.destinationPlaceholder}</option>
+                <option value="__new__">{t.newDestinationOption}</option>
+                {clipboards.map(cb => (
+                  <option key={cb.id} value={cb.notionDatabaseId}>
+                    {cb.name}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="text"
+                value={newClipboardName}
+                onChange={(e) => setNewClipboardName(e.target.value)}
+                placeholder={t.destinationNamePlaceholder}
+                disabled={!isNewSelection}
+                style={{
+                  flex: '1 1 44%',
+                  minWidth: 0,
+                  padding: '6px',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  backgroundColor: !isNewSelection ? '#f5f5f5' : 'white',
+                  color: !isNewSelection ? '#999' : 'inherit',
+                  cursor: !isNewSelection ? 'not-allowed' : 'text'
+                }}
+              />
+              <button
+                className="button button-secondary"
+                onClick={handleCreateNewClipboard}
+                disabled={!onCreateClipboard || !isNewSelection || !newClipboardName.trim() || isCreatingClipboard}
+                style={{
+                  width: '56px',
+                  padding: '8px 4px',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                  backgroundColor: '#e08080',
+                  borderColor: '#e08080',
+                  color: 'white',
+                  opacity: !onCreateClipboard || !isNewSelection || !newClipboardName.trim() || isCreatingClipboard ? 0.6 : 1,
+                  cursor: !onCreateClipboard || !isNewSelection || !newClipboardName.trim() || isCreatingClipboard ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {isCreatingClipboard ? t.createButtonLoading : t.createButton}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 接続時のみ表示: 詳細設定（タグ、メモ） */}
       {isConnected && (
         <div
           style={{
@@ -572,74 +650,6 @@ const HomeScreen: FC<HomeScreenProps> = ({
                   <span className="accordion-icon">▼</span>
                   <span>{language === 'ja' ? '詳細を非表示' : 'Hide details'}</span>
                 </button>
-              </div>
-
-              {/* 保存先ドロップダウン */}
-              <div style={{ marginBottom: '12px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
-                  {t.destinationLabel}
-                  <TooltipIcon text={t.tooltipDestination} style={{ marginLeft: 0 }} />
-                </label>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <select
-                    value={selectedClipboardId || ''}
-                    onChange={(e) => onSelectClipboardId(e.target.value)}
-                    style={{
-                      flex: '0 1 42%',
-                      minWidth: 0,
-                      padding: '6px',
-                      border: '1px solid #ddd',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      backgroundColor: 'white',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <option value="" disabled>{t.destinationPlaceholder}</option>
-                    <option value="__new__">{t.newDestinationOption}</option>
-                    {clipboards.map(cb => (
-                      <option key={cb.id} value={cb.notionDatabaseId}>
-                        {cb.name}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="text"
-                    value={newClipboardName}
-                    onChange={(e) => setNewClipboardName(e.target.value)}
-                    placeholder={t.destinationNamePlaceholder}
-                    disabled={!isNewSelection}
-                    style={{
-                      flex: '1 1 44%',
-                      minWidth: 0,
-                      padding: '6px',
-                      border: '1px solid #ddd',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      backgroundColor: !isNewSelection ? '#f5f5f5' : 'white',
-                      color: !isNewSelection ? '#999' : 'inherit',
-                      cursor: !isNewSelection ? 'not-allowed' : 'text'
-                    }}
-                  />
-                  <button
-                    className="button button-secondary"
-                    onClick={handleCreateNewClipboard}
-                    disabled={!onCreateClipboard || !isNewSelection || !newClipboardName.trim() || isCreatingClipboard}
-                    style={{
-                      width: '56px',
-                      padding: '8px 4px',
-                      whiteSpace: 'nowrap',
-                      flexShrink: 0,
-                      backgroundColor: '#e08080',
-                      borderColor: '#e08080',
-                      color: 'white',
-                      opacity: !onCreateClipboard || !isNewSelection || !newClipboardName.trim() || isCreatingClipboard ? 0.6 : 1,
-                      cursor: !onCreateClipboard || !isNewSelection || !newClipboardName.trim() || isCreatingClipboard ? 'not-allowed' : 'pointer'
-                    }}
-                  >
-                    {isCreatingClipboard ? t.createButtonLoading : t.createButton}
-                  </button>
-                </div>
               </div>
 
               {/* タグ */}
