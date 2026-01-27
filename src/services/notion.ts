@@ -403,7 +403,7 @@ export class NotionService {
   }
 
   private async getOrCreateTagDatabaseId(parentPageId: string): Promise<string> {
-    const tagDbTitle = "Raku Raku Notion - タグ"
+    const tagDbTitle = "タグ保存用ページ"
     const existingId = await this.findDatabaseIdByTitle(tagDbTitle, parentPageId)
     if (existingId) return existingId
 
