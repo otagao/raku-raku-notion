@@ -116,7 +116,7 @@ function IndexPopup() {
         id: page.id,
         name: page.title,
         createdAt: page.createdTime || new Date().toISOString(),
-        notionPageId: page.id,
+        notionPageId: page.id,  // フルページデータベースのID（ページIDとデータベースIDは同一）
         notionPageUrl: page.url
       }))
 
@@ -478,14 +478,17 @@ function IndexPopup() {
         botId: undefined
       })
 
-      await StorageService.saveClipboards([])
+      // ストレージから選択状態とタグキャッシュを削除
+      await chrome.storage.local.remove([
+        'raku-selected-clipboard-id',
+        'raku-tag-options-map'
+      ])
+
+      // ローカル状態をクリア
       setClipboards([])
       setSelectedClipboardId(undefined)
       setSelectedTags([])
       setTagOptions([])
-      setAvailableDatabases([])
-      setDatabaseError(null)
-      setDatabaseInfoMessage(null)
     } catch (error) {
       console.error('Failed to disconnect:', error)
       alert('連携解除に失敗しました')
