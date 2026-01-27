@@ -168,10 +168,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
   const [workspaceName, setWorkspaceName] = useState<string>('')
   const [isCheckingConnection, setIsCheckingConnection] = useState<boolean>(true)
   const [uiSimplifyEnabled, setUiSimplifyEnabled] = useState<boolean | null>(null)
-  const [isHeaderExpanded, setIsHeaderExpanded] = useState<boolean>(false)
-  const [isFooterExpanded, setIsFooterExpanded] = useState<boolean>(false)
-  const [isTagSectionExpanded, setIsTagSectionExpanded] = useState<boolean>(false)
-  const [isMemoSectionExpanded, setIsMemoSectionExpanded] = useState<boolean>(false)
+  const [isDetailsExpanded, setIsDetailsExpanded] = useState<boolean>(false)
   const [hasLoadedLayout, setHasLoadedLayout] = useState<boolean>(false)
   const [newClipboardName, setNewClipboardName] = useState<string>('')
   const [isCreatingClipboard, setIsCreatingClipboard] = useState<boolean>(false)
@@ -185,10 +182,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
   useEffect(() => {
     const loadLayout = async () => {
       const config = await StorageService.getHomeLayoutConfig()
-      setIsHeaderExpanded(config.headerExpanded)
-      setIsFooterExpanded(config.footerExpanded)
-      setIsTagSectionExpanded(config.tagExpanded)
-      setIsMemoSectionExpanded(config.memoExpanded)
+      setIsDetailsExpanded(config.headerExpanded) // 既存の設定を流用
       setHasLoadedLayout(true)
     }
     loadLayout()
@@ -199,17 +193,14 @@ const HomeScreen: FC<HomeScreenProps> = ({
       return
     }
     StorageService.saveHomeLayoutConfig({
-      headerExpanded: isHeaderExpanded,
-      footerExpanded: isFooterExpanded,
-      tagExpanded: isTagSectionExpanded,
-      memoExpanded: isMemoSectionExpanded
+      headerExpanded: isDetailsExpanded,
+      footerExpanded: isDetailsExpanded,
+      tagExpanded: isDetailsExpanded,
+      memoExpanded: isDetailsExpanded
     })
   }, [
     hasLoadedLayout,
-    isHeaderExpanded,
-    isFooterExpanded,
-    isTagSectionExpanded,
-    isMemoSectionExpanded
+    isDetailsExpanded
   ])
 
   // OAuth設定を初期化
@@ -351,91 +342,79 @@ const HomeScreen: FC<HomeScreenProps> = ({
 
   return (
     <div className="container">
-      {isHeaderExpanded && (
-        <div
-          style={{
-            border: '1px solid #e9e9e7',
-            borderRadius: '8px',
-            padding: '10px',
-            marginBottom: '12px'
-          }}
-        >
-          <div className="header" style={{ position: 'relative', marginBottom: '8px', paddingBottom: '8px' }}>
-            <h1 style={{ margin: 0 }}>Raku Raku Notion</h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {isConnected && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <label className="toggle-switch" style={{ cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={!!uiSimplifyEnabled}
-                      onChange={(e) => handleUISimplifyToggle(e.target.checked)}
-                      disabled={uiSimplifyEnabled === null}
-                    />
-                    <span className="toggle-track" aria-hidden="true">
-                      <span className="toggle-thumb" />
-                    </span>
-                  </label>
-                  <span style={{ fontSize: '12px', color: '#666', whiteSpace: 'nowrap' }}>
-                    {t.uiSimplifyLabel}
+      {/* ヘッダー: 常に表示 */}
+      <div
+        style={{
+          border: '1px solid #e9e9e7',
+          borderRadius: '8px',
+          padding: '10px',
+          marginBottom: '12px'
+        }}
+      >
+        <div className="header" style={{ position: 'relative', marginBottom: '8px', paddingBottom: '8px' }}>
+          <h1 style={{ margin: 0 }}>Raku Raku Notion</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {isConnected && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <label className="toggle-switch" style={{ cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={!!uiSimplifyEnabled}
+                    onChange={(e) => handleUISimplifyToggle(e.target.checked)}
+                    disabled={uiSimplifyEnabled === null}
+                  />
+                  <span className="toggle-track" aria-hidden="true">
+                    <span className="toggle-thumb" />
                   </span>
-                  <TooltipIcon text={t.tooltipUISimplify} style={{ marginLeft: 0 }} />
-                </div>
+                </label>
+                <span style={{ fontSize: '12px', color: '#666', whiteSpace: 'nowrap' }}>
+                  {t.uiSimplifyLabel}
+                </span>
+                <TooltipIcon text={t.tooltipUISimplify} style={{ marginLeft: 0 }} />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 接続状態ボックス */}
+        {(isCheckingConnection || isConnected) && (
+          <div style={{
+            padding: '12px',
+            backgroundColor: isConnected ? '#ffe6e6' : '#f5f5f5',
+            borderRadius: '4px',
+            border: `1px solid ${isConnected ? '#f5caca' : '#ddd'}`,
+            minHeight: '44px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {isCheckingConnection ? (
+                <span style={{ color: '#666' }}>{t.checking}</span>
+              ) : (
+                <span>{t.connected(workspaceName)}</span>
               )}
             </div>
-          </div>
-
-          {/* 接続状態ボックス */}
-          {(isCheckingConnection || isConnected) && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {isConnected && !isCheckingConnection && onDisconnect && (
               <button
-                type="button"
-                onClick={() => setIsHeaderExpanded(false)}
-                className="accordion-toggle"
-                aria-expanded={true}
+                onClick={onDisconnect}
+                style={{
+                  fontSize: '12px',
+                  padding: '4px 8px',
+                  background: '#fff',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
               >
-                <span className="accordion-icon">▴</span>
+                {t.disconnect}
               </button>
-              <div style={{
-                padding: '12px',
-                backgroundColor: isConnected ? '#ffe6e6' : '#f5f5f5',
-                borderRadius: '4px',
-                border: `1px solid ${isConnected ? '#f5caca' : '#ddd'}`,
-                minHeight: '44px',
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '12px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  {isCheckingConnection ? (
-                    <span style={{ color: '#666' }}>{t.checking}</span>
-                  ) : (
-                    <span>{t.connected(workspaceName)}</span>
-                  )}
-                </div>
-                {isConnected && !isCheckingConnection && onDisconnect && (
-                  <button
-                    onClick={onDisconnect}
-                    style={{
-                      fontSize: '12px',
-                      padding: '4px 8px',
-                      background: '#fff',
-                      border: '1px solid #ddd',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap'
-                    }}
-                  >
-                    {t.disconnect}
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )}
+      </div>
 
       {/* 認証エラー・成功メッセージ */}
       {authError && (
@@ -555,14 +534,22 @@ const HomeScreen: FC<HomeScreenProps> = ({
         </div>
       )}
 
-      {/* 接続時のみ表示: 保存先ドロップダウン */}
+      {/* 接続時のみ表示: 詳細設定（接続先、保存先、タグ、メモ） */}
       {isConnected && (
-        <div style={{ marginBottom: '8px', textAlign: 'left' }}>
-          {!isHeaderExpanded && (
+        <div
+          style={{
+            marginBottom: '8px',
+            textAlign: 'left',
+            border: isDetailsExpanded ? '1px solid #e9e9e7' : 'none',
+            borderRadius: '8px',
+            padding: isDetailsExpanded ? '10px' : '0'
+          }}
+        >
+          {!isDetailsExpanded && (
             <div style={{ marginBottom: '4px' }}>
               <button
                 type="button"
-                onClick={() => setIsHeaderExpanded(true)}
+                onClick={() => setIsDetailsExpanded(true)}
                 className="accordion-toggle"
                 aria-expanded={false}
               >
@@ -570,191 +557,189 @@ const HomeScreen: FC<HomeScreenProps> = ({
               </button>
             </div>
           )}
-          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
-            {t.destinationLabel}
-            <TooltipIcon text={t.tooltipDestination} style={{ marginLeft: 0 }} />
-          </label>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <select
-              value={selectedClipboardId || ''}
-              onChange={(e) => onSelectClipboardId(e.target.value)}
-              style={{
-                flex: '0 1 42%',
-                minWidth: 0,
-                padding: '6px',
-                border: '1px solid #ddd',
-                borderRadius: '6px',
-                fontSize: '14px',
-                backgroundColor: 'white',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="" disabled>{t.destinationPlaceholder}</option>
-              <option value="__new__">{t.newDestinationOption}</option>
-              {clipboards.map(cb => (
-                <option key={cb.id} value={cb.notionDatabaseId}>
-                  {cb.name}
-                </option>
-              ))}
-            </select>
-            <input
-              type="text"
-              value={newClipboardName}
-              onChange={(e) => setNewClipboardName(e.target.value)}
-              placeholder={t.destinationNamePlaceholder}
-              disabled={!isNewSelection}
-              style={{
-                flex: '1 1 44%',
-                minWidth: 0,
-                padding: '6px',
-                border: '1px solid #ddd',
-                borderRadius: '6px',
-                fontSize: '14px',
-                backgroundColor: !isNewSelection ? '#f5f5f5' : 'white',
-                color: !isNewSelection ? '#999' : 'inherit',
-                cursor: !isNewSelection ? 'not-allowed' : 'text'
-              }}
-            />
-            <button
-              className="button button-secondary"
-              onClick={handleCreateNewClipboard}
-              disabled={!onCreateClipboard || !isNewSelection || !newClipboardName.trim() || isCreatingClipboard}
-              style={{
-                width: '56px',
-                padding: '8px 4px',
-                whiteSpace: 'nowrap',
-                flexShrink: 0,
-                backgroundColor: '#e08080',
-                borderColor: '#e08080',
-                color: 'white',
-                opacity: !onCreateClipboard || !isNewSelection || !newClipboardName.trim() || isCreatingClipboard ? 0.6 : 1,
-                cursor: !onCreateClipboard || !isNewSelection || !newClipboardName.trim() || isCreatingClipboard ? 'not-allowed' : 'pointer'
-              }}
-            >
-              {isCreatingClipboard ? t.createButtonLoading : t.createButton}
-            </button>
-          </div>
-        </div>
-      )}
 
-      {/* 接続時のみ表示: タグ付与UI + メモ */}
-      {isConnected && (
-        <div
-          style={{
-            marginBottom: isTagSectionExpanded ? '8px' : '6px',
-            textAlign: 'left',
-            border: isTagSectionExpanded ? '1px solid #e9e9e7' : 'none',
-            borderRadius: '8px',
-            padding: isTagSectionExpanded ? '8px' : '0'
-          }}
-        >
-          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
-            <button
-              type="button"
-              onClick={() => {
-                setIsTagSectionExpanded(prev => {
-                  const next = !prev
-                  setIsMemoSectionExpanded(next)
-                  return next
-                })
-              }}
-              className="accordion-toggle"
-              aria-expanded={isTagSectionExpanded}
-            >
-              <span className="accordion-icon">{isTagSectionExpanded ? '▾' : '▸'}</span>
-            </button>
-            {isTagSectionExpanded && (
-              <>
-                {t.tagLabel}
-                <TooltipIcon text={t.tooltipTag} style={{ marginLeft: 0 }} />
-              </>
-            )}
-          </label>
-
-          {isTagSectionExpanded && (
+          {isDetailsExpanded && (
             <>
-              {/* 付与予定のタグ表示 */}
-              {selectedTags.length > 0 && (
-                <div style={{ marginBottom: '8px' }}>
-                  {selectedTags.map((tag) => (
-                    <span
-                      key={tag}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        padding: '4px 8px',
-                        marginRight: '4px',
-                        marginBottom: '4px',
-                        background: '#fbe3e3',
-                        borderRadius: '12px',
-                        fontSize: '12px',
-                        color: '#6a4a4a'
-                      }}
-                    >
-                      {tag}
-                      <button
-                        onClick={() => onRemoveTag(tag)}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: '#556',
-                          cursor: 'pointer',
-                          padding: 0,
-                          fontSize: '12px',
-                          lineHeight: 1
-                        }}
-                        aria-label={`${tag} を除外`}
-                        title="削除"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
+              {/* 接続先表示 */}
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+                  <button
+                    type="button"
+                    onClick={() => setIsDetailsExpanded(false)}
+                    className="accordion-toggle"
+                    aria-expanded={true}
+                  >
+                    <span className="accordion-icon">▾</span>
+                  </button>
+                  接続先
+                  <TooltipIcon text={t.tooltipWorkspace} style={{ marginLeft: 0 }} />
+                </label>
+                <div style={{
+                  padding: '8px 12px',
+                  backgroundColor: '#ffe6e6',
+                  borderRadius: '4px',
+                  border: '1px solid #f5caca',
+                  fontSize: '14px'
+                }}>
+                  {workspaceName || 'Notionワークスペース'}
                 </div>
-              )}
+              </div>
 
-              <MultiSelectTagDropdown
-                existingTags={existingTags}
-                selectedTags={selectedTags}
-                onToggleTag={(tag) => {
-                  if (selectedTags.includes(tag)) {
-                    onRemoveTag(tag)
-                  } else {
-                    onAddTag(tag)
-                  }
-                }}
-                onAddNewTag={onAddTag}
-                language={language}
-              />
+              {/* 保存先ドロップダウン */}
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+                  {t.destinationLabel}
+                  <TooltipIcon text={t.tooltipDestination} style={{ marginLeft: 0 }} />
+                </label>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <select
+                    value={selectedClipboardId || ''}
+                    onChange={(e) => onSelectClipboardId(e.target.value)}
+                    style={{
+                      flex: '0 1 42%',
+                      minWidth: 0,
+                      padding: '6px',
+                      border: '1px solid #ddd',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      backgroundColor: 'white',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="" disabled>{t.destinationPlaceholder}</option>
+                    <option value="__new__">{t.newDestinationOption}</option>
+                    {clipboards.map(cb => (
+                      <option key={cb.id} value={cb.notionDatabaseId}>
+                        {cb.name}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    value={newClipboardName}
+                    onChange={(e) => setNewClipboardName(e.target.value)}
+                    placeholder={t.destinationNamePlaceholder}
+                    disabled={!isNewSelection}
+                    style={{
+                      flex: '1 1 44%',
+                      minWidth: 0,
+                      padding: '6px',
+                      border: '1px solid #ddd',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      backgroundColor: !isNewSelection ? '#f5f5f5' : 'white',
+                      color: !isNewSelection ? '#999' : 'inherit',
+                      cursor: !isNewSelection ? 'not-allowed' : 'text'
+                    }}
+                  />
+                  <button
+                    className="button button-secondary"
+                    onClick={handleCreateNewClipboard}
+                    disabled={!onCreateClipboard || !isNewSelection || !newClipboardName.trim() || isCreatingClipboard}
+                    style={{
+                      width: '56px',
+                      padding: '8px 4px',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
+                      backgroundColor: '#e08080',
+                      borderColor: '#e08080',
+                      color: 'white',
+                      opacity: !onCreateClipboard || !isNewSelection || !newClipboardName.trim() || isCreatingClipboard ? 0.6 : 1,
+                      cursor: !onCreateClipboard || !isNewSelection || !newClipboardName.trim() || isCreatingClipboard ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    {isCreatingClipboard ? t.createButtonLoading : t.createButton}
+                  </button>
+                </div>
+              </div>
+
+              {/* タグ */}
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+                  {t.tagLabel}
+                  <TooltipIcon text={t.tooltipTag} style={{ marginLeft: 0 }} />
+                </label>
+                {/* 付与予定のタグ表示 */}
+                {selectedTags.length > 0 && (
+                  <div style={{ marginBottom: '8px' }}>
+                    {selectedTags.map((tag) => (
+                      <span
+                        key={tag}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '4px 8px',
+                          marginRight: '4px',
+                          marginBottom: '4px',
+                          background: '#fbe3e3',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          color: '#6a4a4a'
+                        }}
+                      >
+                        {tag}
+                        <button
+                          onClick={() => onRemoveTag(tag)}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#556',
+                            cursor: 'pointer',
+                            padding: 0,
+                            fontSize: '12px',
+                            lineHeight: 1
+                          }}
+                          aria-label={`${tag} を除外`}
+                          title="削除"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <MultiSelectTagDropdown
+                  existingTags={existingTags}
+                  selectedTags={selectedTags}
+                  onToggleTag={(tag) => {
+                    if (selectedTags.includes(tag)) {
+                      onRemoveTag(tag)
+                    } else {
+                      onAddTag(tag)
+                    }
+                  }}
+                  onAddNewTag={onAddTag}
+                  language={language}
+                />
+              </div>
+
+              {/* メモ */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+                  {t.memoLabel}
+                </label>
+                <textarea
+                  value={memo}
+                  onChange={(e) => onMemoChange(e.target.value)}
+                  placeholder={t.memoPlaceholder}
+                  style={{
+                    width: '100%',
+                    minHeight: '64px',
+                    border: '1px solid #ddd',
+                    borderRadius: '6px',
+                    padding: '6px',
+                    fontSize: '14px',
+                    resize: 'vertical',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
             </>
           )}
-
-          {isMemoSectionExpanded && (
-            <div style={{ marginTop: '8px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
-                {t.memoLabel}
-              </label>
-              <textarea
-                value={memo}
-                onChange={(e) => onMemoChange(e.target.value)}
-                placeholder={t.memoPlaceholder}
-                style={{
-                  width: '100%',
-                  minHeight: '64px',
-                  border: '1px solid #ddd',
-                  borderRadius: '6px',
-                  padding: '6px',
-                  fontSize: '14px',
-                  resize: 'vertical',
-                  boxSizing: 'border-box'
-                }}
-              />
-            </div>
-          )}
         </div>
       )}
-      {/* 接続時のみ表示: メモ入力と保存ボタン */}
+      {/* 接続時のみ表示: 保存ボタン */}
       {isConnected && (
         <div style={{ textAlign: 'left' }}>
           {isYouTubeTab ? (
@@ -800,72 +785,48 @@ const HomeScreen: FC<HomeScreenProps> = ({
             </button>
           )}
 
-          {!isFooterExpanded && (
-            <div style={{ marginTop: '8px' }}>
+          {/* フッター: 常に表示 */}
+          <div style={{
+            marginTop: '12px',
+            paddingTop: '10px',
+            borderTop: '1px solid #e9e9e7',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px'
+          }}>
+            <div style={{ position: 'relative' }}>
               <button
-                type="button"
-                onClick={() => setIsFooterExpanded(true)}
-                className="accordion-toggle"
-                aria-expanded={false}
+                className="button button-secondary"
+                onClick={() => onNavigate('clipboard-list')}
+                style={{ width: '100%' }}
               >
-                <span className="accordion-icon">▸</span>
+                {t.listButton}
+              </button>
+              <TooltipIcon
+                text={t.tooltipListButton}
+                style={{
+                  position: 'absolute',
+                  right: '8px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  zIndex: 1
+                }}
+              />
+            </div>
+            <div>
+              <button
+                onClick={onToggleLanguage}
+                className="button button-secondary"
+                style={{
+                  width: '100%',
+                  fontSize: '12px'
+                }}
+                title={language === 'ja' ? 'English display' : '日本語表示'}
+              >
+                {language === 'ja' ? 'English' : '日本語'}
               </button>
             </div>
-          )}
-
-          {isFooterExpanded && (
-            <div style={{
-              marginTop: '12px',
-              paddingTop: '10px',
-              borderTop: '1px solid #e9e9e7',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '10px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  onClick={() => setIsFooterExpanded(false)}
-                className="accordion-toggle"
-                aria-expanded={true}
-              >
-                <span className="accordion-icon">▾</span>
-              </button>
-              </div>
-              <div style={{ position: 'relative' }}>
-                <button
-                  className="button button-secondary"
-                  onClick={() => onNavigate('clipboard-list')}
-                  style={{ width: '100%' }}
-                >
-                  {t.listButton}
-                </button>
-                <TooltipIcon
-                  text={t.tooltipListButton}
-                  style={{
-                    position: 'absolute',
-                    right: '8px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    zIndex: 1
-                  }}
-                />
-              </div>
-              <div>
-                <button
-                  onClick={onToggleLanguage}
-                  className="button button-secondary"
-                  style={{
-                    width: '100%',
-                    fontSize: '12px'
-                  }}
-                  title={language === 'ja' ? 'English display' : '日本語表示'}
-                >
-                  {language === 'ja' ? 'English' : '日本語'}
-                </button>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
       )}
     </div>
