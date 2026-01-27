@@ -84,11 +84,24 @@
       const spinnerView = document.getElementById('spinner-view')
       const successOverlay = document.getElementById('success-overlay')
       const closeBtn = document.getElementById('close-btn')
+      const openExtBtn = document.getElementById('open-extension-btn')
 
       if (spinnerView) spinnerView.style.display = 'none'
       if (successOverlay) successOverlay.style.display = 'flex'
 
       console.log('[OAuth Callback] Success! Waiting for user to close...')
+
+      // 「拡張機能を開く」ボタンのイベントリスナー
+      if (openExtBtn) {
+        openExtBtn.onclick = async () => {
+          try {
+            await chrome.runtime.sendMessage({ type: 'open-popup' })
+            window.close()
+          } catch (error) {
+            console.error('[OAuth Callback] Failed to open popup:', error)
+          }
+        }
+      }
 
       // 閉じるボタンのイベントリスナー
       if (closeBtn) {
