@@ -6,7 +6,8 @@ const STORAGE_KEYS = {
   UI_SIMPLIFY_CONFIG: 'raku-ui-simplify-config',
   LANGUAGE_CONFIG: 'raku-language-config',
   SELECTED_CLIPBOARD_ID: 'raku-selected-clipboard-id',
-  TAG_OPTIONS_MAP: 'raku-tag-options-map'
+  TAG_OPTIONS_MAP: 'raku-tag-options-map',
+  OPEN_IN_NOTION_PROMPT_HIDDEN: 'raku-open-in-notion-prompt-hidden'
 } as const
 
 export class StorageService {
@@ -264,6 +265,26 @@ export class StorageService {
       await chrome.storage.local.set({ [STORAGE_KEYS.TAG_OPTIONS_MAP]: map })
     } catch (error) {
       console.error('Failed to save tag options map:', error)
+      throw error
+    }
+  }
+  // ========== Open in Notion prompt ==========
+
+  static async getOpenInNotionPromptHidden(): Promise<boolean> {
+    try {
+      const result = await chrome.storage.local.get(STORAGE_KEYS.OPEN_IN_NOTION_PROMPT_HIDDEN)
+      return Boolean(result[STORAGE_KEYS.OPEN_IN_NOTION_PROMPT_HIDDEN])
+    } catch (error) {
+      console.error('Failed to get Open in Notion prompt setting:', error)
+      return false
+    }
+  }
+
+  static async setOpenInNotionPromptHidden(hidden: boolean): Promise<void> {
+    try {
+      await chrome.storage.local.set({ [STORAGE_KEYS.OPEN_IN_NOTION_PROMPT_HIDDEN]: hidden })
+    } catch (error) {
+      console.error('Failed to save Open in Notion prompt setting:', error)
       throw error
     }
   }

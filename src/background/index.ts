@@ -414,12 +414,13 @@ async function handleClipPage(
     });
   };
 
-  const sendCompletion = (success: boolean, error?: string) => {
+  const sendCompletion = (success: boolean, error?: string, pageId?: string) => {
     // Popupウィンドウに完了通知を送信
     chrome.runtime.sendMessage({
       type: 'CLIP_COMPLETE',
       success,
       databaseId: data.databaseId,
+      pageId,
       error
     }).catch(() => {
       // Popupが閉じられている場合は無視
@@ -509,7 +510,7 @@ async function handleClipPage(
     sendProgress('Notionにクリップ中...');
     const pageId = await notionClient.createWebClip(webClipData)
 
-    sendCompletion(true);
+    sendCompletion(true, undefined, pageId);
     sendResponse({
       success: true,
       pageId

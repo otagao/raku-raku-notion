@@ -6,6 +6,7 @@ import SelectClipboardScreen from "~screens/SelectClipboardScreen"
 import ClippingProgressScreen from "~screens/ClippingProgressScreen"
 import { StorageService } from "~services/storage"
 import { createNotionClient } from "~services/notion"
+import { requestUiClose } from "~utils/ui-close"
 
 import type { Screen, Clipboard, NotionDatabaseSummary, Language } from "~types"
 import "~styles/global.css"
@@ -29,41 +30,74 @@ function IndexPopup() {
   const [creationCountdown, setCreationCountdown] = useState(0)
   const [creationStatus, setCreationStatus] = useState<string>("")
   const [memoDraft, setMemoDraft] = useState<string>("")
+  const [showOpenInNotionPrompt, setShowOpenInNotionPrompt] = useState(false)
+  const [openInNotionUrl, setOpenInNotionUrl] = useState<string | undefined>()
+  const [hideOpenInNotionChecked, setHideOpenInNotionChecked] = useState(false)
+
+  const buildNotionPageUrl = (pageId: string): string => {
+    return `https://www.notion.so/${pageId.replace(/-/g, '')}`
+  }
+
 
   useEffect(() => {
     initializeAndLoadData()
 
+    const handleClipComplete = async (message) => {
+      if (message.success) {
+        if (message.databaseId) {
+          StorageService.getClipboardByDatabaseId(message.databaseId).then(clipboard => {
+            if (clipboard) {
+              StorageService.updateClipboardLastClipped(clipboard.id)
+            }
+          })
+        }
+        setClipProgress('✓ クリップ完了！')
+        setMemoDraft("")
+        setOpenInNotionUrl(undefined)
+        setHideOpenInNotionChecked(false)
+        let shouldShowPrompt = false
+        let pageUrl
+        if (message.pageId) {
+          pageUrl = buildNotionPageUrl(message.pageId)
+          setOpenInNotionUrl(pageUrl)
+          try {
+            const hidden = await StorageService.getOpenInNotionPromptHidden()
+            setHideOpenInNotionChecked(hidden)
+            shouldShowPrompt = !hidden
+          } catch {
+            shouldShowPrompt = false
+          }
+        }
+        if (shouldShowPrompt && pageUrl) {
+          setShowOpenInNotionPrompt(true)
+        } else {
+          setShowOpenInNotionPrompt(false)
+          // Return to home after 1s when prompt is hidden
+          setTimeout(() => {
+            setIsClipping(false)
+            setCurrentScreen('home')
+          }, 1000)
+        }
+      } else {
+        setShowOpenInNotionPrompt(false)
+        setOpenInNotionUrl(undefined)
+        setHideOpenInNotionChecked(false)
+        setClipProgress(`✗ クリップ失敗: ${message.error || '不明なエラー'}`)
+        // Return to home after 3s on failure
+        setTimeout(() => {
+          setIsClipping(false)
+          setCurrentScreen('home')
+        }, 3000)
+      }
+    }
+
     const messageListener = (message, sender, sendResponse) => {
       if (message.type === 'CLIP_PROGRESS') {
-        setClipProgress(message.status);
+        setClipProgress(message.status)
       } else if (message.type === 'CLIP_COMPLETE') {
-        if (message.success) {
-          if (message.databaseId) {
-            StorageService.getClipboardByDatabaseId(message.databaseId).then(clipboard => {
-              if (clipboard) {
-                StorageService.updateClipboardLastClipped(clipboard.id);
-              }
-            });
-          }
-          setClipProgress('✓ クリップ完了！');
-          setMemoDraft("");
-
-          // 成功時は1秒後にホーム画面へ戻る（UIは閉じない）
-          setTimeout(() => {
-            setIsClipping(false);
-            setCurrentScreen('home');
-          }, 1000);
-        } else {
-          setClipProgress(`✗ クリップ失敗: ${message.error || '不明なエラー'}`);
-
-          // 失敗時は3秒後に閉じる（エラーメッセージを読む時間を確保）
-          setTimeout(() => {
-            setIsClipping(false);
-            setCurrentScreen('home');
-          }, 3000);
-        }
+        void handleClipComplete(message)
       }
-    };
+    }
 
     chrome.runtime.onMessage.addListener(messageListener);
 
@@ -71,6 +105,32 @@ function IndexPopup() {
       chrome.runtime.onMessage.removeListener(messageListener);
     };
   }, [])
+
+  const handleOpenInNotion = () => {
+    if (openInNotionUrl) {
+      chrome.tabs.create({ url: openInNotionUrl })
+      setShowOpenInNotionPrompt(false)
+      setIsClipping(false)
+      setCurrentScreen('home')
+      requestUiClose()
+    }
+  }
+
+  const handleDismissOpenInNotion = () => {
+    setShowOpenInNotionPrompt(false)
+    setOpenInNotionUrl(undefined)
+    setIsClipping(false)
+    setCurrentScreen('home')
+  }
+
+  const handleToggleHideOpenInNotion = async (checked: boolean) => {
+    setHideOpenInNotionChecked(checked)
+    try {
+      await StorageService.setOpenInNotionPromptHidden(checked)
+    } catch {
+      // ignore save errors to avoid blocking UI
+    }
+  }
 
   const initializeAndLoadData = async () => {
     await loadClipboards()
@@ -506,6 +566,9 @@ function IndexPopup() {
   }, [selectedClipboardId])
 
   const performClip = (databaseId: string, memo?: string, overrideUrl?: string) => {
+    setShowOpenInNotionPrompt(false)
+    setOpenInNotionUrl(undefined)
+    setHideOpenInNotionChecked(false)
     setIsClipping(true);
     setClipProgress('クリップの準備をしています...');
 
@@ -692,7 +755,15 @@ function IndexPopup() {
   return (
     <div style={{ minHeight: 'fit-content' }}>
       {isClipping ? (
-        <ClippingProgressScreen progressMessage={clipProgress} />
+        <ClippingProgressScreen
+          progressMessage={clipProgress}
+          showOpenInNotion={showOpenInNotionPrompt}
+          openInNotionUrl={openInNotionUrl}
+          hideOpenInNotionChecked={hideOpenInNotionChecked}
+          onToggleHideOpenInNotion={handleToggleHideOpenInNotion}
+          onOpenInNotion={handleOpenInNotion}
+          onDismiss={handleDismissOpenInNotion}
+        />
       ) : (
         renderScreen()
       )}
