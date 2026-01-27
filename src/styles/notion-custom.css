@@ -14,6 +14,10 @@ div[style*="min-height: 27px"]:has(svg.home) {
   display: none !important;
 }
 
+div[style*="min-height: 27px"]:has(svg.paperMicrophone) {
+  display: none !important;
+}
+
 div[style*="min-height: 27px"]:has(svg.magnifyingGlass) {
   display: none !important;
 }
@@ -59,5 +63,23 @@ div[style*="min-height: 24px"]:has(svg.templates) {
 
 /* Generic 28x28 buttons */
 div[style*="height: 28px"][style*="width: 28px"][style*="padding: 0px"] {
+  display: none !important;
+}
+
+/* Notion apps */
+.notion-outliner-notion-apps-header {
+  display: none !important;
+}
+
+div[style*="min-height: 27px"]:has(svg.mail) {
+  display: none !important;
+}
+
+/* Calendar (matches svg.calendarDate, svg.calendarDate01, svg.calendarDate27, etc.) */
+div[style*="min-height: 27px"]:has(svg[class*="calendarDate"]) {
+  display: none !important;
+}
+
+div[style*="min-height: 27px"]:has(svg.notionTintable) {
   display: none !important;
 }
