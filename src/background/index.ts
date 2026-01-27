@@ -276,6 +276,10 @@ async function handleMessage(
         await handleGetDatabaseViewsViaContent(message.data, sendResponse)
         break
 
+      case "open-popup":
+        await handleOpenPopup(sendResponse)
+        break
+
       default:
         sendResponse({ success: false, error: "Unknown message type" })
     }
@@ -369,6 +373,18 @@ async function handleCloseIframeUi(sendResponse: (response?: any) => void) {
     sendResponse({
       success: false,
       error: error instanceof Error ? error.message : "Failed to close iframe UI"
+    })
+  }
+}
+
+async function handleOpenPopup(sendResponse: (response?: any) => void) {
+  try {
+    await openActionPopup()
+    sendResponse({ success: true })
+  } catch (error) {
+    sendResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to open popup"
     })
   }
 }
@@ -506,6 +522,14 @@ async function handleCompleteOAuth(
 
     // OAuth完了フラグを削除
     await chrome.storage.local.remove(['raku-oauth-state', 'raku-oauth-pending'])
+
+    // ポップアップを自動的に開く
+    try {
+      await openActionPopup()
+      console.log('[Background] Popup opened automatically after OAuth')
+    } catch (error) {
+      console.warn('[Background] Failed to open popup after OAuth:', error)
+    }
 
     const response = {
       success: true,
