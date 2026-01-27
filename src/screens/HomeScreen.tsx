@@ -343,78 +343,70 @@ const HomeScreen: FC<HomeScreenProps> = ({
   return (
     <div className="container">
       {/* ヘッダー: 常に表示 */}
-      <div
-        style={{
-          border: '1px solid #e9e9e7',
-          borderRadius: '8px',
-          padding: '10px',
-          marginBottom: '12px'
-        }}
-      >
-        <div className="header" style={{ position: 'relative', marginBottom: '8px', paddingBottom: '8px' }}>
-          <h1 style={{ margin: 0 }}>Raku Raku Notion</h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {isConnected && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <label className="toggle-switch" style={{ cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={!!uiSimplifyEnabled}
-                    onChange={(e) => handleUISimplifyToggle(e.target.checked)}
-                    disabled={uiSimplifyEnabled === null}
-                  />
-                  <span className="toggle-track" aria-hidden="true">
-                    <span className="toggle-thumb" />
-                  </span>
-                </label>
-                <span style={{ fontSize: '12px', color: '#666', whiteSpace: 'nowrap' }}>
-                  {t.uiSimplifyLabel}
-                </span>
-                <TooltipIcon text={t.tooltipUISimplify} style={{ marginLeft: 0 }} />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 接続状態ボックス */}
-        {(isCheckingConnection || isConnected) && (
-          <div style={{
-            padding: '12px',
-            backgroundColor: isConnected ? '#ffe6e6' : '#f5f5f5',
-            borderRadius: '4px',
-            border: `1px solid ${isConnected ? '#f5caca' : '#ddd'}`,
-            minHeight: '44px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '12px'
-          }}>
+      <div className="header" style={{ position: 'relative', marginBottom: '12px' }}>
+        <h1 style={{ margin: 0 }}>Raku Raku Notion</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {isConnected && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              {isCheckingConnection ? (
-                <span style={{ color: '#666' }}>{t.checking}</span>
-              ) : (
-                <span>{t.connected(workspaceName)}</span>
-              )}
+              <label className="toggle-switch" style={{ cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={!!uiSimplifyEnabled}
+                  onChange={(e) => handleUISimplifyToggle(e.target.checked)}
+                  disabled={uiSimplifyEnabled === null}
+                />
+                <span className="toggle-track" aria-hidden="true">
+                  <span className="toggle-thumb" />
+                </span>
+              </label>
+              <span style={{ fontSize: '12px', color: '#666', whiteSpace: 'nowrap' }}>
+                {t.uiSimplifyLabel}
+              </span>
+              <TooltipIcon text={t.tooltipUISimplify} style={{ marginLeft: 0 }} />
             </div>
-            {isConnected && !isCheckingConnection && onDisconnect && (
-              <button
-                onClick={onDisconnect}
-                style={{
-                  fontSize: '12px',
-                  padding: '4px 8px',
-                  background: '#fff',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                {t.disconnect}
-              </button>
+          )}
+        </div>
+      </div>
+
+      {/* 接続状態ボックス */}
+      {(isCheckingConnection || isConnected) && (
+        <div style={{
+          padding: '12px',
+          backgroundColor: isConnected ? '#ffe6e6' : '#f5f5f5',
+          borderRadius: '4px',
+          border: `1px solid ${isConnected ? '#f5caca' : '#ddd'}`,
+          minHeight: '44px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          marginBottom: '12px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {isCheckingConnection ? (
+              <span style={{ color: '#666' }}>{t.checking}</span>
+            ) : (
+              <span>{t.connected(workspaceName)}</span>
             )}
           </div>
-        )}
-      </div>
+          {isConnected && !isCheckingConnection && onDisconnect && (
+            <button
+              onClick={onDisconnect}
+              style={{
+                fontSize: '12px',
+                padding: '4px 8px',
+                background: '#fff',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {t.disconnect}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* 認証エラー・成功メッセージ */}
       {authError && (
