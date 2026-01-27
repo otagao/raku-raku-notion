@@ -223,22 +223,29 @@ button:disabled {
 
 /* Accordion toggle */
 .accordion-toggle {
-  width: 22px;
-  height: 22px;
-  border-radius: 999px;
-  border: 1px solid #d0d0d0;
-  background: #fff;
+  border: none;
+  background: none;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  padding: 0;
+  gap: 4px;
+  padding: 4px 8px;
   cursor: pointer;
+  font-size: 13px;
+  color: #666;
+  transition: background 0.2s, color 0.2s;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.accordion-toggle:hover {
+  background: #f5f5f5;
+  color: #37352f;
 }
 
 .accordion-icon {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1;
-  color: #666;
+  color: inherit;
 }
 
 /* Multi-select tag dropdown */
