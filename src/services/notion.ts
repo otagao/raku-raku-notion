@@ -1,4 +1,4 @@
-import type { NotionConfig, NotionDatabaseSummary, NotionPageData, WebClipData } from "~types"
+import type { NotionConfig, NotionDatabaseSummary, NotionPageData, WebClipData, ContainerPage } from "~types"
 
 const NOTION_VERSION = "2022-06-28"
 const NOTION_API_BASE = "https://api.notion.com/v1"
@@ -403,7 +403,7 @@ export class NotionService {
   }
 
   private async getOrCreateTagDatabaseId(parentPageId: string): Promise<string> {
-    const tagDbTitle = "Raku Raku Notion - タグ"
+    const tagDbTitle = "タグ保存用ページ"
     const existingId = await this.findDatabaseIdByTitle(tagDbTitle, parentPageId)
     if (existingId) return existingId
 
@@ -503,6 +503,77 @@ export class NotionService {
     const existingId = await this.findPageIdByTitle(title)
     if (existingId) return existingId
     return this.createWorkspacePage(title)
+  }
+
+  /**
+   * コンテナページ配下の全ページを取得する
+   * タグDBページ（"Raku Raku Notion - タグ"）は除外
+   */
+  async listPagesUnderContainer(): Promise<ContainerPage[]> {
+    // 1. コンテナページIDを取得
+    const containerTitle = 'Raku Raku Notion - コンテナ'
+    const containerPageId = await this.findPageIdByTitle(containerTitle)
+
+    if (!containerPageId) {
+      return []
+    }
+
+    // 2. /search APIで全データベースを検索
+    const response = await fetch(`${NOTION_API_BASE}/search`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${this.getAuthToken()}`,
+        "Notion-Version": NOTION_VERSION,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        filter: {
+          value: "database",
+          property: "object"
+        },
+        page_size: 100
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      console.error('[NotionService.listPagesUnderContainer] Error:', errorData)
+      throw new Error(errorData.message || response.statusText)
+    }
+
+    const result = await response.json()
+    const pages = result.results || []
+
+    // 3. 親ページIDとタイトルでフィルタリング
+    const containerPages = pages.filter((page: any) => {
+      const parentType = page.parent?.type
+      const parentPageId = page.parent?.page_id
+
+      // 親がコンテナページであること
+      if (parentType !== 'page_id' || parentPageId !== containerPageId) {
+        return false
+      }
+
+      // タグDBページは除外
+      // データベースオブジェクトの場合、タイトルは database.title に直接格納
+      const pageTitle = this.getPlainText(page.title)
+      if (pageTitle === 'Raku Raku Notion - タグ') {
+        return false
+      }
+
+      return true
+    })
+
+    // 4. ContainerPage型に変換
+    return containerPages.map((page: any) => ({
+      id: page.id,
+      // データベースオブジェクトの場合、タイトルは database.title に直接格納
+      title: this.getPlainText(page.title) || '無題のページ',
+      url: page.url,
+      iconEmoji: page.icon?.type === "emoji" ? page.icon.emoji : undefined,
+      createdTime: page.created_time,
+      lastEditedTime: page.last_edited_time
+    }))
   }
 
   /**
