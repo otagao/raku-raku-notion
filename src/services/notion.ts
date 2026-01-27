@@ -518,7 +518,7 @@ export class NotionService {
       return []
     }
 
-    // 2. /search APIで全ページを検索
+    // 2. /search APIで全データベースを検索
     const response = await fetch(`${NOTION_API_BASE}/search`, {
       method: "POST",
       headers: {
@@ -528,7 +528,7 @@ export class NotionService {
       },
       body: JSON.stringify({
         filter: {
-          value: "page",
+          value: "database",
           property: "object"
         },
         page_size: 100
@@ -555,7 +555,8 @@ export class NotionService {
       }
 
       // タグDBページは除外
-      const pageTitle = this.getPlainText(page.properties?.title?.title)
+      // データベースオブジェクトの場合、タイトルは database.title に直接格納
+      const pageTitle = this.getPlainText(page.title)
       if (pageTitle === 'Raku Raku Notion - タグ') {
         return false
       }
@@ -566,7 +567,8 @@ export class NotionService {
     // 4. ContainerPage型に変換
     return containerPages.map((page: any) => ({
       id: page.id,
-      title: this.getPlainText(page.properties?.title?.title) || '無題のページ',
+      // データベースオブジェクトの場合、タイトルは database.title に直接格納
+      title: this.getPlainText(page.title) || '無題のページ',
       url: page.url,
       iconEmoji: page.icon?.type === "emoji" ? page.icon.emoji : undefined,
       createdTime: page.created_time,
