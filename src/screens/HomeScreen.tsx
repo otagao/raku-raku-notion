@@ -553,7 +553,8 @@ const HomeScreen: FC<HomeScreenProps> = ({
                 className="accordion-toggle"
                 aria-expanded={false}
               >
-                <span className="accordion-icon">▸</span>
+                <span className="accordion-icon">▶</span>
+                <span>{language === 'ja' ? '詳細を表示' : 'Show details'}</span>
               </button>
             </div>
           )}
@@ -569,7 +570,8 @@ const HomeScreen: FC<HomeScreenProps> = ({
                     className="accordion-toggle"
                     aria-expanded={true}
                   >
-                    <span className="accordion-icon">▾</span>
+                    <span className="accordion-icon">▼</span>
+                    <span>{language === 'ja' ? '詳細を非表示' : 'Hide details'}</span>
                   </button>
                   接続先
                   <TooltipIcon text={t.tooltipWorkspace} style={{ marginLeft: 0 }} />
@@ -791,10 +793,9 @@ const HomeScreen: FC<HomeScreenProps> = ({
             paddingTop: '10px',
             borderTop: '1px solid #e9e9e7',
             display: 'flex',
-            flexDirection: 'column',
-            gap: '10px'
+            gap: '8px'
           }}>
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative', flex: 1 }}>
               <button
                 className="button button-secondary"
                 onClick={() => onNavigate('clipboard-list')}
@@ -813,19 +814,18 @@ const HomeScreen: FC<HomeScreenProps> = ({
                 }}
               />
             </div>
-            <div>
-              <button
-                onClick={onToggleLanguage}
-                className="button button-secondary"
-                style={{
-                  width: '100%',
-                  fontSize: '12px'
-                }}
-                title={language === 'ja' ? 'English display' : '日本語表示'}
-              >
-                {language === 'ja' ? 'English' : '日本語'}
-              </button>
-            </div>
+            <button
+              onClick={onToggleLanguage}
+              className="button button-secondary"
+              style={{
+                width: '80px',
+                fontSize: '12px',
+                padding: '8px 4px'
+              }}
+              title={language === 'ja' ? 'English display' : '日本語表示'}
+            >
+              {language === 'ja' ? 'English' : '日本語'}
+            </button>
           </div>
         </div>
       )}
