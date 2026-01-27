@@ -6,7 +6,6 @@ import { TooltipIcon } from "~components/TooltipIcon"
 import { MultiSelectTagDropdown } from "~components/MultiSelectTagDropdown"
 
 interface HomeScreenProps {
-  onNavigate: (screen: string) => void
   onClipPage?: () => void
   onClipNow?: () => void
   onDisconnect?: () => void
@@ -32,7 +31,6 @@ const translations: Record<Language, {
   clipButton: string
   clipNowButton: string
   disconnect: string
-  listButton: string
   createButton: string
   createButtonLoading: string
   newDestinationOption: string
@@ -50,7 +48,6 @@ const translations: Record<Language, {
   tooltipDestination: string
   tooltipWorkspace: string
   tooltipTag: string
-  tooltipListButton: string
   tooltipCreateButton: string
   oauthButtonIdle: string
   oauthButtonLoading: string
@@ -71,7 +68,6 @@ const translations: Record<Language, {
     clipButton: 'このページを保存',
     clipNowButton: '再生時間情報も保存',
     disconnect: '連携解除',
-    listButton: '保存先一覧',
     createButton: '作成',
     createButtonLoading: '作成中...',
     newDestinationOption: '新規保存先',
@@ -89,7 +85,6 @@ const translations: Record<Language, {
     tooltipDestination: 'ページの保存先となるNotionデータベースを選択します',
     tooltipWorkspace: 'Notion上のワークスペース（チームまたは個人アカウント）',
     tooltipTag: 'ページに追加するタグ。既存タグから選択、または新規作成できます',
-    tooltipListButton: '登録済みの保存先一覧を表示します',
     tooltipCreateButton: 'Notion上に新しい保存先を作成します',
     oauthButtonIdle: 'Notionで認証して接続',
     oauthButtonLoading: '処理中...',
@@ -110,7 +105,6 @@ const translations: Record<Language, {
     clipButton: 'Save this page',
     clipNowButton: 'Save with\nplayback time',
     disconnect: 'Disconnect',
-    listButton: 'Destinations',
     createButton: 'Create',
     createButtonLoading: 'Creating...',
     newDestinationOption: 'New destination',
@@ -128,7 +122,6 @@ const translations: Record<Language, {
     tooltipDestination: 'Select a Notion database where pages will be saved',
     tooltipWorkspace: 'A workspace in Notion (team or personal account)',
     tooltipTag: 'Tags to add to the page. Choose from existing tags or create new ones',
-    tooltipListButton: 'View and manage your registered databases',
     tooltipCreateButton: 'Create a new destination database in Notion',
     oauthButtonIdle: 'Connect with Notion',
     oauthButtonLoading: 'Processing...',
@@ -145,7 +138,6 @@ const translations: Record<Language, {
 }
 
 const HomeScreen: FC<HomeScreenProps> = ({
-  onNavigate,
   onClipPage,
   onClipNow,
   onDisconnect,
@@ -522,7 +514,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
               <option value="" disabled>{t.destinationPlaceholder}</option>
               <option value="__new__">{t.newDestinationOption}</option>
               {clipboards.map(cb => (
-                <option key={cb.id} value={cb.notionDatabaseId}>
+                <option key={cb.id} value={cb.notionPageId}>
                   {cb.name}
                 </option>
               ))}
@@ -701,42 +693,19 @@ const HomeScreen: FC<HomeScreenProps> = ({
           <div style={{
             marginTop: '24px',
             paddingTop: '24px',
-            borderTop: '1px solid #e9e9e7',
-            display: 'flex',
-            gap: '12px'
+            borderTop: '1px solid #e9e9e7'
           }}>
-            <div style={{ position: 'relative', flex: 1 }}>
-              <button
-                className="button button-secondary"
-                onClick={() => onNavigate('clipboard-list')}
-                style={{ width: '100%' }}
-              >
-                {t.listButton}
-              </button>
-              <TooltipIcon
-                text={t.tooltipListButton}
-                style={{
-                  position: 'absolute',
-                  right: '8px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  zIndex: 1
-                }}
-              />
-            </div>
-            <div style={{ flex: 1 }}>
-              <button
-                onClick={onToggleLanguage}
-                className="button button-secondary"
-                style={{
-                  width: '100%',
-                  fontSize: '12px'
-                }}
-                title={language === 'ja' ? 'English display' : '日本語表示'}
-              >
-                {language === 'ja' ? 'English' : '日本語'}
-              </button>
-            </div>
+            <button
+              onClick={onToggleLanguage}
+              className="button button-secondary"
+              style={{
+                width: '100%',
+                fontSize: '12px'
+              }}
+              title={language === 'ja' ? 'English display' : '日本語表示'}
+            >
+              {language === 'ja' ? 'English' : '日本語'}
+            </button>
           </div>
         </div>
       )}
