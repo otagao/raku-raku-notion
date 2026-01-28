@@ -134,7 +134,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, langua
                 }
             )
             // ローディング状態は少し維持するが、実際は別ウィンドウでの操作になる
-            setTimeout(() => setIsLoading(false), 2000)
+            setTimeout(() => setIsLoading(false), 100)
         } catch (err) {
             setError(err instanceof Error ? err.message : t.errorOAuth)
             setIsLoading(false)
@@ -233,7 +233,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, langua
                             className="button"
                             style={{
                                 width: '100%',
-                                backgroundColor: isLoading || !oauthConfig.clientId ? '#ccc' : '#f2a8a8',
+                                backgroundColor: isLoading || !oauthConfig.clientId ? '#ccc' : '#e08080',
                                 color: 'white',
                                 fontSize: '16px',
                                 fontWeight: '600',
@@ -278,7 +278,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, langua
                             className="button"
                             style={{
                                 width: '100%',
-                                backgroundColor: isLoading || !apiKey.trim() ? '#ccc' : '#f2a8a8',
+                                backgroundColor: isLoading || !apiKey.trim() ? '#ccc' : '#e08080',
                                 color: 'white',
                                 fontSize: '16px',
                                 fontWeight: '600',

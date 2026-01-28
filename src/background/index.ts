@@ -24,127 +24,6 @@ const disableActionPopup = () => {
 
 disableActionPopup()
 
-/**
- * Content Scriptが注入されているか確認
- */
-async function isContentScriptInjected(tabId: number): Promise<boolean> {
-  try {
-    await chrome.tabs.sendMessage(tabId, { type: 'ping-iframe-ui' })
-    return true
-  } catch {
-    return false
-  }
-}
-
-/**
- * extract-content.ts と iframe-ui.ts を動的に注入
- * @param tabId 対象タブID
- * @returns 注入成功/失敗
- */
-async function injectContentScripts(tabId: number): Promise<{ success: boolean; error?: string }> {
-  try {
-    // タブ情報取得
-    const tab = await chrome.tabs.get(tabId)
-    const url = tab.url || ""
-
-    // 制限URLチェック（chrome://, edge://, about:, 拡張機能ページなど）
-    const isRestrictedUrl =
-      url.startsWith("chrome://") ||
-      url.startsWith("edge://") ||
-      url.startsWith("about:") ||
-      url.startsWith("chrome-extension://") ||
-      url.startsWith("https://chrome.google.com/webstore") ||
-      url.startsWith("https://chromewebstore.google.com/")
-
-    if (isRestrictedUrl) {
-      return { success: false, error: 'Cannot inject scripts into restricted pages' }
-    }
-
-    // タブのロード状態確認
-    if (tab.status !== 'complete') {
-      console.log('[Background] Tab is still loading, waiting...')
-      await new Promise<void>((resolve) => {
-        const listener = (tabId_: number, changeInfo: chrome.tabs.TabChangeInfo) => {
-          if (tabId_ === tabId && changeInfo.status === 'complete') {
-            chrome.tabs.onUpdated.removeListener(listener)
-            resolve()
-          }
-        }
-        chrome.tabs.onUpdated.addListener(listener)
-
-        // タイムアウト（5秒）
-        setTimeout(() => {
-          chrome.tabs.onUpdated.removeListener(listener)
-          resolve()
-        }, 5000)
-      })
-    }
-
-    // 既に注入済みかチェック
-    const isInjected = await isContentScriptInjected(tabId)
-    if (isInjected) {
-      console.log('[Background] Content scripts already injected')
-      return { success: true }
-    }
-
-    console.log('[Background] Injecting content scripts into tab:', tabId)
-
-    // manifest.jsonから動的注入専用のContent Scriptファイル名を取得
-    // これらのスクリプトは "https://plasmo-dynamic-inject-never-match.invalid/*" パターンで登録されています
-    try {
-      const manifest = chrome.runtime.getManifest()
-      const dynamicScripts = manifest.content_scripts?.filter(cs =>
-        cs.matches?.includes('https://plasmo-dynamic-inject-never-match.invalid/*')
-      )
-
-      if (!dynamicScripts || dynamicScripts.length === 0) {
-        throw new Error('Dynamic content scripts not found in manifest')
-      }
-
-      // ファイル名を取得（Plasmoがハッシュを付加している）
-      const extractScript = dynamicScripts.find(cs =>
-        cs.js?.some(file => file.includes('extract-content'))
-      )
-      const iframeScript = dynamicScripts.find(cs =>
-        cs.js?.some(file => file.includes('iframe-ui'))
-      )
-
-      if (!extractScript || !iframeScript) {
-        throw new Error('Extract or iframe script not found in manifest')
-      }
-
-      // 注入順序: extract-content → iframe-ui
-      console.log('[Background] Injecting extract-content:', extractScript.js)
-      await chrome.scripting.executeScript({
-        target: { tabId },
-        files: extractScript.js || []
-      })
-
-      console.log('[Background] Injecting iframe-ui:', iframeScript.js)
-      await chrome.scripting.executeScript({
-        target: { tabId },
-        files: iframeScript.js || []
-      })
-
-      // 注入完了待機（初期化時間を確保）
-      await new Promise(resolve => setTimeout(resolve, 100))
-
-      console.log('[Background] Content scripts injected successfully')
-    } catch (innerError) {
-      console.error('[Background] Failed to inject content scripts:', innerError)
-      throw new Error('Failed to inject content scripts: ' + (innerError instanceof Error ? innerError.message : 'Unknown error'))
-    }
-    return { success: true }
-
-  } catch (error) {
-    console.error('[Background] Failed to inject content scripts:', error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    }
-  }
-}
-
 // メッセージリスナー
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('[Background] Received message:', message.type, 'from:', sender.url || sender.id);
@@ -276,10 +155,6 @@ async function handleMessage(
         await handleGetDatabaseViewsViaContent(message.data, sendResponse)
         break
 
-      case "open-popup":
-        await handleOpenPopup(sendResponse)
-        break
-
       default:
         sendResponse({ success: false, error: "Unknown message type" })
     }
@@ -315,15 +190,6 @@ async function openIframeUiForActiveTab(tabId?: number) {
     url.startsWith("https://chromewebstore.google.com/")
 
   if (isRestrictedUrl) {
-    await openActionPopup(targetTabId)
-    return
-  }
-
-  // Content Scripts動的注入を試行
-  const injectionResult = await injectContentScripts(targetTabId)
-
-  if (!injectionResult.success) {
-    console.warn("[Background] Cannot inject scripts, falling back to popup:", injectionResult.error)
     await openActionPopup(targetTabId)
     return
   }
@@ -373,18 +239,6 @@ async function handleCloseIframeUi(sendResponse: (response?: any) => void) {
     sendResponse({
       success: false,
       error: error instanceof Error ? error.message : "Failed to close iframe UI"
-    })
-  }
-}
-
-async function handleOpenPopup(sendResponse: (response?: any) => void) {
-  try {
-    await openActionPopup()
-    sendResponse({ success: true })
-  } catch (error) {
-    sendResponse({
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to open popup"
     })
   }
 }
@@ -457,8 +311,12 @@ async function handleStartOAuth(
     // OAuth認証URLを生成
     const authUrl = generateOAuthUrl(oauthConfig, state)
 
-    // 新しいタブでOAuth認証画面を開く
-    chrome.tabs.create({ url: authUrl })
+    // 新しいタブでOAuth認証画面を開く（タブIDを保存）
+    const tab = await chrome.tabs.create({ url: authUrl })
+    if (tab.id) {
+      await chrome.storage.local.set({ 'raku-oauth-tab-id': tab.id })
+      console.log('[Background] OAuth tab created with ID:', tab.id)
+    }
 
     // レスポンスを送信（ポップアップがキャッシュされる前に）
     try {
@@ -520,16 +378,10 @@ async function handleCompleteOAuth(
     await StorageService.saveNotionConfig(updatedConfig)
     console.log('[Background] Config saved successfully');
 
-    // OAuth完了フラグを削除
-    await chrome.storage.local.remove(['raku-oauth-state', 'raku-oauth-pending'])
-
-    // ポップアップを自動的に開く
-    try {
-      await openActionPopup()
-      console.log('[Background] Popup opened automatically after OAuth')
-    } catch (error) {
-      console.warn('[Background] Failed to open popup after OAuth:', error)
-    }
+    // OAuth完了フラグとタブIDを取得してから削除
+    const storageData = await chrome.storage.local.get(['raku-oauth-tab-id'])
+    const oauthTabId = storageData['raku-oauth-tab-id']
+    await chrome.storage.local.remove(['raku-oauth-state', 'raku-oauth-pending', 'raku-oauth-tab-id'])
 
     const response = {
       success: true,
@@ -541,6 +393,34 @@ async function handleCompleteOAuth(
 
     console.log('[Background] Sending success response:', response)
     sendResponse(response)
+
+    // OAuthタブを閉じてUIを開く
+    if (oauthTabId) {
+      try {
+        await chrome.tabs.remove(oauthTabId)
+        console.log('[Background] OAuth tab closed:', oauthTabId)
+      } catch (err) {
+        console.warn('[Background] Failed to close OAuth tab (may already be closed):', err)
+      }
+    }
+
+    // 少し待ってからUIを開く（タブ切り替えの完了を待つ）
+    await new Promise(resolve => setTimeout(resolve, 300))
+
+    // アクティブタブにオーバーレイUIを開く
+    try {
+      await openIframeUiForActiveTab()
+      console.log('[Background] Iframe UI opened successfully after OAuth')
+    } catch (err) {
+      console.warn('[Background] Could not open iframe UI automatically:', err)
+      // フォールバック: action.openPopup を試行
+      try {
+        await chrome.action.openPopup()
+        console.log('[Background] Fallback: Popup opened successfully')
+      } catch (popupErr) {
+        console.warn('[Background] Fallback popup also failed:', popupErr)
+      }
+    }
   } catch (error) {
     console.error("[Background] Failed to complete OAuth:", error)
     sendResponse({
@@ -568,11 +448,13 @@ async function handleClipPage(
     });
   };
 
-  const sendCompletion = (success: boolean, error?: string) => {
+  const sendCompletion = (success: boolean, pageId?: string, pageUrl?: string, error?: string) => {
     // Popupウィンドウに完了通知を送信
     chrome.runtime.sendMessage({
       type: 'CLIP_COMPLETE',
       success,
+      pageId,
+      pageUrl,
       databaseId: data.databaseId,
       error
     }).catch(() => {
@@ -598,30 +480,21 @@ async function handleClipPage(
     let fallbackContent: { text?: string; thumbnail?: string; images?: string[]; videos?: { url: string; poster?: string }[] } | null = null
     if (data.tabId) {
       try {
-        // Content Scripts注入を試行
-        const injectionResult = await injectContentScripts(data.tabId)
+        console.log('[Background] Extracting content from tab:', data.tabId)
+        sendProgress('ページの情報を取得中...');
+        const response = await chrome.tabs.sendMessage(data.tabId, { type: 'extract-content' })
 
-        if (injectionResult.success) {
-          console.log('[Background] Extracting content from tab:', data.tabId)
-          sendProgress('ページの情報を取得中...');
-          // 遅延ロード対策: 少し待ってから抽出
-          await new Promise(resolve => setTimeout(resolve, 2000))
-          const response = await chrome.tabs.sendMessage(data.tabId, { type: 'extract-content' })
-
-          if (response?.success && response.content) {
-            extractedContent = {
-              text: response.content.text,
-              thumbnail: response.content.thumbnail,
-              images: response.content.images,
-              videos: response.content.videos,
-              icon: response.content.icon
-            }
-            console.log('[Background] Content extracted successfully')
-          } else {
-            console.warn('[Background] Failed to extract content:', response?.error)
+        if (response?.success && response.content) {
+          extractedContent = {
+            text: response.content.text,
+            thumbnail: response.content.thumbnail,
+            images: response.content.images,
+            videos: response.content.videos,
+            icon: response.content.icon
           }
+          console.log('[Background] Content extracted successfully')
         } else {
-          console.warn('[Background] Cannot inject scripts for content extraction:', injectionResult.error)
+          console.warn('[Background] Failed to extract content:', response?.error)
         }
       } catch (error) {
         // Content Scriptが読み込まれていない場合など
@@ -642,27 +515,41 @@ async function handleClipPage(
 
     const notionClient = createNotionClient(config)
 
+    const contentText = extractedContent.text || fallbackContent?.text || data.content
+    let thumbnail = extractedContent.thumbnail || fallbackContent?.thumbnail || data.thumbnail
+    let images = (extractedContent.images && extractedContent.images.length > 0 ? extractedContent.images : fallbackContent?.images) || undefined
+    const videos = (extractedContent.videos && extractedContent.videos.length > 0 ? extractedContent.videos : fallbackContent?.videos) || undefined
+
+    // YouTubeはサムネイル1枚のみに制限（その他の画像は保存しない）
+    const youtubeVideoId = extractYouTubeVideoId(data.url)
+    if (youtubeVideoId) {
+      const youtubeThumb = getYouTubeThumb(youtubeVideoId)
+      thumbnail = youtubeThumb || thumbnail
+      images = youtubeThumb ? [youtubeThumb] : (thumbnail ? [thumbnail] : undefined)
+    }
+
     const webClipData: WebClipData = {
       title: data.title,
       url: data.url,
       databaseId: data.databaseId,
       // Content Scriptから取得したコンテンツを優先、なければdata引数を使用
-      content: extractedContent.text || fallbackContent?.text || data.content,
-      thumbnail: extractedContent.thumbnail || fallbackContent?.thumbnail || data.thumbnail,
-      images: (extractedContent.images && extractedContent.images.length > 0 ? extractedContent.images : fallbackContent?.images) || undefined,
-      videos: (extractedContent.videos && extractedContent.videos.length > 0 ? extractedContent.videos : fallbackContent?.videos) || undefined,
+      content: contentText,
+      thumbnail,
+      images,
+      videos,
       icon: extractedContent.icon,
       memo: data.memo,
       tags: data.tags
     }
 
     sendProgress('Notionにクリップ中...');
-    const pageId = await notionClient.createWebClip(webClipData)
+    const { id: pageId, url: pageUrl } = await notionClient.createWebClip(webClipData)
 
-    sendCompletion(true);
+    sendCompletion(true, pageId, pageUrl);
     sendResponse({
       success: true,
-      pageId
+      pageId,
+      pageUrl
     })
   } catch (error) {
     console.error("Failed to clip page:", error)
@@ -811,8 +698,64 @@ async function ensureContentScriptInjected(tabId: number): Promise<void> {
 }
 
 /**
+ * Notion.soタブを取得または作成してContent Scriptにメッセージを送信する共通関数
+ * タブ検索・Content Script注入・メッセージ送信のロジックを一元化
+ */
+async function sendMessageToNotionContentScript<T>(message: any): Promise<T> {
+  // Notion.soタブを検索（読み込み完了済みのみ）
+  const notionTabs = await chrome.tabs.query({
+    url: "https://www.notion.so/*",
+    status: 'complete'
+  })
+
+  console.log(`[Background] Found ${notionTabs.length} Notion.so tabs`)
+
+  // アクセス可能なタブを見つけるまでループ
+  for (const tab of notionTabs) {
+    try {
+      console.log(`[Background] Trying tab ${tab.id}: ${tab.url}`)
+      await ensureContentScriptInjected(tab.id!)
+      console.log('[Background] Using existing tab:', tab.id)
+      return await chrome.tabs.sendMessage(tab.id!, message)
+    } catch (error) {
+      console.warn(`[Background] Tab ${tab.id} is not accessible:`, error instanceof Error ? error.message : String(error))
+      continue
+    }
+  }
+
+  // アクセス可能なタブが見つからなかった場合、新規タブ作成
+  console.log('[Background] No accessible Notion.so tab found. Creating new tab...')
+  const tab = await chrome.tabs.create({
+    url: "https://www.notion.so",
+    active: false
+  })
+
+  // タブの読み込み完了を待つ
+  await new Promise<void>((resolve) => {
+    const listener = (tabId: number, changeInfo: { status?: string }) => {
+      if (tabId === tab.id && changeInfo.status === 'complete') {
+        chrome.tabs.onUpdated.removeListener(listener)
+        resolve()
+      }
+    }
+    chrome.tabs.onUpdated.addListener(listener)
+  })
+
+  // Content Scriptの自動注入を待つ
+  await new Promise(resolve => setTimeout(resolve, 1000))
+
+  try {
+    const response = await chrome.tabs.sendMessage(tab.id!, message)
+    await chrome.tabs.remove(tab.id!)
+    return response
+  } catch (error) {
+    await chrome.tabs.remove(tab.id!).catch(() => {})
+    throw error
+  }
+}
+
+/**
  * Content Script経由でギャラリービューを追加
- * Notion.so上のContent Scriptを使用してCookie認証で内部APIを呼び出す
  */
 async function handleAddGalleryViewViaContent(
   data: {
@@ -827,76 +770,14 @@ async function handleAddGalleryViewViaContent(
   try {
     console.log('[Background] Adding gallery view via content script:', data.databaseId)
 
-    // Notion.soタブを検索（status: 'complete'を追加）
-    const notionTabs = await chrome.tabs.query({
-      url: "https://www.notion.so/*",
-      status: 'complete'  // 読み込み完了済みタブのみ
-    })
-
-    console.log(`[Background] Found ${notionTabs.length} Notion.so tabs`)
-
-    // アクセス可能なタブを見つけるまでループ
-    let successfulTab = null
-    for (const tab of notionTabs) {
-      try {
-        console.log(`[Background] Trying tab ${tab.id}: ${tab.url}`)
-        await ensureContentScriptInjected(tab.id!)
-        successfulTab = tab
-        break  // 成功したらループを抜ける
-      } catch (error) {
-        console.warn(`[Background] Tab ${tab.id} is not accessible:`, error instanceof Error ? error.message : String(error))
-        continue  // 次のタブを試す
-      }
-    }
-
-    // アクセス可能なタブが見つかった場合
-    if (successfulTab) {
-      console.log('[Background] Using existing tab:', successfulTab.id)
-      const response = await chrome.tabs.sendMessage(successfulTab.id!, {
-        type: 'add-gallery-view',
-        databaseId: data.databaseId,
-        workspaceId: data.workspaceId,
-        visibleProperties: data.visibleProperties || [],
-        allProperties: data.allProperties || [],
-        defaultViewId: data.defaultViewId  // デフォルトビューIDを渡す
-      })
-      sendResponse(response)
-      return
-    }
-
-    // アクセス可能なタブが見つからなかった場合、新規タブ作成
-    console.log('[Background] No accessible Notion.so tab found. Creating new tab...')
-    const tab = await chrome.tabs.create({
-      url: "https://www.notion.so",
-      active: false // バックグラウンドで開く
-    })
-
-    // タブの読み込み完了を待つ
-    await new Promise<void>((resolve) => {
-      const listener = (tabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
-        if (tabId === tab.id && changeInfo.status === 'complete') {
-          chrome.tabs.onUpdated.removeListener(listener)
-          resolve()
-        }
-      }
-      chrome.tabs.onUpdated.addListener(listener)
-    })
-
-    // Content Scriptの自動注入を待つ
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    // Content Scriptにメッセージを送信
-    const response = await chrome.tabs.sendMessage(tab.id!, {
+    const response = await sendMessageToNotionContentScript({
       type: 'add-gallery-view',
       databaseId: data.databaseId,
       workspaceId: data.workspaceId,
       visibleProperties: data.visibleProperties || [],
       allProperties: data.allProperties || [],
-      defaultViewId: data.defaultViewId  // デフォルトビューIDを渡す
+      defaultViewId: data.defaultViewId
     })
-
-    // タブを閉じる
-    await chrome.tabs.remove(tab.id!)
 
     sendResponse(response)
   } catch (error) {
@@ -918,64 +799,10 @@ async function handleGetDatabaseViewsViaContent(
   try {
     console.log('[Background] Getting database views via content script:', data.databaseId)
 
-    // Notion.soタブを検索（status: 'complete'を追加）
-    const notionTabs = await chrome.tabs.query({
-      url: "https://www.notion.so/*",
-      status: 'complete'  // 読み込み完了済みタブのみ
-    })
-
-    console.log(`[Background] Found ${notionTabs.length} Notion.so tabs`)
-
-    // アクセス可能なタブを見つけるまでループ
-    let successfulTab = null
-    for (const tab of notionTabs) {
-      try {
-        console.log(`[Background] Trying tab ${tab.id}: ${tab.url}`)
-        await ensureContentScriptInjected(tab.id!)
-        successfulTab = tab
-        break  // 成功したらループを抜ける
-      } catch (error) {
-        console.warn(`[Background] Tab ${tab.id} is not accessible:`, error instanceof Error ? error.message : String(error))
-        continue  // 次のタブを試す
-      }
-    }
-
-    // アクセス可能なタブが見つかった場合
-    if (successfulTab) {
-      console.log('[Background] Using existing tab:', successfulTab.id)
-      const response = await chrome.tabs.sendMessage(successfulTab.id!, {
-        type: 'get-database-views',
-        databaseId: data.databaseId
-      })
-      sendResponse(response)
-      return
-    }
-
-    // アクセス可能なタブが見つからなかった場合、新規タブ作成
-    console.log('[Background] No accessible Notion.so tab found. Creating new tab...')
-    const tab = await chrome.tabs.create({
-      url: "https://www.notion.so",
-      active: false
-    })
-
-    await new Promise<void>((resolve) => {
-      const listener = (tabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
-        if (tabId === tab.id && changeInfo.status === 'complete') {
-          chrome.tabs.onUpdated.removeListener(listener)
-          resolve()
-        }
-      }
-      chrome.tabs.onUpdated.addListener(listener)
-    })
-
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    const response = await chrome.tabs.sendMessage(tab.id!, {
+    const response = await sendMessageToNotionContentScript({
       type: 'get-database-views',
       databaseId: data.databaseId
     })
-
-    await chrome.tabs.remove(tab.id!)
 
     sendResponse(response)
   } catch (error) {

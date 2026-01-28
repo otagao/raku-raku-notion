@@ -1,14 +1,15 @@
 import { type FC, useState, useEffect } from "react"
 import { StorageService } from "~services/storage"
 import { createNotionClient } from "~services/notion"
-import type { Language, Clipboard } from "~types"
+import type { Language, Clipboard, ClipResult } from "~types"
 import { TooltipIcon } from "~components/TooltipIcon"
+import { MultiSelectTagDropdown } from "~components/MultiSelectTagDropdown"
 
 interface HomeScreenProps {
-  onNavigate: (screen: string) => void
   onClipPage?: () => void
   onClipNow?: () => void
   onDisconnect?: () => void
+  onCreateClipboard?: (name: string) => Promise<void> | void
   isYouTubeTab?: boolean
   language: Language
   onToggleLanguage: () => void
@@ -21,6 +22,8 @@ interface HomeScreenProps {
   onAddTag: (tag: string) => void
   onRemoveTag: (tag: string) => void
   existingTags?: string[]
+  lastClipResult?: ClipResult | null
+  onClearClipResult?: () => void
 }
 
 const translations: Record<Language, {
@@ -30,22 +33,23 @@ const translations: Record<Language, {
   clipButton: string
   clipNowButton: string
   disconnect: string
-  listButton: string
   createButton: string
+  createButtonLoading: string
+  newDestinationOption: string
   checking: string
   connected: (name: string) => string
   destinationLabel: string
   destinationPlaceholder: string
+  destinationNamePlaceholder: string
   tagLabel: string
   addedTagsLabel: string
-  tagNoneOption: string
+  tagPlaceholder: string
   tagNewOption: string
   tagNamePlaceholder: string
   tagAddButton: string
   tooltipDestination: string
   tooltipWorkspace: string
   tooltipTag: string
-  tooltipListButton: string
   tooltipCreateButton: string
   oauthButtonIdle: string
   oauthButtonLoading: string
@@ -58,6 +62,9 @@ const translations: Record<Language, {
   authGuideStep2: string
   authGuideStep2Desc: string
   authGuideNote: string
+  clipSuccess: string
+  clipFailed: string
+  viewInNotion: string
 }> = {
   ja: {
     saving: '',
@@ -66,22 +73,23 @@ const translations: Record<Language, {
     clipButton: 'このページを保存',
     clipNowButton: '再生時間情報も保存',
     disconnect: '連携解除',
-    listButton: '保存先一覧',
-    createButton: '新規作成',
+    createButton: '作成',
+    createButtonLoading: '作成中...',
+    newDestinationOption: '新規保存先',
     checking: '接続状態を確認中...',
     connected: (name) => `接続中: ${name || 'Notionワークスペース'}`,
     destinationLabel: '保存先',
     destinationPlaceholder: '保存先を選択してください',
-    tagLabel: 'タグ付与',
+    destinationNamePlaceholder: '新規保存先を入力',
+    tagLabel: 'タグ（任意）',
     addedTagsLabel: '付与タグ',
-    tagNoneOption: '（選択なし）',
+    tagPlaceholder: '付与するタグを選択してください',
     tagNewOption: '新規タグ',
-    tagNamePlaceholder: 'タグ名を入力',
+    tagNamePlaceholder: '新規タグを入力',
     tagAddButton: '付与',
     tooltipDestination: 'ページの保存先となるNotionデータベースを選択します',
     tooltipWorkspace: 'Notion上のワークスペース（チームまたは個人アカウント）',
     tooltipTag: 'ページに追加するタグ。既存タグから選択、または新規作成できます',
-    tooltipListButton: '登録済みの保存先一覧を表示します',
     tooltipCreateButton: 'Notion上に新しい保存先を作成します',
     oauthButtonIdle: 'Notionで認証して接続',
     oauthButtonLoading: '処理中...',
@@ -93,7 +101,10 @@ const translations: Record<Language, {
     authGuideStep1Desc: '注意事項を読んでから「ページを選択する」ボタンをクリックしてください。',
     authGuideStep2: '2. 何も選択せず「アクセスを許可する」',
     authGuideStep2Desc: '公開/非公開ページともに、何も選択せずに「アクセスを許可する」ボタンを押せばOKです。',
-    authGuideNote: '※ データベースへのアクセス権限は、保存先作成時に個別に付与されます。'
+    authGuideNote: '※ データベースへのアクセス権限は、保存先作成時に個別に付与されます。',
+    clipSuccess: 'クリップ成功！',
+    clipFailed: 'クリップ失敗',
+    viewInNotion: 'Notionで確認する'
   },
   en: {
     saving: '',
@@ -102,22 +113,23 @@ const translations: Record<Language, {
     clipButton: 'Save this page',
     clipNowButton: 'Save with\nplayback time',
     disconnect: 'Disconnect',
-    listButton: 'Destinations',
     createButton: 'Create',
+    createButtonLoading: 'Creating...',
+    newDestinationOption: 'New destination',
     checking: 'Checking connection...',
     connected: (name) => `Connected: ${name || 'Notion workspace'}`,
     destinationLabel: 'Destination',
     destinationPlaceholder: 'Select a destination',
-    tagLabel: 'Add tags',
+    destinationNamePlaceholder: 'Enter new destination',
+    tagLabel: 'Tags (optional)',
     addedTagsLabel: 'Tags to add',
-    tagNoneOption: '(None)',
+    tagPlaceholder: 'Select tags to add',
     tagNewOption: 'New tag',
-    tagNamePlaceholder: 'Enter tag name',
+    tagNamePlaceholder: 'Enter new tag',
     tagAddButton: 'Add',
     tooltipDestination: 'Select a Notion database where pages will be saved',
     tooltipWorkspace: 'A workspace in Notion (team or personal account)',
     tooltipTag: 'Tags to add to the page. Choose from existing tags or create new ones',
-    tooltipListButton: 'View and manage your registered databases',
     tooltipCreateButton: 'Create a new destination database in Notion',
     oauthButtonIdle: 'Connect with Notion',
     oauthButtonLoading: 'Processing...',
@@ -129,15 +141,18 @@ const translations: Record<Language, {
     authGuideStep1Desc: 'Read the notice and then click the "Select pages" button.',
     authGuideStep2: '2. Click "Allow access" without selecting',
     authGuideStep2Desc: 'For both public and private pages, just click "Allow access" without selecting any pages.',
-    authGuideNote: '* Database access permissions will be granted individually when creating a destination.'
+    authGuideNote: '* Database access permissions will be granted individually when creating a destination.',
+    clipSuccess: 'Clipped successfully!',
+    clipFailed: 'Clip failed',
+    viewInNotion: 'View in Notion'
   }
 }
 
 const HomeScreen: FC<HomeScreenProps> = ({
-  onNavigate,
   onClipPage,
   onClipNow,
   onDisconnect,
+  onCreateClipboard,
   isYouTubeTab = false,
   language,
   onToggleLanguage,
@@ -149,21 +164,59 @@ const HomeScreen: FC<HomeScreenProps> = ({
   selectedTags,
   onAddTag,
   onRemoveTag,
-  existingTags = []
+  existingTags = [],
+  lastClipResult,
+  onClearClipResult
 }) => {
   const t = translations[language]
   const [isConnected, setIsConnected] = useState<boolean>(false)
   const [workspaceName, setWorkspaceName] = useState<string>('')
   const [isCheckingConnection, setIsCheckingConnection] = useState<boolean>(true)
-  const [pendingTag, setPendingTag] = useState<string>('') // 未選択スタート
-  const [newTagName, setNewTagName] = useState<string>('') // 新規タグ名
   const [uiSimplifyEnabled, setUiSimplifyEnabled] = useState<boolean | null>(null)
+  const [isDetailsExpanded, setIsDetailsExpanded] = useState<boolean>(false)
+  const [hasLoadedLayout, setHasLoadedLayout] = useState<boolean>(false)
+  const [newClipboardName, setNewClipboardName] = useState<string>('')
+  const [isCreatingClipboard, setIsCreatingClipboard] = useState<boolean>(false)
 
   // 認証UI用のステート
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(false)
   const [authError, setAuthError] = useState<string>('')
   const [authSuccess, setAuthSuccess] = useState<string>('')
   const [oauthClientId, setOauthClientId] = useState<string>('')
+
+  // 成功メッセージの自動非表示
+  useEffect(() => {
+    if (lastClipResult?.success && onClearClipResult) {
+      const timer = setTimeout(() => {
+        onClearClipResult()
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [lastClipResult, onClearClipResult])
+
+  useEffect(() => {
+    const loadLayout = async () => {
+      const config = await StorageService.getHomeLayoutConfig()
+      setIsDetailsExpanded(config.headerExpanded) // 既存の設定を流用
+      setHasLoadedLayout(true)
+    }
+    loadLayout()
+  }, [])
+
+  useEffect(() => {
+    if (!hasLoadedLayout) {
+      return
+    }
+    StorageService.saveHomeLayoutConfig({
+      headerExpanded: isDetailsExpanded,
+      footerExpanded: isDetailsExpanded,
+      tagExpanded: isDetailsExpanded,
+      memoExpanded: isDetailsExpanded
+    })
+  }, [
+    hasLoadedLayout,
+    isDetailsExpanded
+  ])
 
   // OAuth設定を初期化
   useEffect(() => {
@@ -212,6 +265,23 @@ const HomeScreen: FC<HomeScreenProps> = ({
   const handleUISimplifyToggle = async (enabled: boolean) => {
     setUiSimplifyEnabled(enabled)
     await StorageService.saveUISimplifyConfig({ enabled })
+  }
+
+  const isNewSelection = selectedClipboardId === '__new__'
+
+  const handleCreateNewClipboard = async () => {
+    const name = newClipboardName.trim()
+    if (!name || !onCreateClipboard || isCreatingClipboard) return
+    setIsCreatingClipboard(true)
+    try {
+      await onCreateClipboard(name)
+      setNewClipboardName('')
+      onSelectClipboardId('')
+    } catch (err) {
+      console.error('Failed to create clipboard:', err)
+    } finally {
+      setIsCreatingClipboard(false)
+    }
   }
 
   const checkConnection = async () => {
@@ -287,7 +357,8 @@ const HomeScreen: FC<HomeScreenProps> = ({
 
   return (
     <div className="container">
-      <div className="header" style={{ position: 'relative', marginBottom: '8px', paddingBottom: '8px' }}>
+      {/* ヘッダー: 常に表示 */}
+      <div className="header" style={{ position: 'relative', marginBottom: '12px' }}>
         <h1 style={{ margin: 0 }}>Raku Raku Notion</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {isConnected && (
@@ -316,21 +387,23 @@ const HomeScreen: FC<HomeScreenProps> = ({
       {(isCheckingConnection || isConnected) && (
         <div style={{
           padding: '12px',
-          marginBottom: '10px',
           backgroundColor: isConnected ? '#ffe6e6' : '#f5f5f5',
           borderRadius: '4px',
           border: `1px solid ${isConnected ? '#f5caca' : '#ddd'}`,
-          minHeight: '44px',
+          height: '44px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '12px'
+          gap: '12px',
+          marginBottom: '12px'
         }}>
-          {isCheckingConnection ? (
-            <span style={{ color: '#666' }}>{t.checking}</span>
-          ) : (
-            <span>{t.connected(workspaceName)}</span>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {isCheckingConnection ? (
+              <span style={{ color: '#666' }}>{t.checking}</span>
+            ) : (
+              <span>{t.connected(workspaceName)}</span>
+            )}
+          </div>
           {isConnected && !isCheckingConnection && onDisconnect && (
             <button
               onClick={onDisconnect}
@@ -346,6 +419,76 @@ const HomeScreen: FC<HomeScreenProps> = ({
             >
               {t.disconnect}
             </button>
+          )}
+        </div>
+      )}
+
+      {/* クリップ成功/失敗メッセージ */}
+      {lastClipResult && (
+        <div style={{
+          padding: '12px',
+          marginBottom: '12px',
+          backgroundColor: lastClipResult.success ? '#e8f5e9' : '#ffebee',
+          borderRadius: '4px',
+          border: `1px solid ${lastClipResult.success ? '#c8e6c9' : '#ffcdd2'}`,
+          position: 'relative'
+        }}>
+          <button
+            onClick={onClearClipResult}
+            style={{
+              position: 'absolute',
+              top: '8px',
+              right: '8px',
+              background: 'transparent',
+              border: 'none',
+              color: '#666',
+              cursor: 'pointer',
+              fontSize: '16px',
+              padding: '0',
+              width: '20px',
+              height: '20px',
+              lineHeight: '1'
+            }}
+            aria-label="閉じる"
+          >
+            ×
+          </button>
+          <div style={{
+            fontSize: '14px',
+            fontWeight: '600',
+            color: lastClipResult.success ? '#2e7d32' : '#c62828'
+          }}>
+            {lastClipResult.success ? (
+              <>
+                ✓ {t.clipSuccess}{' '}
+                {lastClipResult.pageUrl && (
+                  <a
+                    href={lastClipResult.pageUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      color: '#1976d2',
+                      textDecoration: 'none'
+                    }}
+                  >
+                    {t.viewInNotion}
+                  </a>
+                )}
+              </>
+            ) : (
+              `✗ ${t.clipFailed}`
+            )}
+          </div>
+          {!lastClipResult.success && lastClipResult.error && (
+            <div style={{
+              fontSize: '12px',
+              color: '#c62828',
+              marginTop: '4px'
+            }}>
+              {lastClipResult.error}
+            </div>
           )}
         </div>
       )}
@@ -445,7 +588,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
             className="button"
             style={{
               width: '100%',
-              background: isAuthLoading || !oauthClientId ? undefined : '#f2a8a8',
+              background: isAuthLoading || !oauthClientId ? undefined : '#e08080',
               fontSize: '15px',
               fontWeight: '600',
               padding: '14px 16px'
@@ -468,7 +611,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
         </div>
       )}
 
-      {/* 接続時のみ表示: 保存先ドロップダウン */}
+      {/* 接続時のみ表示: 保存先（常時表示） */}
       {isConnected && (
         <div style={{ marginBottom: '10px', textAlign: 'left' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
@@ -477,278 +620,239 @@ const HomeScreen: FC<HomeScreenProps> = ({
           </label>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <select
-              value={selectedClipboardId || ''}
+              value={selectedClipboardId || '__new__'}
               onChange={(e) => onSelectClipboardId(e.target.value)}
-              disabled={clipboards.length === 0}
               style={{
-                flex: 1,
+                flex: '0 1 42%',
+                minWidth: 0,
                 padding: '6px',
                 border: '1px solid #ddd',
                 borderRadius: '6px',
                 fontSize: '14px',
-                backgroundColor: clipboards.length === 0 ? '#f5f5f5' : 'white',
-                cursor: clipboards.length === 0 ? 'not-allowed' : 'pointer'
+                backgroundColor: 'white',
+                cursor: 'pointer'
               }}
             >
-              <option value="" disabled>{t.destinationPlaceholder}</option>
+              <option value="__new__">{t.newDestinationOption}</option>
               {clipboards.map(cb => (
-                <option key={cb.id} value={cb.notionDatabaseId}>
+                <option key={cb.id} value={cb.notionPageId}>
                   {cb.name}
                 </option>
               ))}
             </select>
+            <input
+              type="text"
+              value={newClipboardName}
+              onChange={(e) => setNewClipboardName(e.target.value)}
+              placeholder={t.destinationNamePlaceholder}
+              disabled={!isNewSelection}
+              style={{
+                flex: '1 1 44%',
+                minWidth: 0,
+                padding: '6px',
+                border: '1px solid #ddd',
+                borderRadius: '6px',
+                fontSize: '14px',
+                backgroundColor: !isNewSelection ? '#f5f5f5' : 'white',
+                color: !isNewSelection ? '#999' : 'inherit',
+                cursor: !isNewSelection ? 'not-allowed' : 'text'
+              }}
+            />
             <button
               className="button button-secondary"
-              onClick={() => onNavigate('create-clipboard')}
+              onClick={handleCreateNewClipboard}
+              disabled={!onCreateClipboard || !isNewSelection || !newClipboardName.trim() || isCreatingClipboard}
               style={{
-                width: '100px',
+                width: '56px',
                 padding: '8px 4px',
                 whiteSpace: 'nowrap',
                 flexShrink: 0,
-                backgroundColor: '#f2a8a8',
-                borderColor: '#f2a8a8',
-                color: 'white'
+                backgroundColor: '#e08080',
+                borderColor: '#e08080',
+                color: 'white',
+                opacity: !onCreateClipboard || !isNewSelection || !newClipboardName.trim() || isCreatingClipboard ? 0.6 : 1,
+                cursor: !onCreateClipboard || !isNewSelection || !newClipboardName.trim() || isCreatingClipboard ? 'not-allowed' : 'pointer'
               }}
             >
-              {t.createButton}
+              {isCreatingClipboard ? t.createButtonLoading : t.createButton}
             </button>
           </div>
         </div>
       )}
 
-      {/* 接続時のみ表示: タグ付与UI */}
+      {/* 接続時のみ表示: 詳細設定（タグ、メモ） */}
       {isConnected && (
-        <>
-          <div style={{ marginBottom: '10px', textAlign: 'left' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
-              {t.tagLabel}
-              <TooltipIcon text={t.tooltipTag} style={{ marginLeft: 0 }} />
-            </label>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <select
-                value={pendingTag}
-                onChange={(e) => {
-                  setPendingTag(e.target.value)
-                  if (e.target.value !== 'new') {
-                    setNewTagName('')
-                  }
-                }}
-                style={{
-                  width: '120px',
-                  padding: '6px',
-                  border: '1px solid #ddd',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  backgroundColor: 'white',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="">{t.tagNoneOption}</option>
-                <option value="new">{t.tagNewOption}</option>
-                {existingTags.map(tag => (
-                  <option key={tag} value={tag}>{tag}</option>
-                ))}
-              </select>
-              <input
-                type="text"
-                value={newTagName}
-                onChange={(e) => setNewTagName(e.target.value)}
-                placeholder={t.tagNamePlaceholder}
-                disabled={pendingTag !== 'new'}
-                style={{
-                  flex: 1,
-                  minWidth: '120px',
-                  padding: '6px',
-                  border: '1px solid #ddd',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  backgroundColor: pendingTag !== 'new' ? '#f5f5f5' : 'white',
-                  color: pendingTag !== 'new' ? '#999' : 'inherit',
-                  cursor: pendingTag !== 'new' ? 'not-allowed' : 'text'
-                }}
-              />
+        <div
+          style={{
+            marginBottom: '8px',
+            textAlign: 'left',
+            border: isDetailsExpanded ? '1px solid #e9e9e7' : 'none',
+            borderRadius: '8px',
+            padding: isDetailsExpanded ? '10px' : '0'
+          }}
+        >
+          {!isDetailsExpanded && (
+            <div style={{ marginBottom: '4px' }}>
               <button
-                className="button button-secondary"
-                onClick={() => {
-                  if (pendingTag === 'new') {
-                    const trimmed = newTagName.trim()
-                    if (trimmed) {
-                      onAddTag(trimmed)
-                      setNewTagName('')
-                      setPendingTag('')
-                    }
-                  } else if (pendingTag !== '') {
-                    onAddTag(pendingTag)
-                    setPendingTag('')
-                  }
-                }}
-                disabled={
-                  pendingTag === '' ||
-                  (pendingTag === 'new' && newTagName.trim().length === 0)
-                }
-                style={{
-                  width: '54px',
-                  padding: '8px 4px',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0,
-                  backgroundColor: '#f2a8a8',
-                  borderColor: '#f2a8a8',
-                  color: 'white',
-                  opacity:
-                    pendingTag === '' ||
-                    (pendingTag === 'new' && newTagName.trim().length === 0)
-                      ? 0.6
-                      : 1,
-                  cursor:
-                    pendingTag === '' ||
-                    (pendingTag === 'new' && newTagName.trim().length === 0)
-                      ? 'not-allowed'
-                      : 'pointer'
-                }}
+                type="button"
+                onClick={() => setIsDetailsExpanded(true)}
+                className="accordion-toggle"
+                aria-expanded={false}
               >
-                {t.tagAddButton}
+                <span className="accordion-icon">▶</span>
+                <span>{language === 'ja' ? '詳細を表示' : 'Show details'}</span>
               </button>
-            </div>
-          </div>
-
-          {/* 付与予定のタグ表示 */}
-          {selectedTags.length > 0 && (
-            <div style={{ marginBottom: '8px', textAlign: 'left' }}>
-              <span style={{ fontWeight: 600, fontSize: '13px', color: '#444' }}>{t.addedTagsLabel}:</span>{' '}
-              {selectedTags.map((tag, idx) => (
-                <span
-                  key={tag}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '4px 8px',
-                    marginLeft: idx === 0 ? 8 : 4,
-                    background: '#fbe3e3',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                    color: '#6a4a4a'
-                  }}
-                >
-                  {tag}
-                  <button
-                    onClick={() => onRemoveTag(tag)}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#556',
-                      cursor: 'pointer',
-                      padding: 0,
-                      fontSize: '12px',
-                      lineHeight: 1
-                    }}
-                    aria-label={`${tag} を除外`}
-                    title="削除"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
             </div>
           )}
-        </>
+
+          {isDetailsExpanded && (
+            <>
+              {/* 折りたたみボタン */}
+              <div style={{ marginBottom: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsDetailsExpanded(false)}
+                  className="accordion-toggle"
+                  aria-expanded={true}
+                >
+                  <span className="accordion-icon">▼</span>
+                  <span>{language === 'ja' ? '詳細を非表示' : 'Hide details'}</span>
+                </button>
+              </div>
+
+              {/* タグ */}
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+                  {t.tagLabel}
+                  <TooltipIcon text={t.tooltipTag} style={{ marginLeft: 0 }} />
+                </label>
+                {/* 付与予定のタグ表示 */}
+                {selectedTags.length > 0 && (
+                  <div style={{ marginBottom: '8px' }}>
+                    {selectedTags.map((tag) => (
+                      <span
+                        key={tag}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '4px 8px',
+                          marginRight: '4px',
+                          marginBottom: '4px',
+                          background: '#fbe3e3',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          color: '#6a4a4a'
+                        }}
+                      >
+                        {tag}
+                        <button
+                          onClick={() => onRemoveTag(tag)}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#556',
+                            cursor: 'pointer',
+                            padding: 0,
+                            fontSize: '12px',
+                            lineHeight: 1
+                          }}
+                          aria-label={`${tag} を除外`}
+                          title="削除"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <MultiSelectTagDropdown
+                  existingTags={existingTags}
+                  selectedTags={selectedTags}
+                  onToggleTag={(tag) => {
+                    if (selectedTags.includes(tag)) {
+                      onRemoveTag(tag)
+                    } else {
+                      onAddTag(tag)
+                    }
+                  }}
+                  onAddNewTag={onAddTag}
+                  language={language}
+                />
+              </div>
+
+              {/* メモ */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
+                  {t.memoLabel}
+                </label>
+                <textarea
+                  value={memo}
+                  onChange={(e) => onMemoChange(e.target.value)}
+                  placeholder={t.memoPlaceholder}
+                  style={{
+                    width: '100%',
+                    minHeight: '64px',
+                    border: '1px solid #ddd',
+                    borderRadius: '6px',
+                    padding: '6px',
+                    fontSize: '14px',
+                    resize: 'vertical',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            </>
+          )}
+        </div>
       )}
-      {/* 接続時のみ表示: メモ入力と保存ボタン */}
+      {/* 接続時のみ表示: 保存ボタン */}
       {isConnected && (
         <div style={{ textAlign: 'left' }}>
-          <div style={{ marginBottom: '10px' }}>
-            <label style={{ display: 'block', marginBottom: '6px', color: '#444', fontSize: '13px', fontWeight: 600 }}>
-              {t.memoLabel}
-            </label>
-            <textarea
-              value={memo}
-              onChange={(e) => onMemoChange(e.target.value)}
-              placeholder={t.memoPlaceholder}
-              style={{
-                width: '100%',
-                minHeight: '80px',
-                border: '1px solid #ddd',
-                borderRadius: '6px',
-                padding: '8px',
-                fontSize: '14px',
-                resize: 'vertical',
-                boxSizing: 'border-box'
-              }}
-            />
-          </div>
-
           {isYouTubeTab ? (
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                className="button"
-                onClick={onClipPage}
-                style={{ flex: 1 }}
-              >
-                {t.clipButton}
-              </button>
-              <button
-                className="button button-secondary"
-                onClick={onClipNow}
-                disabled={!onClipNow}
-                style={{
-                  flex: 1,
-                  opacity: !onClipNow ? 0.6 : 1,
-                  cursor: !onClipNow ? 'not-allowed' : 'pointer',
-                  whiteSpace: 'pre-line'
-                }}
-                title="現在の再生位置で保存"
-              >
-                {t.clipNowButton}
-              </button>
-            </div>
+            <button
+              className="button"
+              onClick={onClipNow || onClipPage}
+              disabled={!onClipNow || isNewSelection}
+              style={{
+                opacity: !onClipNow || isNewSelection ? 0.6 : 1,
+                cursor: !onClipNow || isNewSelection ? 'not-allowed' : 'pointer'
+              }}
+              title="現在の再生位置で保存"
+            >
+              {t.clipButton}
+            </button>
           ) : (
             <button
               className="button"
               onClick={onClipPage}
+              disabled={isNewSelection}
+              style={{
+                opacity: isNewSelection ? 0.6 : 1,
+                cursor: isNewSelection ? 'not-allowed' : 'pointer'
+              }}
             >
               {t.clipButton}
             </button>
           )}
 
+          {/* フッター: 常に表示 */}
           <div style={{
             marginTop: '24px',
             paddingTop: '24px',
-            borderTop: '1px solid #e9e9e7',
-            display: 'flex',
-            gap: '12px'
+            borderTop: '1px solid #e9e9e7'
           }}>
-            <div style={{ position: 'relative', flex: 1 }}>
-              <button
-                className="button button-secondary"
-                onClick={() => onNavigate('clipboard-list')}
-                style={{ width: '100%' }}
-              >
-                {t.listButton}
-              </button>
-              <TooltipIcon
-                text={t.tooltipListButton}
-                style={{
-                  position: 'absolute',
-                  right: '8px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  zIndex: 1
-                }}
-              />
-            </div>
-            <div style={{ flex: 1 }}>
-              <button
-                onClick={onToggleLanguage}
-                className="button button-secondary"
-                style={{
-                  width: '100%',
-                  fontSize: '12px'
-                }}
-                title={language === 'ja' ? 'English display' : '日本語表示'}
-              >
-                {language === 'ja' ? 'English' : '日本語'}
-              </button>
-            </div>
+            <button
+              onClick={onToggleLanguage}
+              className="button button-secondary"
+              style={{
+                width: '100%',
+                fontSize: '12px'
+              }}
+              title={language === 'ja' ? 'English display' : '日本語表示'}
+            >
+              {language === 'ja' ? 'English' : '日本語'}
+            </button>
           </div>
         </div>
       )}

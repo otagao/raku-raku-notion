@@ -11,9 +11,7 @@ raku-raku-notion/
 │   ├── screens/               # 画面コンポーネント
 │   │   ├── HomeScreen.tsx
 │   │   ├── LoginScreen.tsx
-│   │   ├── CreateClipboardScreen.tsx
 │   │   ├── ClipboardListScreen.tsx
-│   │   ├── SelectClipboardScreen.tsx
 │   │   └── ClippingProgressScreen.tsx
 │   ├── contents/              # Content Scripts
 │   │   ├── extract-content.ts # ページコンテンツ抽出
@@ -68,16 +66,14 @@ raku-raku-notion/
 各画面は独立したReactコンポーネントとして実装されています：
 
 - **LoginScreen**: ログイン画面（未認証時に表示）、OAuth/手動トークン認証
-- **HomeScreen**: メイン画面（認証済み時）、クリップボタン・メモ・タグ入力、クリップボード選択
-- **CreateClipboardScreen**: クリップボード作成フォーム
+- **HomeScreen**: メイン画面（認証済み時）、クリップボタン・メモ・タグ入力、保存先選択・作成がすべてこの画面内で完結
 - **ClipboardListScreen**: クリップボード一覧表示＋既存データベース取り込み
-- **SelectClipboardScreen**: クリップ先選択（レガシー、現在はHomeScreen内で選択）
 - **ClippingProgressScreen**: クリップ実行中の進行状況表示
 
-画面間の遷移は `popup.tsx` のルーティングロジックで管理されます。LoginScreenは認証状態に応じて特別に表示されます。
+画面遷移は基本的にHomeScreenとClippingProgressScreen間のみで行われます。LoginScreenは認証状態に応じて特別に表示されます。
 
 ```typescript
-export type Screen = 'home' | 'create-clipboard' | 'clipboard-list' | 'select-clipboard'
+export type Screen = 'home'
 ```
 
 ### 2. ビジネスロジック層 (Services)
@@ -213,13 +209,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 ### クリップボード作成フロー
 
 ```
-User Input (CreateClipboardScreen)
+User Input (HomeScreen - 新規保存先を選択して名前入力)
   ↓
 popup.tsx (handleCreateClipboard)
   ↓
-Background Service Worker (create-database message)
-  ↓
 NotionService.createDatabase() ← Notion API
+  ↓
+popup.tsx (add-gallery-view-via-content message)
   ↓
 Background Service Worker (add-gallery-view-via-content message)
   ↓
@@ -237,23 +233,17 @@ Background Service Worker ← 成功/失敗を返却
   ↓
 popup.tsx ← レスポンス受信
   ↓
-StorageService.addClipboard() ← Chrome Storage
+loadContainerPages() (保存先一覧を再取得)
   ↓
-refreshAvailableDatabases() (既存DB一覧を更新)
-  ↓
-ClipboardListScreen (画面遷移)
+HomeScreen (作成した保存先が自動選択される)
 ```
 
 ### Webクリップフロー
 
 ```
-User Click (HomeScreen)
+User Click (HomeScreen - 保存先選択済み、メモ・タグ入力済み)
   ↓
 popup.tsx (handleClipPage)
-  ↓
-SelectClipboardScreen (複数の場合)
-  ↓
-MemoDialog (メモ入力)
   ↓
 popup.tsx (performClip)
   ↓
@@ -275,37 +265,31 @@ Background Service Worker
   ↓
 popup.tsx (メッセージ受信)
   ↓
-StorageService.updateClipboardLastClipped()
-  ↓
 ClippingProgressScreen: "✓ クリップ完了！"
   ↓
-1.5秒後に自動的に閉じる
+1秒後に自動的にHomeScreenへ戻る（ポップアップは閉じない）
 ```
 
-### 既存データベース取り込みフロー
+### 保存先一覧取得フロー
 
 ```
-ClipboardListScreen表示時
+popup.tsx初期化 / HomeScreen表示時
   ↓
-popup.tsx (refreshAvailableDatabases)
+popup.tsx (loadContainerPages)
   ↓
-NotionService.listDatabases() ← Notion API
-  - ワークスペース内の全データベースを取得
+NotionService.listPagesUnderContainer() ← Notion API
+  - コンテナページ配下のページ・データベースを取得
+  - 「タグ保存用ページ」は自動除外
   ↓
-既存クリップボードIDと照合してフィルタリング
+ContainerPage[] を Clipboard[] 型に変換
   ↓
-未登録のデータベースのみ表示
+新規作成時のリトライロジック（expectedNewIdが指定されている場合）
+  - 最大10回（約10秒間）リトライ
+  - 新規IDがリストに反映されるまで待機
   ↓
-User Click ("クリップボードに追加" ボタン)
+保存先リストをステートに保存
   ↓
-popup.tsx (handleRegisterExistingDatabase)
-  ↓
-StorageService.addClipboard()
-  - createdByExtension: false (手動登録)
-  ↓
-refreshAvailableDatabases() (一覧を更新)
-  ↓
-ClipboardListScreen (登録済みとして表示)
+HomeScreen (ドロップダウンで表示、作成した保存先は自動選択)
 ```
 
 ### OAuth認証フロー
@@ -389,13 +373,10 @@ LoginScreen（未認証時のみ）
   └─> OAuth認証 / 手動トークン → HomeScreen
 
 HomeScreen（認証済み時）
-  ├─> 📎 このページをクリップ → ClippingProgressScreen
-  │     └─> (0個の場合) → CreateClipboardScreen
+  ├─> 📎 このページをクリップ → ClippingProgressScreen → HomeScreen（1秒後）
+  ├─> 新規保存先作成（HomeScreen内で完結）
   ├─> ClipboardListScreen
-  │     ├─> Notionデータベースを開く
-  │     └─> CreateClipboardScreen
-  ├─> CreateClipboardScreen
-  │     └─> ClipboardListScreen
+  │     └─> Notionデータベースを開く
   └─> 連携解除 → LoginScreen
 ```
 

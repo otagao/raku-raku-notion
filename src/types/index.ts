@@ -1,14 +1,25 @@
-export type Screen = 'home' | 'create-clipboard' | 'clipboard-list' | 'select-clipboard'
+export type Screen = 'home'
 
-// クリップボード: Notionのデータベースに紐づく
+/**
+ * コンテナ配下のページ（保存先候補）
+ */
+export interface ContainerPage {
+  id: string
+  title: string
+  url?: string
+  iconEmoji?: string
+  createdTime?: string
+  lastEditedTime?: string
+}
+
+// クリップボード: Notionのページに紐づく（コンテナ配下のページを表す）
 export interface Clipboard {
-  id: string                    // ローカルのユニークID
+  id: string                    // ローカルのユニークID（ページIDと同じ）
   name: string                  // クリップボード名
   createdAt: Date | string      // 作成日時（ストレージでは文字列）
-  lastClippedAt?: Date | string // 最終クリップ日時
-  notionDatabaseId: string      // NotionのデータベースID
-  notionDatabaseUrl?: string    // NotionデータベースのURL
-  createdByExtension: boolean   // この拡張機能で作成されたか
+  lastClippedAt?: Date | string // 最終クリップ日時（現在は未使用）
+  notionPageId: string          // Notionのページ ID
+  notionPageUrl?: string        // NotionページのURL
 }
 
 export interface NotionDatabaseSummary {
@@ -114,4 +125,21 @@ export interface LanguageConfig {
 export interface TagOption {
   name: string
   sourceDatabaseId?: string
+}
+
+export interface HomeLayoutConfig {
+  headerExpanded: boolean
+  footerExpanded: boolean
+  tagExpanded: boolean
+  memoExpanded: boolean
+}
+
+// クリップ結果情報
+export interface ClipResult {
+  success: boolean
+  pageId?: string
+  pageUrl?: string
+  databaseId?: string
+  error?: string
+  timestamp: number
 }
