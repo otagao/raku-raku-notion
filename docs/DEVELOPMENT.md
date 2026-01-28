@@ -56,6 +56,10 @@ const MyScreen: FC<MyScreenProps> = ({ onNavigate, data }) => {
 
 ### 新しい画面を追加
 
+**注意**: 現在の実装では、画面はHomeScreen中心に統合されています。新しい独立した画面を追加する前に、HomeScreen内で機能を実装できないか検討してください。
+
+新しい画面を追加する場合の手順:
+
 1. `src/screens/NewScreen.tsx` を作成
 
 ```typescript
@@ -82,21 +86,13 @@ const NewScreen: FC<NewScreenProps> = ({ onNavigate }) => {
 export default NewScreen
 ```
 
-2. `src/types/index.ts` の Screen 型に追加
+2. `src/types/index.ts` の Screen 型を確認（現在は 'home' のみ）
 
 ```typescript
-export type Screen = 'home' | 'new-screen' | ... // 追加
+export type Screen = 'home' // 必要に応じて追加
 ```
 
-3. `src/popup.tsx` のルーティングに追加
-
-```typescript
-import NewScreen from "~screens/NewScreen"
-
-// renderScreen() 内に追加
-case 'new-screen':
-  return <NewScreen onNavigate={handleNavigate} />
-```
+3. `src/popup.tsx` で画面を表示するロジックを追加（現在はHomeScreenのみをレンダリング）
 
 ### ストレージキーを追加
 
@@ -332,11 +328,11 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 例：
 ```
-feat: クリップボード選択機能の実装
+feat: タグ機能の追加
 
-- SelectClipboardScreen を新規作成
-- 複数クリップボードから選択可能に
-- 1つの場合は自動選択
+- HomeScreenにタグ入力UIを追加
+- 既存タグの選択と新規タグ作成に対応
+- タグ候補のキャッシュ機能を実装
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 

@@ -287,7 +287,19 @@ export class NotionService {
       const databases = result.results || []
 
       return databases
-        .filter((item: any) => item.object === "database" && !item.archived)
+        .filter((item: any) => {
+          if (item.object !== "database" || item.archived) {
+            return false
+          }
+
+          // タグ保存用ページは除外
+          const title = this.getPlainText(item.title)
+          if (title === "タグ保存用ページ") {
+            return false
+          }
+
+          return true
+        })
         .map((db: any): NotionDatabaseSummary => ({
           id: db.id,
           title: this.getPlainText(db.title) || '無題のデータベース',
@@ -557,7 +569,7 @@ export class NotionService {
       // タグDBページは除外
       // データベースオブジェクトの場合、タイトルは database.title に直接格納
       const pageTitle = this.getPlainText(page.title)
-      if (pageTitle === 'Raku Raku Notion - タグ') {
+      if (pageTitle === 'タグ保存用ページ') {
         return false
       }
 

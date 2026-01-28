@@ -81,11 +81,9 @@ chrome.storage.local.clear()
 src/
 ├── popup.tsx              # メインエントリーポイント
 ├── screens/               # 画面コンポーネント
-│   ├── HomeScreen.tsx     # ホーム画面
+│   ├── HomeScreen.tsx     # ホーム画面（保存先選択・作成、メモ・タグ入力）
 │   ├── LoginScreen.tsx    # ログイン画面（未認証時に表示）
-│   ├── CreateClipboardScreen.tsx # クリップボード作成画面
 │   ├── ClipboardListScreen.tsx # クリップボード一覧画面
-│   ├── SelectClipboardScreen.tsx # クリップボード選択画面
 │   └── ClippingProgressScreen.tsx # クリップ進行状況画面
 ├── components/            # 再利用可能コンポーネント
 ├── contents/              # Content Scripts
@@ -152,7 +150,7 @@ workers/                   # Cloudflare Workers OAuth バックエンド
 詳細は [src/types/index.ts](src/types/index.ts) を参照。
 
 主要な型:
-- `Screen`: 画面タイプ（'home' | 'create-clipboard' | 'clipboard-list' | 'select-clipboard'）
+- `Screen`: 画面タイプ（'home'）
 - `Clipboard`: クリップボード定義
 - `NotionConfig`: Notion認証設定 (OAuth/手動トークン両対応)
 - `WebClipData`: Webクリップデータ
@@ -168,24 +166,27 @@ LoginScreen（未認証時のみ表示）
   └─ OAuth認証 / 手動トークン入力 → HomeScreen
 
 HomeScreen（起点、認証済み時）
-  ├─ 📎 このページをクリップ（メモ・タグ入力可能）
-  │   ├─ (0個) → CreateClipboardScreen
-  │   └─ (1個以上) → ClippingProgressScreen → 完了
+  ├─ 保存先選択（ドロップダウン）
+  │   ├─ 既存の保存先を選択
+  │   └─ 「新規保存先」を選択 → 名前入力 → 作成（HomeScreen内で完結）
+  ├─ メモ・タグ入力（任意）
+  ├─ 📎 このページをクリップ → ClippingProgressScreen → HomeScreen（1秒後に自動復帰）
   ├─ ClipboardListScreen（クリップボード一覧）
   │   ├─ 登録済みクリップボード表示・削除
-  │   └─ 既存データベース取り込み
+  │   └─ Notionデータベースを開く
   └─ 連携解除ボタン → LoginScreen
 ```
 
 **クリップ実行フロー**:
-1. ユーザーがクリップボードを選択（または自動選択）
-2. HomeScreen上でメモを入力（省略可能）
-3. ClippingProgressScreenで進行状況を表示
+1. HomeScreen上で保存先を選択（デフォルトは「新規保存先」）
+2. 必要に応じてメモ・タグを入力（省略可能）
+3. 「📎 このページをクリップ」ボタンをクリック
+4. ClippingProgressScreenで進行状況を表示
    - 「クリップの準備をしています...」
    - 「ページの情報を取得中...」
    - 「Notionにクリップ中...」
    - 「✓ クリップ完了！」または「✗ クリップ失敗: エラーメッセージ」
-4. 成功時は1.5秒後に自動的に閉じる、失敗時は3秒後にホーム画面に戻る
+5. 成功時は1秒後にHomeScreenに自動復帰（ポップアップは閉じない）
 
 ### 4. OAuth認証フロー
 
@@ -207,17 +208,18 @@ HomeScreen（起点、認証済み時）
 6. backgroundが設定保存、`raku-oauth-pending`削除
 7. LoginScreenが`chrome.storage.onChanged`で完了を検出、HomeScreenへ遷移
 
-### 5. 既存データベース取り込み機能
+### 5. 保存先一覧管理機能
 
 **機能概要**:
-- Notion APIを使用して、ワークスペース内の既存データベース一覧を取得
-- まだクリップボードとして登録されていないデータベースのみを表示
-- ワンクリックでクリップボードに追加可能
+- Notion APIを使用して、コンテナページ配下のデータベース一覧を動的に取得
+- 拡張機能で作成したデータベースと既存データベースの両方を保存先として利用可能
+- 「タグ保存用ページ」は自動的に除外され、保存先リストに表示されない
 
 **実装詳細**:
-- `NotionService.listDatabases()`: 既存データベース一覧を`NotionDatabaseSummary`型で取得
-- `ClipboardListScreen`: 登録済みクリップボードと未登録の既存データベースを分けて表示
-- 自動更新: データベース作成/削除時に既存データベースリストを自動更新（`refreshAvailableDatabases`）
+- `NotionService.listPagesUnderContainer()`: コンテナページ配下のページ・データベースを取得
+- `NotionService.listDatabases()`: 「タグ保存用ページ」をフィルタリング除外
+- 新規作成後のリトライロジック: 最大10秒間（10回のリトライ）待機して保存先リストに反映
+- HomeScreen: 保存先ドロップダウンで選択・作成がすべて完結
 
 ### 6. ギャラリービュー自動設定機能
 
@@ -297,9 +299,13 @@ HomeScreen（起点、認証済み時）
 
 ### 新しい画面を追加
 
+注: 現在の実装では、画面はHomeScreen中心に統合されています。新しい画面を追加する場合は以下の手順に従ってください。
+
 1. `src/screens/NewScreen.tsx` を作成
-2. `src/types/index.ts` の Screen 型に追加
-3. `src/popup.tsx` のルーティングに追加
+2. `src/types/index.ts` の Screen 型に追加（必要に応じて）
+3. `src/popup.tsx` のルーティングに追加（必要に応じて）
+
+ただし、可能な限りHomeScreen内で機能を完結させることを推奨します。
 
 ### 新しいストレージキーを追加
 
