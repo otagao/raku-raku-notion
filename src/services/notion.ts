@@ -735,7 +735,7 @@ export class NotionService {
       }
       const isTwitter = hostname.includes('twitter.com') || hostname.includes('x.com')
 
-      // X/Twitterの場合は埋め込みカードのみを置く（画像ブロックは追加しない）
+      // X/Twitterの場合は埋め込みカードを先頭に追加し、画像投稿なら本文にも画像を埋め込む
       if (isTwitter) {
         children.length = 0
         children.push({
@@ -745,6 +745,21 @@ export class NotionService {
             url
           }
         })
+        // 画像投稿のみ、本文に画像を埋め込む
+        if (bodyImages.length > 0 && (!normalizedVideos || normalizedVideos.length === 0)) {
+          bodyImages.forEach(imgUrl => {
+            children.push({
+              object: "block",
+              type: "image",
+              image: {
+                type: "external",
+                external: {
+                  url: imgUrl
+                }
+              }
+            })
+          })
+        }
       } else {
         // 動画ブロックを追加（最大3件程度）
         if (normalizedVideos && normalizedVideos.length > 0) {

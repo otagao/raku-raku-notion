@@ -574,11 +574,16 @@ async function handleClipPage(
     // Content Scriptからコンテンツを抽出（tabIdが指定されている場合）
     let extractedContent: { text?: string; thumbnail?: string; images?: string[]; videos?: { url: string; poster?: string }[]; icon?: string } = {}
     let fallbackContent: { text?: string; thumbnail?: string; images?: string[]; videos?: { url: string; poster?: string }[] } | null = null
-    if (data.tabId) {
+  if (data.tabId) {
       try {
         console.log('[Background] Extracting content from tab:', data.tabId)
         sendProgress('ページの情報を取得中...');
-        const response = await chrome.tabs.sendMessage(data.tabId, { type: 'extract-content' })
+        await ensureExtractContentInjected(data.tabId)
+        let response = await sendMessageToTab(data.tabId, { type: 'extract-content' })
+        if (!response || response.__runtimeError) {
+          await ensureExtractContentInjected(data.tabId)
+          response = await sendMessageToTab(data.tabId, { type: 'extract-content' })
+        }
 
         if (response?.success && response.content) {
           extractedContent = {
@@ -598,14 +603,43 @@ async function handleClipPage(
       }
     }
 
-    // 抽出が弱い場合のフォールバック: HTMLを直接fetchして解析
+    // 抽出が弱い場合のフォールバック: Content Script側でHTMLをfetchして解析
     const shouldFallback = (!extractedContent.text || extractedContent.text.length < 100) && (!extractedContent.images || extractedContent.images.length === 0)
-    if (shouldFallback) {
+    if (shouldFallback && data.tabId) {
       try {
-        fallbackContent = await fetchContentFallback(data.url)
-        console.log('[Background] Fallback content fetched:', fallbackContent)
+        await ensureExtractContentInjected(data.tabId)
+        let fallbackResponse = await sendMessageToTab(data.tabId, {
+          type: 'fetch-content-fallback',
+          url: data.url
+        })
+        if (!fallbackResponse || fallbackResponse.__runtimeError) {
+          await ensureExtractContentInjected(data.tabId)
+          fallbackResponse = await sendMessageToTab(data.tabId, {
+            type: 'fetch-content-fallback',
+            url: data.url
+          })
+        }
+        if (fallbackResponse?.success && fallbackResponse.content) {
+          fallbackContent = fallbackResponse.content
+          console.log('[Background] Fallback content fetched via content script:', fallbackContent)
+        } else {
+          console.warn('[Background] Fallback content fetch failed:', fallbackResponse?.error)
+        }
       } catch (err) {
         console.warn('[Background] Fallback content fetch failed:', err)
+      }
+    }
+
+    // フォールバックが失敗した場合の最終手段: executeScriptで最小限のメタ情報を取得
+    if (!fallbackContent && data.tabId) {
+      try {
+        const quick = await extractContentViaExecuteScript(data.tabId)
+        if (quick) {
+          fallbackContent = quick
+          console.log('[Background] Fallback content fetched via executeScript:', quick)
+        }
+      } catch (err) {
+        console.warn('[Background] executeScript fallback failed:', err)
       }
     }
 
@@ -656,6 +690,104 @@ async function handleClipPage(
       error: errorMsg
     })
   }
+}
+
+function sendMessageToTab(tabId: number, message: any): Promise<any> {
+  return new Promise(resolve => {
+    try {
+      chrome.tabs.sendMessage(tabId, message, (response) => {
+        const err = chrome.runtime.lastError
+        if (err) {
+          resolve({ __runtimeError: true, error: err.message })
+          return
+        }
+        resolve(response)
+      })
+    } catch (err) {
+      resolve({ __runtimeError: true, error: err instanceof Error ? err.message : String(err) })
+    }
+  })
+}
+
+async function ensureExtractContentInjected(tabId: number): Promise<void> {
+  try {
+    await chrome.tabs.sendMessage(tabId, { type: 'ping-extract-content' })
+    return
+  } catch {
+    // not injected
+  }
+
+  const manifest = chrome.runtime.getManifest()
+  const extractScript = manifest.content_scripts?.find(cs =>
+    cs.matches?.includes("https://plasmo-dynamic-inject-never-match.invalid/*") &&
+    cs.js?.some(file => file.includes("extract-content"))
+  )
+
+  if (!extractScript || !extractScript.js || extractScript.js.length === 0) {
+    throw new Error("extract-content script not found in manifest")
+  }
+
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    files: extractScript.js
+  })
+  await new Promise(resolve => setTimeout(resolve, 100))
+}
+
+async function extractContentViaExecuteScript(tabId: number): Promise<{ text?: string; images?: string[]; videos?: { url: string; poster?: string }[]; thumbnail?: string } | null> {
+  const [{ result } = {} as chrome.scripting.InjectionResult<any>] = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: () => {
+      try {
+        const url = new URL(window.location.href)
+        const isTwitter = url.hostname.includes('twitter.com') || url.hostname.includes('x.com')
+        const statusId = (() => {
+          const parts = url.pathname.split('/status/')
+          return parts[1]?.split(/[/?#]/)[0] || ''
+        })()
+
+        let images: string[] = []
+        if (isTwitter && statusId) {
+          const statusLink = `/${statusId}`
+          const articleCandidates = Array.from(document.querySelectorAll('article'))
+          const main = articleCandidates.find(article => {
+            const link = article.querySelector(`a[href*="${statusLink}"]`)
+            return !!link
+          })
+          const scope = main || document
+          const mediaImgs = Array.from(scope.querySelectorAll('img'))
+          mediaImgs.forEach(img => {
+            const src = (img as HTMLImageElement).currentSrc || (img as HTMLImageElement).src || ''
+            if (src.includes('pbs.twimg.com/media') && !images.includes(src)) {
+              images.push(src)
+            }
+          })
+        }
+
+        const og = document.querySelector('meta[property="og:image"]')?.getAttribute('content') || ''
+        const tw = document.querySelector('meta[name="twitter:image"]')?.getAttribute('content') || ''
+        const firstImg = (() => {
+          const img = document.querySelector('img') as HTMLImageElement | null
+          return img?.currentSrc || img?.src || ''
+        })()
+        const videoPoster = (() => {
+          const video = document.querySelector('video') as HTMLVideoElement | null
+          return video?.getAttribute('poster') || ''
+        })()
+
+        if (images.length === 0) {
+          const fallback = og || tw || firstImg
+          if (fallback) images.push(fallback)
+        }
+
+        const thumbnail = videoPoster || images[0] || undefined
+        return { images: images.length > 0 ? images : undefined, thumbnail }
+      } catch {
+        return null
+      }
+    }
+  })
+  return result || null
 }
 
 function withYouTubeTime(url: string, seconds: number): string {
