@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import type { NotionConfig, NotionOAuthConfig, Language } from '~types'
 import { StorageService } from '~services/storage'
-import { createNotionClient } from '~services/notion'
+// import { createNotionClient } from '~services/notion'  // Background経由に移行したため不要
 
 interface LoginScreenProps {
     onLoginSuccess: () => void
@@ -154,14 +154,23 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, langua
                 apiKey: apiKey.trim()
             }
 
-            const client = createNotionClient(config)
-            const connected = await client.testConnection()
+            // 一旦設定を保存してからBackground経由で接続テスト
+            await StorageService.saveNotionConfig(config)
 
-            if (!connected) {
+            const response = await chrome.runtime.sendMessage({
+                type: 'test-notion-connection'
+            })
+
+            if (!response || !response.success || !response.connected) {
+                // テスト失敗時は設定をクリア
+                await StorageService.saveNotionConfig({
+                    authMethod: 'oauth',
+                    apiKey: undefined,
+                    accessToken: undefined
+                })
                 throw new Error(t.errorConnectFailed)
             }
 
-            await StorageService.saveNotionConfig(config)
             onLoginSuccess()
         } catch (err) {
             setError(err instanceof Error ? err.message : t.errorSave)
