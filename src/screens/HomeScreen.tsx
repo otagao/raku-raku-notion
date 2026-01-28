@@ -184,6 +184,16 @@ const HomeScreen: FC<HomeScreenProps> = ({
   const [authSuccess, setAuthSuccess] = useState<string>('')
   const [oauthClientId, setOauthClientId] = useState<string>('')
 
+  // 成功メッセージの自動非表示
+  useEffect(() => {
+    if (lastClipResult?.success && onClearClipResult) {
+      const timer = setTimeout(() => {
+        onClearClipResult()
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [lastClipResult, onClearClipResult])
+
   useEffect(() => {
     const loadLayout = async () => {
       const config = await StorageService.getHomeLayoutConfig()
