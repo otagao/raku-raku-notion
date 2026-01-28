@@ -390,7 +390,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
           backgroundColor: isConnected ? '#ffe6e6' : '#f5f5f5',
           borderRadius: '4px',
           border: `1px solid ${isConnected ? '#f5caca' : '#ddd'}`,
-          minHeight: '44px',
+          height: '44px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
