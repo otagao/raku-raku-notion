@@ -195,13 +195,54 @@ async function openIframeUiForActiveTab(tabId?: number) {
     url.startsWith("about:") ||
     url.startsWith("chrome-extension://") ||
     url.startsWith("https://chrome.google.com/webstore") ||
-    url.startsWith("https://chromewebstore.google.com/")
+    url.startsWith("https://chromewebstore.google.com/") ||
+    url.startsWith("https://www.notion.so/") ||
+    url.startsWith("https://notion.so/")
 
   if (isRestrictedUrl) {
     await openActionPopup(targetTabId)
     return
   }
 
+  // iframe-ui Content Scriptが既に注入されているか確認
+  let isIframeUiInjected = false
+  try {
+    await chrome.tabs.sendMessage(targetTabId, { type: "ping-iframe-ui" })
+    isIframeUiInjected = true
+  } catch (error) {
+    console.log("[Background] iframe-ui Content Script not yet injected")
+  }
+
+  // 注入されていない場合は動的に注入
+  if (!isIframeUiInjected) {
+    try {
+      console.log("[Background] Dynamically injecting iframe-ui Content Script")
+      const manifest = chrome.runtime.getManifest()
+      const iframeUiScript = manifest.content_scripts?.find(cs =>
+        cs.matches?.includes("https://plasmo-dynamic-inject-never-match.invalid/*") &&
+        cs.js?.some(file => file.includes("iframe-ui"))
+      )
+
+      if (!iframeUiScript || !iframeUiScript.js || iframeUiScript.js.length === 0) {
+        throw new Error("iframe-ui script not found in manifest")
+      }
+
+      await chrome.scripting.executeScript({
+        target: { tabId: targetTabId },
+        files: iframeUiScript.js
+      })
+
+      console.log("[Background] iframe-ui Content Script injected successfully")
+      // 注入後、少し待ってから次の処理へ
+      await new Promise(resolve => setTimeout(resolve, 100))
+    } catch (error) {
+      console.error("[Background] Failed to inject iframe-ui Content Script:", error)
+      await openActionPopup(targetTabId)
+      return
+    }
+  }
+
+  // iframe UIを開く
   try {
     await chrome.tabs.sendMessage(targetTabId, { type: "open-iframe-ui" })
   } catch (error) {
