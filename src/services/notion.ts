@@ -760,6 +760,18 @@ export class NotionService {
               }
             })
           })
+        } else if (youtubeEmbedUrl) {
+          // YouTubeで動画URLが取れない場合でも埋め込みを追加
+          children.push({
+            object: "block",
+            type: "video",
+            video: {
+              type: "external",
+              external: {
+                url: youtubeEmbedUrl
+              }
+            }
+          })
         }
 
         // 本文用に画像ブロックを追加（カバーも含めて最大5件）
