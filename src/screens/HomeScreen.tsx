@@ -56,12 +56,6 @@ const translations: Record<Language, {
   successSaved: string
   uiSimplifyLabel: string
   tooltipUISimplify: string
-  authGuideTitle: string
-  authGuideStep1: string
-  authGuideStep1Desc: string
-  authGuideStep2: string
-  authGuideStep2Desc: string
-  authGuideNote: string
   clipSuccess: string
   clipFailed: string
   viewInNotion: string
@@ -96,12 +90,6 @@ const translations: Record<Language, {
     successSaved: '設定を保存しました',
     uiSimplifyLabel: 'Notion UI簡略化',
     tooltipUISimplify: 'Notion.so上でサイドバーやツールバーを非表示にし、シンプルな表示にします',
-    authGuideTitle: '認証画面での操作手順',
-    authGuideStep1: '1. 「ページを選択する」ボタンを押す',
-    authGuideStep1Desc: '注意事項を読んでから「ページを選択する」ボタンをクリックしてください。',
-    authGuideStep2: '2. 何も選択せず「アクセスを許可する」',
-    authGuideStep2Desc: '公開/非公開ページともに、何も選択せずに「アクセスを許可する」ボタンを押せばOKです。',
-    authGuideNote: '※ データベースへのアクセス権限は、保存先作成時に個別に付与されます。',
     clipSuccess: 'クリップ成功！',
     clipFailed: 'クリップ失敗',
     viewInNotion: 'Notionで確認する'
@@ -136,12 +124,6 @@ const translations: Record<Language, {
     successSaved: 'Settings saved',
     uiSimplifyLabel: 'Notion UI simplify',
     tooltipUISimplify: 'Hide sidebar and toolbar on Notion.so for a cleaner display',
-    authGuideTitle: 'Steps on the auth screen',
-    authGuideStep1: '1. Click "Select pages"',
-    authGuideStep1Desc: 'Read the notice and then click the "Select pages" button.',
-    authGuideStep2: '2. Click "Allow access" without selecting',
-    authGuideStep2Desc: 'For both public and private pages, just click "Allow access" without selecting any pages.',
-    authGuideNote: '* Database access permissions will be granted individually when creating a destination.',
     clipSuccess: 'Clipped successfully!',
     clipFailed: 'Clip failed',
     viewInNotion: 'View in Notion'
@@ -523,67 +505,6 @@ const HomeScreen: FC<HomeScreenProps> = ({
       {/* 未接続時: 認証UI */}
       {!isConnected && !isCheckingConnection && (
         <div style={{ marginBottom: '24px' }}>
-          {/* 認証ガイド */}
-          <div style={{
-            backgroundColor: '#f8f9fa',
-            borderRadius: '8px',
-            padding: '16px',
-            marginBottom: '16px'
-          }}>
-            <h3 style={{
-              fontSize: '14px',
-              fontWeight: 600,
-              marginBottom: '12px',
-              color: '#333'
-            }}>
-              {t.authGuideTitle}
-            </h3>
-            <div style={{ marginBottom: '12px' }}>
-              <p style={{
-                fontSize: '13px',
-                fontWeight: 600,
-                marginBottom: '4px',
-                color: '#333'
-              }}>
-                {t.authGuideStep1}
-              </p>
-              <p style={{
-                fontSize: '12px',
-                color: '#666',
-                margin: 0,
-                lineHeight: '1.4'
-              }}>
-                {t.authGuideStep1Desc}
-              </p>
-            </div>
-            <div style={{ marginBottom: '12px' }}>
-              <p style={{
-                fontSize: '13px',
-                fontWeight: 600,
-                marginBottom: '4px',
-                color: '#333'
-              }}>
-                {t.authGuideStep2}
-              </p>
-              <p style={{
-                fontSize: '12px',
-                color: '#666',
-                margin: 0,
-                lineHeight: '1.4'
-              }}>
-                {t.authGuideStep2Desc}
-              </p>
-            </div>
-            <p style={{
-              fontSize: '11px',
-              color: '#888',
-              margin: 0,
-              fontStyle: 'italic'
-            }}>
-              {t.authGuideNote}
-            </p>
-          </div>
-
           <button
             onClick={handleOAuthLogin}
             disabled={isAuthLoading || !oauthClientId}
