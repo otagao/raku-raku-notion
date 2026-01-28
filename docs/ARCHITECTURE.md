@@ -270,30 +270,26 @@ ClippingProgressScreen: "✓ クリップ完了！"
 1秒後に自動的にHomeScreenへ戻る（ポップアップは閉じない）
 ```
 
-### 既存データベース取り込みフロー
+### 保存先一覧取得フロー
 
 ```
-ClipboardListScreen表示時
+popup.tsx初期化 / HomeScreen表示時
   ↓
-popup.tsx (refreshAvailableDatabases)
+popup.tsx (loadContainerPages)
   ↓
-NotionService.listDatabases() ← Notion API
-  - ワークスペース内の全データベースを取得
+NotionService.listPagesUnderContainer() ← Notion API
+  - コンテナページ配下のページ・データベースを取得
+  - 「タグ保存用ページ」は自動除外
   ↓
-既存クリップボードIDと照合してフィルタリング
+ContainerPage[] を Clipboard[] 型に変換
   ↓
-未登録のデータベースのみ表示
+新規作成時のリトライロジック（expectedNewIdが指定されている場合）
+  - 最大10回（約10秒間）リトライ
+  - 新規IDがリストに反映されるまで待機
   ↓
-User Click ("クリップボードに追加" ボタン)
+保存先リストをステートに保存
   ↓
-popup.tsx (handleRegisterExistingDatabase)
-  ↓
-StorageService.addClipboard()
-  - createdByExtension: false (手動登録)
-  ↓
-refreshAvailableDatabases() (一覧を更新)
-  ↓
-ClipboardListScreen (登録済みとして表示)
+HomeScreen (ドロップダウンで表示、作成した保存先は自動選択)
 ```
 
 ### OAuth認証フロー
