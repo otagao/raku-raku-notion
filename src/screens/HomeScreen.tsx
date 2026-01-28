@@ -1,7 +1,7 @@
 import { type FC, useState, useEffect } from "react"
 import { StorageService } from "~services/storage"
 import { createNotionClient } from "~services/notion"
-import type { Language, Clipboard } from "~types"
+import type { Language, Clipboard, ClipResult } from "~types"
 import { TooltipIcon } from "~components/TooltipIcon"
 import { MultiSelectTagDropdown } from "~components/MultiSelectTagDropdown"
 
@@ -22,6 +22,8 @@ interface HomeScreenProps {
   onAddTag: (tag: string) => void
   onRemoveTag: (tag: string) => void
   existingTags?: string[]
+  lastClipResult?: ClipResult | null
+  onClearClipResult?: () => void
 }
 
 const translations: Record<Language, {
@@ -60,6 +62,9 @@ const translations: Record<Language, {
   authGuideStep2: string
   authGuideStep2Desc: string
   authGuideNote: string
+  clipSuccess: string
+  clipFailed: string
+  viewInNotion: string
 }> = {
   ja: {
     saving: '',
@@ -96,7 +101,10 @@ const translations: Record<Language, {
     authGuideStep1Desc: '注意事項を読んでから「ページを選択する」ボタンをクリックしてください。',
     authGuideStep2: '2. 何も選択せず「アクセスを許可する」',
     authGuideStep2Desc: '公開/非公開ページともに、何も選択せずに「アクセスを許可する」ボタンを押せばOKです。',
-    authGuideNote: '※ データベースへのアクセス権限は、保存先作成時に個別に付与されます。'
+    authGuideNote: '※ データベースへのアクセス権限は、保存先作成時に個別に付与されます。',
+    clipSuccess: 'クリップ成功！',
+    clipFailed: 'クリップ失敗',
+    viewInNotion: 'Notionで確認する'
   },
   en: {
     saving: '',
@@ -133,7 +141,10 @@ const translations: Record<Language, {
     authGuideStep1Desc: 'Read the notice and then click the "Select pages" button.',
     authGuideStep2: '2. Click "Allow access" without selecting',
     authGuideStep2Desc: 'For both public and private pages, just click "Allow access" without selecting any pages.',
-    authGuideNote: '* Database access permissions will be granted individually when creating a destination.'
+    authGuideNote: '* Database access permissions will be granted individually when creating a destination.',
+    clipSuccess: 'Clipped successfully!',
+    clipFailed: 'Clip failed',
+    viewInNotion: 'View in Notion'
   }
 }
 
@@ -153,7 +164,9 @@ const HomeScreen: FC<HomeScreenProps> = ({
   selectedTags,
   onAddTag,
   onRemoveTag,
-  existingTags = []
+  existingTags = [],
+  lastClipResult,
+  onClearClipResult
 }) => {
   const t = translations[language]
   const [isConnected, setIsConnected] = useState<boolean>(false)
@@ -170,6 +183,16 @@ const HomeScreen: FC<HomeScreenProps> = ({
   const [authError, setAuthError] = useState<string>('')
   const [authSuccess, setAuthSuccess] = useState<string>('')
   const [oauthClientId, setOauthClientId] = useState<string>('')
+
+  // 成功メッセージの自動非表示
+  useEffect(() => {
+    if (lastClipResult?.success && onClearClipResult) {
+      const timer = setTimeout(() => {
+        onClearClipResult()
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [lastClipResult, onClearClipResult])
 
   useEffect(() => {
     const loadLayout = async () => {
@@ -367,7 +390,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
           backgroundColor: isConnected ? '#ffe6e6' : '#f5f5f5',
           borderRadius: '4px',
           border: `1px solid ${isConnected ? '#f5caca' : '#ddd'}`,
-          minHeight: '44px',
+          height: '44px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -396,6 +419,76 @@ const HomeScreen: FC<HomeScreenProps> = ({
             >
               {t.disconnect}
             </button>
+          )}
+        </div>
+      )}
+
+      {/* クリップ成功/失敗メッセージ */}
+      {lastClipResult && (
+        <div style={{
+          padding: '12px',
+          marginBottom: '12px',
+          backgroundColor: lastClipResult.success ? '#e8f5e9' : '#ffebee',
+          borderRadius: '4px',
+          border: `1px solid ${lastClipResult.success ? '#c8e6c9' : '#ffcdd2'}`,
+          position: 'relative'
+        }}>
+          <button
+            onClick={onClearClipResult}
+            style={{
+              position: 'absolute',
+              top: '8px',
+              right: '8px',
+              background: 'transparent',
+              border: 'none',
+              color: '#666',
+              cursor: 'pointer',
+              fontSize: '16px',
+              padding: '0',
+              width: '20px',
+              height: '20px',
+              lineHeight: '1'
+            }}
+            aria-label="閉じる"
+          >
+            ×
+          </button>
+          <div style={{
+            fontSize: '14px',
+            fontWeight: '600',
+            color: lastClipResult.success ? '#2e7d32' : '#c62828'
+          }}>
+            {lastClipResult.success ? (
+              <>
+                ✓ {t.clipSuccess}{' '}
+                {lastClipResult.pageUrl && (
+                  <a
+                    href={lastClipResult.pageUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      color: '#1976d2',
+                      textDecoration: 'none'
+                    }}
+                  >
+                    {t.viewInNotion}
+                  </a>
+                )}
+              </>
+            ) : (
+              `✗ ${t.clipFailed}`
+            )}
+          </div>
+          {!lastClipResult.success && lastClipResult.error && (
+            <div style={{
+              fontSize: '12px',
+              color: '#c62828',
+              marginTop: '4px'
+            }}>
+              {lastClipResult.error}
+            </div>
           )}
         </div>
       )}
