@@ -11,7 +11,6 @@ interface LoginScreenProps {
 const translations: Record<Language, {
     title: string
     subtitle: string
-    authMethod: string
     oauthLabel: string
     manualLabel: string
     oauthDesc: string
@@ -28,12 +27,10 @@ const translations: Record<Language, {
     errorSave: string
     errorMissingApiKey: string
     errorConnectFailed: string
-    successOAuthOpened: string
 }> = {
     ja: {
         title: 'Raku Raku Notion',
         subtitle: 'Notionと連携して、Webページを簡単に保存しましょう',
-        authMethod: '認証方法',
         oauthLabel: 'OAuth認証（推奨）',
         manualLabel: '手動トークン入力',
         oauthDesc: 'NotionのOAuth認証を使用してアクセス許可を付与します。',
@@ -49,13 +46,11 @@ const translations: Record<Language, {
         errorOAuth: 'OAuth認証に失敗しました',
         errorSave: '設定の保存に失敗しました',
         errorMissingApiKey: 'APIキーを入力してください',
-        errorConnectFailed: 'Notion APIへの接続に失敗しました。APIキーを確認してください。',
-        successOAuthOpened: 'Notion認証画面を開きました。認証を完了してください。'
+        errorConnectFailed: 'Notion APIへの接続に失敗しました。APIキーを確認してください。'
     },
     en: {
         title: 'Raku Raku Notion',
         subtitle: 'Connect with Notion to save web pages easily',
-        authMethod: 'Authentication Method',
         oauthLabel: 'OAuth (Recommended)',
         manualLabel: 'Manual Token',
         oauthDesc: 'Use Notion OAuth to grant access.',
@@ -71,8 +66,7 @@ const translations: Record<Language, {
         errorOAuth: 'OAuth authentication failed',
         errorSave: 'Failed to save settings',
         errorMissingApiKey: 'Please enter your API key',
-        errorConnectFailed: 'Failed to connect to Notion API. Please check your API key.',
-        successOAuthOpened: 'Opened Notion auth window. Please finish authentication.'
+        errorConnectFailed: 'Failed to connect to Notion API. Please check your API key.'
     }
 }
 
