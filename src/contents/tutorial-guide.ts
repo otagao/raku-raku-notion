@@ -23,9 +23,19 @@ const injectOverlay = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const clientId = urlParams.get('client_id');
     const expectedClientId = process.env.PLASMO_PUBLIC_NOTION_CLIENT_ID || '';
+    const detectLoginPage = () => {
+        const pathName = window.location.pathname.toLowerCase();
+        if (pathName.includes('/login') || pathName.includes('/signin')) return true;
+        if (document.querySelector('input[type="password"], input[name="password"]')) return true;
+        if (document.querySelector('input[type="email"], input[name="email"]')) return true;
+        if (document.querySelector('form[action*="login"], form[action*="signin"]')) return true;
+        if (document.querySelector('[data-testid*="login"], [data-testid*="signin"]')) return true;
+        return false;
+    };
 
-    // Only show overlay if client_id matches (and is configured)
-    if (!expectedClientId || clientId !== expectedClientId) {
+    // ログインページの場合はclient_idチェックをスキップ（OAuthフローからリダイレクトされた可能性があるため）
+    // install-integrationページの場合のみclient_idを検証
+    if (!detectLoginPage() && (!expectedClientId || clientId !== expectedClientId)) {
         console.log("Raku Raku Notion: Skipping overlay (different or missing client_id)");
         return;
     }
@@ -158,10 +168,10 @@ const injectOverlay = () => {
     const borderColor = darkMode ? '#00ffff' : '#0066cc';
     const introTextColor = darkMode ? '#fff' : '#333';
 
-    const instructionsHTML = `
-        <div style="margin-bottom: 5px; font-size: 13px; color: ${introTextColor}; font-weight: bold; border-left: 3px solid ${borderColor}; padding-left: 8px;">
-            認証画面での操作手順はこちらの通りです。
-        </div>
+    // ログイン画面判定に応じてステップ1を表示
+
+    const buildInstructionsHTML = (loginMode: boolean) => {
+        const step1HTML = loginMode ? `
         <div style="margin-bottom: 20px;">
             <h3 style="color: ${headingColor}; font-size: 14px; margin: 0 0 5px 0; font-weight: bold;">1. 「Notionにログイン」またはアカウントを選択</h3>
             <p style="font-size: 13px; line-height: 1.5; color: ${textColor}; margin: 0;">
@@ -169,20 +179,43 @@ const injectOverlay = () => {
                 Notionにログインしていない人はNotionにログインする画面から始まります。
             </p>
         </div>
+    ` : '';
+
+        const step2Num = loginMode ? '2' : '1';
+        const step3Num = loginMode ? '3' : '2';
+
+        return `
+        <div style="margin-bottom: 5px; font-size: 13px; color: ${introTextColor}; font-weight: bold; border-left: 3px solid ${borderColor}; padding-left: 8px;">
+            認証画面での操作手順はこちらの通りです。
+        </div>
+        ${step1HTML}
         <div style="margin-bottom: 20px;">
-            <h3 style="color: ${headingColor}; font-size: 14px; margin: 0 0 5px 0; font-weight: bold;">2. 「ページを選択する」ボタンを押す</h3>
+            <h3 style="color: ${headingColor}; font-size: 14px; margin: 0 0 5px 0; font-weight: bold;">${step2Num}. 「ページを選択する」ボタンを押す</h3>
             <p style="font-size: 13px; line-height: 1.5; color: ${textColor}; margin: 0;">
                 注意事項を読んでから「ページを選択する」ボタンをクリックしてください。
             </p>
         </div>
         <div>
-            <h3 style="color: ${headingColor}; font-size: 14px; margin: 0 0 5px 0; font-weight: bold;">3. 「アクセスを許可する」</h3>
+            <h3 style="color: ${headingColor}; font-size: 14px; margin: 0 0 5px 0; font-weight: bold;">${step3Num}. 「アクセスを許可する」</h3>
             <p style="font-size: 13px; line-height: 1.5; color: ${textColor}; margin: 0;">
                 何も選択せず「アクセスを許可する」ボタンを押せばOK。
             </p>
         </div>
     `;
-    slide2.innerHTML = instructionsHTML;
+    };
+
+    let hasLoginStep = detectLoginPage();
+    slide2.innerHTML = buildInstructionsHTML(hasLoginStep);
+
+    if (!hasLoginStep) {
+        const loginCheckInterval = window.setInterval(() => {
+            if (detectLoginPage()) {
+                hasLoginStep = true;
+                slide2.innerHTML = buildInstructionsHTML(true);
+                window.clearInterval(loginCheckInterval);
+            }
+        }, 800);
+    }
 
 
 
