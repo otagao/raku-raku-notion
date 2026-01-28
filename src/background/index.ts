@@ -448,11 +448,13 @@ async function handleClipPage(
     });
   };
 
-  const sendCompletion = (success: boolean, error?: string) => {
+  const sendCompletion = (success: boolean, pageId?: string, pageUrl?: string, error?: string) => {
     // Popupウィンドウに完了通知を送信
     chrome.runtime.sendMessage({
       type: 'CLIP_COMPLETE',
       success,
+      pageId,
+      pageUrl,
       databaseId: data.databaseId,
       error
     }).catch(() => {
@@ -541,12 +543,13 @@ async function handleClipPage(
     }
 
     sendProgress('Notionにクリップ中...');
-    const pageId = await notionClient.createWebClip(webClipData)
+    const { id: pageId, url: pageUrl } = await notionClient.createWebClip(webClipData)
 
-    sendCompletion(true);
+    sendCompletion(true, pageId, pageUrl);
     sendResponse({
       success: true,
-      pageId
+      pageId,
+      pageUrl
     })
   } catch (error) {
     console.error("Failed to clip page:", error)

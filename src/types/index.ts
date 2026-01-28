@@ -133,3 +133,13 @@ export interface HomeLayoutConfig {
   tagExpanded: boolean
   memoExpanded: boolean
 }
+
+// クリップ結果情報
+export interface ClipResult {
+  success: boolean
+  pageId?: string
+  pageUrl?: string
+  databaseId?: string
+  error?: string
+  timestamp: number
+}
