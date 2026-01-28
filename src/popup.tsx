@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
 import HomeScreen from "~screens/HomeScreen"
-import CreateClipboardScreen from "~screens/CreateClipboardScreen"
-import SelectClipboardScreen from "~screens/SelectClipboardScreen"
 import ClippingProgressScreen from "~screens/ClippingProgressScreen"
 import { StorageService } from "~services/storage"
 import { createNotionClient } from "~services/notion"
@@ -99,9 +97,7 @@ function IndexPopup() {
   // クリップボードリストが変わったときに選択状態を同期
   useEffect(() => {
     if (clipboards.length === 0) {
-      if (selectedClipboardId !== '__new__') {
-        setSelectedClipboardId(undefined)
-      }
+      setSelectedClipboardId('__new__')
       return
     }
     if (selectedClipboardId === '__new__') {
@@ -422,19 +418,21 @@ function IndexPopup() {
 
 
   const handleClipPage = async () => {
-    // 保存先データベースがない場合
-    if (clipboards.length === 0) {
-      alert('保存先データベースを先に作成してください')
-      handleNavigate('create-clipboard')
-      return
-    }
-
     if (selectedClipboardId === '__new__') {
-      alert('保存先を作成してください')
+      alert(language === 'ja'
+        ? '保存先を作成してから保存してください'
+        : 'Please create a destination before saving')
       return
     }
 
-    const targetId = selectedClipboardId || clipboards[0].notionPageId
+    const targetId = selectedClipboardId || clipboards[0]?.notionPageId
+    if (!targetId) {
+      alert(language === 'ja'
+        ? '保存先が見つかりません'
+        : 'No destination found')
+      return
+    }
+
     await performClip(targetId, memoDraft || undefined)
   }
 
@@ -508,18 +506,18 @@ function IndexPopup() {
   }
 
   const handleClipNow = async () => {
-    if (clipboards.length === 0) {
-      alert('保存先データベースを先に作成してください')
-      handleNavigate('create-clipboard')
-      return
-    }
     if (selectedClipboardId === '__new__') {
-      alert('保存先を作成してください')
+      alert(language === 'ja'
+        ? '保存先を作成してから保存してください'
+        : 'Please create a destination before saving')
       return
     }
+
     const tabInfo = await StorageService.getCurrentTabInfo()
     if (!tabInfo) {
-      alert('ページ情報を取得できませんでした')
+      alert(language === 'ja'
+        ? 'ページ情報を取得できませんでした'
+        : 'Failed to get page information')
       return
     }
 
@@ -535,7 +533,14 @@ function IndexPopup() {
       console.warn('[handleClipNow] Failed to get YouTube time:', error)
     }
 
-    const targetId = selectedClipboardId || clipboards[0].notionPageId
+    const targetId = selectedClipboardId || clipboards[0]?.notionPageId
+    if (!targetId) {
+      alert(language === 'ja'
+        ? '保存先が見つかりません'
+        : 'No destination found')
+      return
+    }
+
     await performClip(targetId, memoDraft || undefined, urlToSave)
   }
 
@@ -554,73 +559,29 @@ function IndexPopup() {
   }
 
   const renderScreen = () => {
-    switch (currentScreen) {
-      case 'home':
-        return (
-          <HomeScreen
-            onNavigate={handleNavigate}
-            onClipPage={handleClipPage}
-            onClipNow={handleClipNow}
-            isYouTubeTab={isYouTubeTab}
-            language={language}
-            onToggleLanguage={toggleLanguage}
-            memo={memoDraft}
-            onMemoChange={setMemoDraft}
-            clipboards={clipboards}
-            selectedClipboardId={selectedClipboardId}
-            onSelectClipboardId={setSelectedClipboardId}
-            selectedTags={selectedTags}
-            onAddTag={addTagAndPersist}
-            onRemoveTag={(tag) => setSelectedTags(prev => prev.filter(t => t !== tag))}
-            existingTags={tagOptions}
-            onDisconnect={handleDisconnect}
-            onCreateClipboard={handleCreateClipboard}
-            lastClipResult={lastClipResult}
-            onClearClipResult={() => setLastClipResult(null)}
-          />
-        )
-      case 'create-clipboard':
-        return (
-          <CreateClipboardScreen
-            onNavigate={handleNavigate}
-            onCreateClipboard={handleCreateClipboard}
-            language={language}
-            countdown={creationCountdown}
-            status={creationStatus}
-          />
-        )
-      case 'select-clipboard':
-        return (
-          <SelectClipboardScreen
-            clipboards={clipboards}
-            onNavigate={handleNavigate}
-            onSelectClipboard={handleSelectClipboard}
-            language={language}
-          />
-        )
-      default:
-        return (
-          <HomeScreen
-            onNavigate={handleNavigate}
-            onClipPage={handleClipPage}
-            language={language}
-            onToggleLanguage={toggleLanguage}
-            memo={memoDraft}
-            onMemoChange={setMemoDraft}
-            clipboards={clipboards}
-            selectedClipboardId={selectedClipboardId}
-            onSelectClipboardId={setSelectedClipboardId}
-            selectedTags={selectedTags}
-            onAddTag={addTagAndPersist}
-            onRemoveTag={(tag) => setSelectedTags(prev => prev.filter(t => t !== tag))}
-            existingTags={tagOptions}
-            isYouTubeTab={isYouTubeTab}
-            onClipNow={handleClipNow}
-            onDisconnect={handleDisconnect}
-            onCreateClipboard={handleCreateClipboard}
-          />
-        )
-    }
+    return (
+      <HomeScreen
+        onNavigate={handleNavigate}
+        onClipPage={handleClipPage}
+        onClipNow={handleClipNow}
+        isYouTubeTab={isYouTubeTab}
+        language={language}
+        onToggleLanguage={toggleLanguage}
+        memo={memoDraft}
+        onMemoChange={setMemoDraft}
+        clipboards={clipboards}
+        selectedClipboardId={selectedClipboardId}
+        onSelectClipboardId={setSelectedClipboardId}
+        selectedTags={selectedTags}
+        onAddTag={addTagAndPersist}
+        onRemoveTag={(tag) => setSelectedTags(prev => prev.filter(t => t !== tag))}
+        existingTags={tagOptions}
+        onDisconnect={handleDisconnect}
+        onCreateClipboard={handleCreateClipboard}
+        lastClipResult={lastClipResult}
+        onClearClipResult={() => setLastClipResult(null)}
+      />
+    )
   }
 
   return (
