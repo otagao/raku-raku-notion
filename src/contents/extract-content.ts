@@ -104,43 +104,94 @@ function getYouTubeCurrentVideoId(): string | undefined {
   return domId || undefined
 }
 
-function getYouTubeDescription(): string | undefined {
+async function getYouTubeDescription(): Promise<string | undefined> {
   const grabText = (el: Element | null) => el ? (el.textContent || '').trim() : ''
 
   const currentVideoId = getYouTubeCurrentVideoId()
 
-  // window.ytInitialPlayerResponse の shortDescription を最優先（現在の動画IDと一致する場合のみ）
+  // Shortsページかどうかを判定
+  const isShorts = (() => {
+    try {
+      return new URL(window.location.href).pathname.startsWith('/shorts/')
+    } catch {
+      return false
+    }
+  })()
+
+  // Shortsの場合: DOM要素を最優先（[is-active]属性は確実に現在のShortsを示す）
+  if (isShorts) {
+    const activeShort = document.querySelector('ytd-reel-video-renderer[is-active]')
+    if (activeShort) {
+      const shortText = grabText(activeShort.querySelector('#description, #description-inline-expander, ytd-text-inline-expander'))
+      if (shortText) return shortText
+    }
+  }
+
+  // window.ytInitialPlayerResponse の shortDescription（現在の動画IDと一致する場合のみ）
   try {
     const win = window as any
     const resp = win?.ytInitialPlayerResponse
     const videoId = resp?.videoDetails?.videoId
     const desc = resp?.videoDetails?.shortDescription
-    if ((!currentVideoId || videoId === currentVideoId) && typeof desc === 'string' && desc.trim()) {
+    // 動画ID検証を厳格化: currentVideoIdが存在する場合は必ず一致を確認
+    if (currentVideoId && videoId !== currentVideoId) {
+      // ID不一致の場合はスキップ（古いデータの可能性）
+    } else if (typeof desc === 'string' && desc.trim()) {
       return desc.trim()
     }
   } catch {
     // ignore
   }
 
-  // Shortsのアクティブ要素内から説明を優先取得
-  const activeShort = document.querySelector('ytd-reel-video-renderer[is-active]')
-  if (activeShort) {
-    const shortText = grabText(activeShort.querySelector('#description, #description-inline-expander, ytd-text-inline-expander'))
-    if (shortText) return shortText
+  // 通常の動画の場合: Shortsのアクティブ要素をチェック（念のため）
+  if (!isShorts) {
+    const activeShort = document.querySelector('ytd-reel-video-renderer[is-active]')
+    if (activeShort) {
+      const shortText = grabText(activeShort.querySelector('#description, #description-inline-expander, ytd-text-inline-expander'))
+      if (shortText) return shortText
+    }
   }
 
-  // DOM内の説明テキストを取得（SPA更新に追随しやすい要素から）
-  const selectors = [
-    'ytd-watch-metadata #description',
-    'ytd-watch-metadata #description-inline-expander',
-    '#description',
-    '#description-inline-expander',
-    'ytd-text-inline-expander'
-  ]
-  for (const sel of selectors) {
-    const text = grabText(document.querySelector(sel))
-    if (text) return text
+  const readDomDescription = () => {
+    const selectors = [
+      'ytd-watch-metadata #description',
+      'ytd-watch-metadata #description-inline-expander',
+      '#description',
+      '#description-inline-expander',
+      'ytd-text-inline-expander'
+    ]
+    for (const sel of selectors) {
+      const text = grabText(document.querySelector(sel))
+      if (text) return text
+    }
+    return ''
   }
+
+  let domText = readDomDescription()
+
+  const needsExpand = domText.includes('…もっと見る') || domText.includes('...more') || domText.includes('もっと見る')
+  if (needsExpand) {
+    const expandSelectors = [
+      'ytd-text-inline-expander #expand',
+      'ytd-text-inline-expander button#expand',
+      'tp-yt-paper-button#expand',
+      'button[aria-label*="もっと見る"]',
+      'button[aria-label*="Show more"]',
+      'tp-yt-paper-button[aria-label*="もっと見る"]',
+      'tp-yt-paper-button[aria-label*="Show more"]'
+    ]
+    for (const sel of expandSelectors) {
+      const btn = document.querySelector<HTMLElement>(sel)
+      if (btn) {
+        btn.click()
+        await new Promise(resolve => setTimeout(resolve, 120))
+        break
+      }
+    }
+    domText = readDomDescription()
+  }
+
+  if (domText) return domText
 
   // 最後の保険: meta description（古い可能性がある）
   const metaDesc = document.querySelector('meta[name="description"]')?.getAttribute('content')
@@ -161,6 +212,17 @@ function getImages(): string[] | undefined {
   const tw = document.querySelector('meta[name="twitter:image"]')?.getAttribute('content')
   if (tw && !urls.includes(tw)) urls.push(tw)
 
+  // YouTube専用: 現在の動画IDを取得（再生リスト・Shortsでの不要なサムネイル除外用）
+  let currentYouTubeVideoId: string | undefined
+  try {
+    const hostname = new URL(window.location.href).hostname
+    if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
+      currentYouTubeVideoId = getYouTubeCurrentVideoId()
+    }
+  } catch {
+    // ignore
+  }
+
   const images = Array.from(document.querySelectorAll('img'))
   images.forEach(img => {
     if (urls.length >= 20) return
@@ -178,7 +240,21 @@ function getImages(): string[] | undefined {
       candidate = img.getAttribute('data-src') || img.getAttribute('data-original') || img.getAttribute('data-lazy') || ''
     }
 
-    if (candidate && isLargeEnough && !isIgnoredImage(candidate) && !urls.includes(candidate)) {
+    // YouTube専用フィルタリング: 現在の動画IDと一致するサムネイルのみ許可
+    if (currentYouTubeVideoId && candidate.includes('ytimg.com')) {
+      // YouTubeサムネイルの場合、現在の動画IDを含むもののみ許可
+      if (!candidate.includes(`/vi/${currentYouTubeVideoId}/`)) {
+        return // 他の動画のサムネイルはスキップ
+      }
+    }
+
+    // 広告関連の画像を除外
+    const isAdLike = candidate.includes('ads') ||
+                     candidate.includes('doubleclick') ||
+                     candidate.includes('ad-delivery') ||
+                     candidate.includes('imasdk')
+
+    if (candidate && isLargeEnough && !isIgnoredImage(candidate) && !isAdLike && !urls.includes(candidate)) {
       urls.push(candidate)
     }
   })
@@ -347,7 +423,7 @@ function getPageTitle(): string {
 /**
  * ページからコンテンツを抽出
  */
-export function extractContent(): ExtractedContent {
+export async function extractContent(): Promise<ExtractedContent> {
   const images = getImages()
   const videos = getVideos()
   const hostname = (() => {
@@ -396,9 +472,9 @@ export function extractContent(): ExtractedContent {
   const firstImage = filteredImages?.[0]
   const firstVideoPoster = videos && videos.length > 0 ? videos[0].poster : undefined
   const isTwitter = hostname.includes('twitter.com') || hostname.includes('x.com')
-  const text = (() => {
+  const text = await (async () => {
     if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
-      return getYouTubeDescription() || getPageText()
+      return ''
     }
     return getPageText()
   })()
@@ -429,8 +505,15 @@ export function extractContent(): ExtractedContent {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'extract-content') {
     try {
-      const content = extractContent()
-      sendResponse({ success: true, content })
+      Promise.resolve(extractContent())
+        .then(content => sendResponse({ success: true, content }))
+        .catch(error => {
+          console.error('[Content Script] Error extracting content:', error)
+          sendResponse({
+            success: false,
+            error: error instanceof Error ? error.message : '不明なエラー'
+          })
+        })
     } catch (error) {
       console.error('[Content Script] Error extracting content:', error)
       sendResponse({
