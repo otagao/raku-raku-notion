@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import HomeScreen from "~screens/HomeScreen"
 import ClippingProgressScreen from "~screens/ClippingProgressScreen"
 import { StorageService } from "~services/storage"
-import { createNotionClient } from "~services/notion"
+// import { createNotionClient } from "~services/notion"  // Background経由に移行したため不要
 
 import type { Screen, Clipboard, Language, ClipResult } from "~types"
 import "~styles/global.css"
@@ -119,10 +119,21 @@ function IndexPopup() {
     }
 
     try {
-      const notionClient = createNotionClient(config)
+      // Background経由でページ一覧を取得
+      const fetchPages = async () => {
+        const response = await chrome.runtime.sendMessage({
+          type: 'list-pages-under-container'
+        })
+
+        if (!response || !response.success) {
+          throw new Error(response?.error || 'Failed to fetch pages')
+        }
+
+        return response.pages || []
+      }
 
       // 新規作成されたIDを期待している場合はリトライロジックを使用
-      let pages = await notionClient.listPagesUnderContainer()
+      let pages = await fetchPages()
 
       if (expectedNewId) {
         const MAX_RETRIES = 10  // 最大10回（約10秒）
@@ -131,7 +142,7 @@ function IndexPopup() {
         while (retries < MAX_RETRIES && !pages.find(p => p.id === expectedNewId)) {
           console.log(`[loadContainerPages] Waiting for new database ${expectedNewId} to appear (attempt ${retries + 1}/${MAX_RETRIES})`)
           await new Promise(resolve => setTimeout(resolve, 1000))
-          pages = await notionClient.listPagesUnderContainer()
+          pages = await fetchPages()
           retries++
         }
 
@@ -199,10 +210,18 @@ function IndexPopup() {
         return
       }
       try {
-        const notionClient = createNotionClient(config)
         const attemptFetch = async (retries = 1): Promise<string[]> => {
           try {
-            return await notionClient.getTagOptions(selectedClipboardId)
+            const response = await chrome.runtime.sendMessage({
+              type: 'get-tag-options',
+              data: { databaseId: selectedClipboardId }
+            })
+
+            if (!response || !response.success) {
+              throw new Error(response?.error || 'Failed to fetch tag options')
+            }
+
+            return response.tagOptions || []
           } catch (err) {
             if (retries > 0) {
               await new Promise(res => setTimeout(res, 500))
@@ -274,15 +293,24 @@ function IndexPopup() {
       throw new Error('Notion連携が必要です')
     }
 
-    // Notionに保存先データベースを作成
-    console.log('[handleCreateClipboard] Creating Notion client with databaseId:', config.databaseId)
-    const notionClient = createNotionClient(config)
+    // Notionに保存先データベースを作成（Background経由）
+    console.log('[handleCreateClipboard] Creating database via Background:', clipboardName)
+
+    const createResponse = await chrome.runtime.sendMessage({
+      type: 'create-database',
+      data: { name: clipboardName }
+    })
+
+    if (!createResponse || !createResponse.success) {
+      throw new Error(createResponse?.error || 'Failed to create database')
+    }
+
     let {
       id: databaseId,
       url: databaseUrl,
       properties,  // エンコード済み（公式API用）
       propertiesDecoded  // デコード済み（内部API用）
-    } = await notionClient.createDatabase(clipboardName)
+    } = createResponse.database
 
     // Internal APIを使用してギャラリービューを追加（自動実行）
     try {

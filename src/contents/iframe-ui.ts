@@ -2,8 +2,10 @@ import type { PlasmoCSConfig } from "plasmo"
 import { StorageService } from "~services/storage"
 import type { Language } from "~types"
 
+// このContent Scriptは動的注入専用です
+// マッチパターンを実際にはマッチしないURLに設定することで、自動注入を防ぎます
 export const config: PlasmoCSConfig = {
-  matches: ["<all_urls>"]
+  matches: ["https://plasmo-dynamic-inject-never-match.invalid/*"]
 }
 
 const HOST_ID = "raku-raku-notion-iframe-host"
@@ -252,6 +254,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message?.type === "close-iframe-ui") {
     closeOverlay()
+    sendResponse?.({ success: true })
+    return true
+  }
+
+  // ping応答（Content Script注入確認用）
+  if (message?.type === "ping-iframe-ui") {
     sendResponse?.({ success: true })
     return true
   }

@@ -1,6 +1,6 @@
 import { type FC, useState, useEffect } from "react"
 import { StorageService } from "~services/storage"
-import { createNotionClient } from "~services/notion"
+// import { createNotionClient } from "~services/notion"  // Background経由に移行したため不要
 import type { Language, Clipboard, ClipResult } from "~types"
 import { TooltipIcon } from "~components/TooltipIcon"
 import { MultiSelectTagDropdown } from "~components/MultiSelectTagDropdown"
@@ -304,9 +304,11 @@ const HomeScreen: FC<HomeScreenProps> = ({
       const hasAuth = config.authMethod === 'oauth' && config.accessToken
 
       if (hasAuth) {
-        // 接続テスト
-        const client = createNotionClient(config)
-        const connected = await client.testConnection()
+        // 接続テスト（Background経由）
+        const response = await chrome.runtime.sendMessage({
+          type: 'test-notion-connection'
+        })
+        const connected = response?.success && response?.connected
         setIsConnected(connected)
       } else {
         setIsConnected(false)
