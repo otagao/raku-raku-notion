@@ -446,28 +446,31 @@ const HomeScreen: FC<HomeScreenProps> = ({
           <div style={{
             fontSize: '14px',
             fontWeight: '600',
-            color: lastClipResult.success ? '#2e7d32' : '#c62828',
-            marginBottom: lastClipResult.success && lastClipResult.pageUrl ? '6px' : 0
+            color: lastClipResult.success ? '#2e7d32' : '#c62828'
           }}>
-            {lastClipResult.success ? `✓ ${t.clipSuccess}` : `✗ ${t.clipFailed}`}
+            {lastClipResult.success ? (
+              <>
+                ✓ {t.clipSuccess}{' '}
+                {lastClipResult.pageUrl && (
+                  <a
+                    href={lastClipResult.pageUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      color: '#1976d2',
+                      textDecoration: 'none'
+                    }}
+                  >
+                    {t.viewInNotion}
+                  </a>
+                )}
+              </>
+            ) : (
+              `✗ ${t.clipFailed}`
+            )}
           </div>
-          {lastClipResult.success && lastClipResult.pageUrl && (
-            <a
-              href={lastClipResult.pageUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                fontSize: '13px',
-                color: '#1976d2',
-                textDecoration: 'none',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-            >
-              {t.viewInNotion} →
-            </a>
-          )}
           {!lastClipResult.success && lastClipResult.error && (
             <div style={{
               fontSize: '12px',
