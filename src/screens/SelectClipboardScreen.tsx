@@ -88,7 +88,7 @@ const SelectClipboardScreen: FC<SelectClipboardScreenProps> = ({
             <div
               key={clipboard.id}
               className="list-item"
-              onClick={() => onSelectClipboard(clipboard.notionDatabaseId)}
+              onClick={() => onSelectClipboard(clipboard.notionPageId)}
               style={{ cursor: 'pointer' }}
             >
               <div className="list-item-title">
