@@ -123,6 +123,14 @@ async function handleMessage(
         await handleListDatabases(sendResponse)
         break
 
+      case "get-tag-options":
+        await handleGetTagOptions(message.data, sendResponse)
+        break
+
+      case "list-pages-under-container":
+        await handleListPagesUnderContainer(sendResponse)
+        break
+
       case "start-oauth":
         await handleStartOAuth(message.data, sendResponse)
         break
@@ -283,6 +291,53 @@ async function handleListDatabases(sendResponse: (response?: any) => void) {
     sendResponse({
       success: false,
       error: error instanceof Error ? error.message : "Failed to list databases"
+    })
+  }
+}
+
+/**
+ * タグ候補取得
+ */
+async function handleGetTagOptions(
+  data: { databaseId: string },
+  sendResponse: (response?: any) => void
+) {
+  try {
+    const config = await StorageService.getNotionConfig()
+    const notionClient = createNotionClient(config)
+    const tagOptions = await notionClient.getTagOptions(data.databaseId)
+
+    sendResponse({
+      success: true,
+      tagOptions
+    })
+  } catch (error) {
+    console.error("Failed to get tag options:", error)
+    sendResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get tag options"
+    })
+  }
+}
+
+/**
+ * コンテナページ配下のページ一覧取得
+ */
+async function handleListPagesUnderContainer(sendResponse: (response?: any) => void) {
+  try {
+    const config = await StorageService.getNotionConfig()
+    const notionClient = createNotionClient(config)
+    const pages = await notionClient.listPagesUnderContainer()
+
+    sendResponse({
+      success: true,
+      pages
+    })
+  } catch (error) {
+    console.error("Failed to list pages under container:", error)
+    sendResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to list pages under container"
     })
   }
 }

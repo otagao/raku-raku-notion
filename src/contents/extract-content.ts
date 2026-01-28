@@ -7,9 +7,10 @@ import type { PlasmoCSConfig } from "plasmo"
 import { extractYouTubeVideoId, getYouTubeThumb } from "~utils/youtube"
 import { isIgnoredImage, extractTextFromElement } from "~utils/content-extraction"
 
-// すべてのHTTPページで実行
+// このContent Scriptは動的注入専用です
+// マッチパターンを実際にはマッチしないURLに設定することで、自動注入を防ぎます
 export const config: PlasmoCSConfig = {
-  matches: ["<all_urls>"],
+  matches: ["https://plasmo-dynamic-inject-never-match.invalid/*"],
   all_frames: false
 }
 
