@@ -698,8 +698,64 @@ async function ensureContentScriptInjected(tabId: number): Promise<void> {
 }
 
 /**
+ * Notion.soタブを取得または作成してContent Scriptにメッセージを送信する共通関数
+ * タブ検索・Content Script注入・メッセージ送信のロジックを一元化
+ */
+async function sendMessageToNotionContentScript<T>(message: any): Promise<T> {
+  // Notion.soタブを検索（読み込み完了済みのみ）
+  const notionTabs = await chrome.tabs.query({
+    url: "https://www.notion.so/*",
+    status: 'complete'
+  })
+
+  console.log(`[Background] Found ${notionTabs.length} Notion.so tabs`)
+
+  // アクセス可能なタブを見つけるまでループ
+  for (const tab of notionTabs) {
+    try {
+      console.log(`[Background] Trying tab ${tab.id}: ${tab.url}`)
+      await ensureContentScriptInjected(tab.id!)
+      console.log('[Background] Using existing tab:', tab.id)
+      return await chrome.tabs.sendMessage(tab.id!, message)
+    } catch (error) {
+      console.warn(`[Background] Tab ${tab.id} is not accessible:`, error instanceof Error ? error.message : String(error))
+      continue
+    }
+  }
+
+  // アクセス可能なタブが見つからなかった場合、新規タブ作成
+  console.log('[Background] No accessible Notion.so tab found. Creating new tab...')
+  const tab = await chrome.tabs.create({
+    url: "https://www.notion.so",
+    active: false
+  })
+
+  // タブの読み込み完了を待つ
+  await new Promise<void>((resolve) => {
+    const listener = (tabId: number, changeInfo: { status?: string }) => {
+      if (tabId === tab.id && changeInfo.status === 'complete') {
+        chrome.tabs.onUpdated.removeListener(listener)
+        resolve()
+      }
+    }
+    chrome.tabs.onUpdated.addListener(listener)
+  })
+
+  // Content Scriptの自動注入を待つ
+  await new Promise(resolve => setTimeout(resolve, 1000))
+
+  try {
+    const response = await chrome.tabs.sendMessage(tab.id!, message)
+    await chrome.tabs.remove(tab.id!)
+    return response
+  } catch (error) {
+    await chrome.tabs.remove(tab.id!).catch(() => {})
+    throw error
+  }
+}
+
+/**
  * Content Script経由でギャラリービューを追加
- * Notion.so上のContent Scriptを使用してCookie認証で内部APIを呼び出す
  */
 async function handleAddGalleryViewViaContent(
   data: {
@@ -714,76 +770,14 @@ async function handleAddGalleryViewViaContent(
   try {
     console.log('[Background] Adding gallery view via content script:', data.databaseId)
 
-    // Notion.soタブを検索（status: 'complete'を追加）
-    const notionTabs = await chrome.tabs.query({
-      url: "https://www.notion.so/*",
-      status: 'complete'  // 読み込み完了済みタブのみ
-    })
-
-    console.log(`[Background] Found ${notionTabs.length} Notion.so tabs`)
-
-    // アクセス可能なタブを見つけるまでループ
-    let successfulTab = null
-    for (const tab of notionTabs) {
-      try {
-        console.log(`[Background] Trying tab ${tab.id}: ${tab.url}`)
-        await ensureContentScriptInjected(tab.id!)
-        successfulTab = tab
-        break  // 成功したらループを抜ける
-      } catch (error) {
-        console.warn(`[Background] Tab ${tab.id} is not accessible:`, error instanceof Error ? error.message : String(error))
-        continue  // 次のタブを試す
-      }
-    }
-
-    // アクセス可能なタブが見つかった場合
-    if (successfulTab) {
-      console.log('[Background] Using existing tab:', successfulTab.id)
-      const response = await chrome.tabs.sendMessage(successfulTab.id!, {
-        type: 'add-gallery-view',
-        databaseId: data.databaseId,
-        workspaceId: data.workspaceId,
-        visibleProperties: data.visibleProperties || [],
-        allProperties: data.allProperties || [],
-        defaultViewId: data.defaultViewId  // デフォルトビューIDを渡す
-      })
-      sendResponse(response)
-      return
-    }
-
-    // アクセス可能なタブが見つからなかった場合、新規タブ作成
-    console.log('[Background] No accessible Notion.so tab found. Creating new tab...')
-    const tab = await chrome.tabs.create({
-      url: "https://www.notion.so",
-      active: false // バックグラウンドで開く
-    })
-
-    // タブの読み込み完了を待つ
-    await new Promise<void>((resolve) => {
-      const listener = (tabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
-        if (tabId === tab.id && changeInfo.status === 'complete') {
-          chrome.tabs.onUpdated.removeListener(listener)
-          resolve()
-        }
-      }
-      chrome.tabs.onUpdated.addListener(listener)
-    })
-
-    // Content Scriptの自動注入を待つ
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    // Content Scriptにメッセージを送信
-    const response = await chrome.tabs.sendMessage(tab.id!, {
+    const response = await sendMessageToNotionContentScript({
       type: 'add-gallery-view',
       databaseId: data.databaseId,
       workspaceId: data.workspaceId,
       visibleProperties: data.visibleProperties || [],
       allProperties: data.allProperties || [],
-      defaultViewId: data.defaultViewId  // デフォルトビューIDを渡す
+      defaultViewId: data.defaultViewId
     })
-
-    // タブを閉じる
-    await chrome.tabs.remove(tab.id!)
 
     sendResponse(response)
   } catch (error) {
@@ -805,64 +799,10 @@ async function handleGetDatabaseViewsViaContent(
   try {
     console.log('[Background] Getting database views via content script:', data.databaseId)
 
-    // Notion.soタブを検索（status: 'complete'を追加）
-    const notionTabs = await chrome.tabs.query({
-      url: "https://www.notion.so/*",
-      status: 'complete'  // 読み込み完了済みタブのみ
-    })
-
-    console.log(`[Background] Found ${notionTabs.length} Notion.so tabs`)
-
-    // アクセス可能なタブを見つけるまでループ
-    let successfulTab = null
-    for (const tab of notionTabs) {
-      try {
-        console.log(`[Background] Trying tab ${tab.id}: ${tab.url}`)
-        await ensureContentScriptInjected(tab.id!)
-        successfulTab = tab
-        break  // 成功したらループを抜ける
-      } catch (error) {
-        console.warn(`[Background] Tab ${tab.id} is not accessible:`, error instanceof Error ? error.message : String(error))
-        continue  // 次のタブを試す
-      }
-    }
-
-    // アクセス可能なタブが見つかった場合
-    if (successfulTab) {
-      console.log('[Background] Using existing tab:', successfulTab.id)
-      const response = await chrome.tabs.sendMessage(successfulTab.id!, {
-        type: 'get-database-views',
-        databaseId: data.databaseId
-      })
-      sendResponse(response)
-      return
-    }
-
-    // アクセス可能なタブが見つからなかった場合、新規タブ作成
-    console.log('[Background] No accessible Notion.so tab found. Creating new tab...')
-    const tab = await chrome.tabs.create({
-      url: "https://www.notion.so",
-      active: false
-    })
-
-    await new Promise<void>((resolve) => {
-      const listener = (tabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
-        if (tabId === tab.id && changeInfo.status === 'complete') {
-          chrome.tabs.onUpdated.removeListener(listener)
-          resolve()
-        }
-      }
-      chrome.tabs.onUpdated.addListener(listener)
-    })
-
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    const response = await chrome.tabs.sendMessage(tab.id!, {
+    const response = await sendMessageToNotionContentScript({
       type: 'get-database-views',
       databaseId: data.databaseId
     })
-
-    await chrome.tabs.remove(tab.id!)
 
     sendResponse(response)
   } catch (error) {
