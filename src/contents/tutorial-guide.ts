@@ -23,11 +23,19 @@ const injectOverlay = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const clientId = urlParams.get('client_id');
     const expectedClientId = process.env.PLASMO_PUBLIC_NOTION_CLIENT_ID || '';
-    const isLoginPage = window.location.pathname.includes('/login');
+    const detectLoginPage = () => {
+        const pathName = window.location.pathname.toLowerCase();
+        if (pathName.includes('/login') || pathName.includes('/signin')) return true;
+        if (document.querySelector('input[type="password"], input[name="password"]')) return true;
+        if (document.querySelector('input[type="email"], input[name="email"]')) return true;
+        if (document.querySelector('form[action*="login"], form[action*="signin"]')) return true;
+        if (document.querySelector('[data-testid*="login"], [data-testid*="signin"]')) return true;
+        return false;
+    };
 
     // ログインページの場合はclient_idチェックをスキップ（OAuthフローからリダイレクトされた可能性があるため）
     // install-integrationページの場合のみclient_idを検証
-    if (!isLoginPage && (!expectedClientId || clientId !== expectedClientId)) {
+    if (!detectLoginPage() && (!expectedClientId || clientId !== expectedClientId)) {
         console.log("Raku Raku Notion: Skipping overlay (different or missing client_id)");
         return;
     }
@@ -160,10 +168,10 @@ const injectOverlay = () => {
     const borderColor = darkMode ? '#00ffff' : '#0066cc';
     const introTextColor = darkMode ? '#fff' : '#333';
 
-    // ログインページにいる場合のみステップ1を表示（既にログイン済みの場合は非表示）
-    // isLoginPageは関数の先頭で定義済み
+    // ログイン画面判定に応じてステップ1を表示
 
-    const step1HTML = isLoginPage ? `
+    const buildInstructionsHTML = (loginMode: boolean) => {
+        const step1HTML = loginMode ? `
         <div style="margin-bottom: 20px;">
             <h3 style="color: ${headingColor}; font-size: 14px; margin: 0 0 5px 0; font-weight: bold;">1. 「Notionにログイン」またはアカウントを選択</h3>
             <p style="font-size: 13px; line-height: 1.5; color: ${textColor}; margin: 0;">
@@ -173,11 +181,10 @@ const injectOverlay = () => {
         </div>
     ` : '';
 
-    // ステップ番号を調整（ログイン済みの場合は1から、未ログインの場合は2から）
-    const step2Num = isLoginPage ? '2' : '1';
-    const step3Num = isLoginPage ? '3' : '2';
+        const step2Num = loginMode ? '2' : '1';
+        const step3Num = loginMode ? '3' : '2';
 
-    const instructionsHTML = `
+        return `
         <div style="margin-bottom: 5px; font-size: 13px; color: ${introTextColor}; font-weight: bold; border-left: 3px solid ${borderColor}; padding-left: 8px;">
             認証画面での操作手順はこちらの通りです。
         </div>
@@ -195,7 +202,20 @@ const injectOverlay = () => {
             </p>
         </div>
     `;
-    slide2.innerHTML = instructionsHTML;
+    };
+
+    let hasLoginStep = detectLoginPage();
+    slide2.innerHTML = buildInstructionsHTML(hasLoginStep);
+
+    if (!hasLoginStep) {
+        const loginCheckInterval = window.setInterval(() => {
+            if (detectLoginPage()) {
+                hasLoginStep = true;
+                slide2.innerHTML = buildInstructionsHTML(true);
+                window.clearInterval(loginCheckInterval);
+            }
+        }, 800);
+    }
 
 
 
