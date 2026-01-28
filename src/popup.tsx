@@ -108,7 +108,7 @@ function IndexPopup() {
     }
   }, [clipboards, selectedClipboardId])
 
-  const loadContainerPages = async () => {
+  const loadContainerPages = async (expectedNewId?: string) => {
     const config = await StorageService.getNotionConfig()
     if (!config.accessToken && !config.apiKey) {
       setClipboards([])
@@ -117,7 +117,27 @@ function IndexPopup() {
 
     try {
       const notionClient = createNotionClient(config)
-      const pages = await notionClient.listPagesUnderContainer()
+
+      // 新規作成されたIDを期待している場合はリトライロジックを使用
+      let pages = await notionClient.listPagesUnderContainer()
+
+      if (expectedNewId) {
+        const MAX_RETRIES = 10  // 最大10回（約10秒）
+        let retries = 0
+
+        while (retries < MAX_RETRIES && !pages.find(p => p.id === expectedNewId)) {
+          console.log(`[loadContainerPages] Waiting for new database ${expectedNewId} to appear (attempt ${retries + 1}/${MAX_RETRIES})`)
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          pages = await notionClient.listPagesUnderContainer()
+          retries++
+        }
+
+        if (!pages.find(p => p.id === expectedNewId)) {
+          console.warn(`[loadContainerPages] New database ${expectedNewId} not found after ${MAX_RETRIES} retries`)
+        } else {
+          console.log(`[loadContainerPages] New database ${expectedNewId} found after ${retries} retries`)
+        }
+      }
 
       // ContainerPage を Clipboard 型に変換（互換性のため）
       const clipboards: Clipboard[] = pages.map(page => ({
@@ -130,15 +150,19 @@ function IndexPopup() {
 
       setClipboards(clipboards)
 
-      // 選択状態の復元
+      // 選択状態の復元（新規作成時は自動選択）
       if (clipboards.length > 0) {
-        const storedId = await StorageService.getSelectedClipboardId()
-        const fallbackId = clipboards[0].notionPageId
-        setSelectedClipboardId(
-          storedId && clipboards.find(cb => cb.notionPageId === storedId)
-            ? storedId
-            : fallbackId
-        )
+        if (expectedNewId && clipboards.find(cb => cb.notionPageId === expectedNewId)) {
+          setSelectedClipboardId(expectedNewId)
+        } else {
+          const storedId = await StorageService.getSelectedClipboardId()
+          const fallbackId = clipboards[0].notionPageId
+          setSelectedClipboardId(
+            storedId && clipboards.find(cb => cb.notionPageId === storedId)
+              ? storedId
+              : fallbackId
+          )
+        }
       } else {
         setSelectedClipboardId(undefined)
       }
@@ -409,8 +433,8 @@ function IndexPopup() {
       // 内部APIは失敗しても保存先データベース作成は成功とする（警告のみ）
     }
 
-    // 作成後に保存先リストを再取得
-    await loadContainerPages()
+    // 作成後に保存先リストを再取得（新規IDを指定してリトライ処理を有効化）
+    await loadContainerPages(databaseId)
     console.log('[handleCreateClipboard] 保存先データベース created:', clipboardName)
   }
 
