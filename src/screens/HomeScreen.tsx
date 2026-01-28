@@ -27,11 +27,9 @@ interface HomeScreenProps {
 }
 
 const translations: Record<Language, {
-  saving: string
   memoLabel: string
   memoPlaceholder: string
   clipButton: string
-  clipNowButton: string
   disconnect: string
   createButton: string
   createButtonLoading: string
@@ -39,18 +37,10 @@ const translations: Record<Language, {
   checking: string
   connected: (name: string) => string
   destinationLabel: string
-  destinationPlaceholder: string
   destinationNamePlaceholder: string
   tagLabel: string
-  addedTagsLabel: string
-  tagPlaceholder: string
-  tagNewOption: string
-  tagNamePlaceholder: string
-  tagAddButton: string
   tooltipDestination: string
-  tooltipWorkspace: string
   tooltipTag: string
-  tooltipCreateButton: string
   oauthButtonIdle: string
   oauthButtonLoading: string
   successSaved: string
@@ -61,11 +51,9 @@ const translations: Record<Language, {
   viewInNotion: string
 }> = {
   ja: {
-    saving: '',
     memoLabel: 'メモ（任意）',
     memoPlaceholder: 'ページについてのメモを入力できます',
     clipButton: 'このページを保存',
-    clipNowButton: '再生時間情報も保存',
     disconnect: '連携解除',
     createButton: '作成',
     createButtonLoading: '作成中...',
@@ -73,18 +61,10 @@ const translations: Record<Language, {
     checking: '接続状態を確認中...',
     connected: (name) => `接続中: ${name || 'Notionワークスペース'}`,
     destinationLabel: '保存先',
-    destinationPlaceholder: '保存先を選択してください',
     destinationNamePlaceholder: '新規保存先を入力',
     tagLabel: 'タグ（任意）',
-    addedTagsLabel: '付与タグ',
-    tagPlaceholder: '付与するタグを選択してください',
-    tagNewOption: '新規タグ',
-    tagNamePlaceholder: '新規タグを入力',
-    tagAddButton: '付与',
     tooltipDestination: 'ページの保存先となるNotionデータベースを選択します',
-    tooltipWorkspace: 'Notion上のワークスペース（チームまたは個人アカウント）',
     tooltipTag: 'ページに追加するタグ。既存タグから選択、または新規作成できます',
-    tooltipCreateButton: 'Notion上に新しい保存先を作成します',
     oauthButtonIdle: 'Notionで認証して接続',
     oauthButtonLoading: '処理中...',
     successSaved: '設定を保存しました',
@@ -95,11 +75,9 @@ const translations: Record<Language, {
     viewInNotion: 'Notionで確認する'
   },
   en: {
-    saving: '',
     memoLabel: 'Memo (optional)',
     memoPlaceholder: 'Add a note about this page',
     clipButton: 'Save this page',
-    clipNowButton: 'Save with\nplayback time',
     disconnect: 'Disconnect',
     createButton: 'Create',
     createButtonLoading: 'Creating...',
@@ -107,18 +85,10 @@ const translations: Record<Language, {
     checking: 'Checking connection...',
     connected: (name) => `Connected: ${name || 'Notion workspace'}`,
     destinationLabel: 'Destination',
-    destinationPlaceholder: 'Select a destination',
     destinationNamePlaceholder: 'Enter new destination',
     tagLabel: 'Tags (optional)',
-    addedTagsLabel: 'Tags to add',
-    tagPlaceholder: 'Select tags to add',
-    tagNewOption: 'New tag',
-    tagNamePlaceholder: 'Enter new tag',
-    tagAddButton: 'Add',
     tooltipDestination: 'Select a Notion database where pages will be saved',
-    tooltipWorkspace: 'A workspace in Notion (team or personal account)',
     tooltipTag: 'Tags to add to the page. Choose from existing tags or create new ones',
-    tooltipCreateButton: 'Create a new destination database in Notion',
     oauthButtonIdle: 'Connect with Notion',
     oauthButtonLoading: 'Processing...',
     successSaved: 'Settings saved',
