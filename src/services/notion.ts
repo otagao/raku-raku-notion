@@ -693,7 +693,7 @@ export class NotionService {
   /**
    * Webクリップをデータベースに追加する
    */
-  async createWebClip(data: WebClipData): Promise<string> {
+  async createWebClip(data: WebClipData): Promise<{ id: string; url: string }> {
     const { title, url, content, thumbnail, images, videos, icon, memo, tags, databaseId } = data
 
     try {
@@ -932,7 +932,7 @@ export class NotionService {
       const result = await response.json()
       console.log('Web clip created successfully:', result)
 
-      return result.id
+      return { id: result.id, url: result.url }
     } catch (error) {
       console.error('Error creating web clip:', error)
       throw error
