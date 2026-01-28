@@ -311,8 +311,12 @@ async function handleStartOAuth(
     // OAuth認証URLを生成
     const authUrl = generateOAuthUrl(oauthConfig, state)
 
-    // 新しいタブでOAuth認証画面を開く
-    chrome.tabs.create({ url: authUrl })
+    // 新しいタブでOAuth認証画面を開く（タブIDを保存）
+    const tab = await chrome.tabs.create({ url: authUrl })
+    if (tab.id) {
+      await chrome.storage.local.set({ 'raku-oauth-tab-id': tab.id })
+      console.log('[Background] OAuth tab created with ID:', tab.id)
+    }
 
     // レスポンスを送信（ポップアップがキャッシュされる前に）
     try {
@@ -374,8 +378,10 @@ async function handleCompleteOAuth(
     await StorageService.saveNotionConfig(updatedConfig)
     console.log('[Background] Config saved successfully');
 
-    // OAuth完了フラグを削除
-    await chrome.storage.local.remove(['raku-oauth-state', 'raku-oauth-pending'])
+    // OAuth完了フラグとタブIDを取得してから削除
+    const storageData = await chrome.storage.local.get(['raku-oauth-tab-id'])
+    const oauthTabId = storageData['raku-oauth-tab-id']
+    await chrome.storage.local.remove(['raku-oauth-state', 'raku-oauth-pending', 'raku-oauth-tab-id'])
 
     const response = {
       success: true,
@@ -387,6 +393,34 @@ async function handleCompleteOAuth(
 
     console.log('[Background] Sending success response:', response)
     sendResponse(response)
+
+    // OAuthタブを閉じてUIを開く
+    if (oauthTabId) {
+      try {
+        await chrome.tabs.remove(oauthTabId)
+        console.log('[Background] OAuth tab closed:', oauthTabId)
+      } catch (err) {
+        console.warn('[Background] Failed to close OAuth tab (may already be closed):', err)
+      }
+    }
+
+    // 少し待ってからUIを開く（タブ切り替えの完了を待つ）
+    await new Promise(resolve => setTimeout(resolve, 300))
+
+    // アクティブタブにオーバーレイUIを開く
+    try {
+      await openIframeUiForActiveTab()
+      console.log('[Background] Iframe UI opened successfully after OAuth')
+    } catch (err) {
+      console.warn('[Background] Could not open iframe UI automatically:', err)
+      // フォールバック: action.openPopup を試行
+      try {
+        await chrome.action.openPopup()
+        console.log('[Background] Fallback: Popup opened successfully')
+      } catch (popupErr) {
+        console.warn('[Background] Fallback popup also failed:', popupErr)
+      }
+    }
   } catch (error) {
     console.error("[Background] Failed to complete OAuth:", error)
     sendResponse({
@@ -446,8 +480,6 @@ async function handleClipPage(
       try {
         console.log('[Background] Extracting content from tab:', data.tabId)
         sendProgress('ページの情報を取得中...');
-        // 遅延ロード対策: 少し待ってから抽出
-        await new Promise(resolve => setTimeout(resolve, 2000))
         const response = await chrome.tabs.sendMessage(data.tabId, { type: 'extract-content' })
 
         if (response?.success && response.content) {
@@ -481,15 +513,28 @@ async function handleClipPage(
 
     const notionClient = createNotionClient(config)
 
+    const contentText = extractedContent.text || fallbackContent?.text || data.content
+    let thumbnail = extractedContent.thumbnail || fallbackContent?.thumbnail || data.thumbnail
+    let images = (extractedContent.images && extractedContent.images.length > 0 ? extractedContent.images : fallbackContent?.images) || undefined
+    const videos = (extractedContent.videos && extractedContent.videos.length > 0 ? extractedContent.videos : fallbackContent?.videos) || undefined
+
+    // YouTubeはサムネイル1枚のみに制限（その他の画像は保存しない）
+    const youtubeVideoId = extractYouTubeVideoId(data.url)
+    if (youtubeVideoId) {
+      const youtubeThumb = getYouTubeThumb(youtubeVideoId)
+      thumbnail = youtubeThumb || thumbnail
+      images = youtubeThumb ? [youtubeThumb] : (thumbnail ? [thumbnail] : undefined)
+    }
+
     const webClipData: WebClipData = {
       title: data.title,
       url: data.url,
       databaseId: data.databaseId,
       // Content Scriptから取得したコンテンツを優先、なければdata引数を使用
-      content: extractedContent.text || fallbackContent?.text || data.content,
-      thumbnail: extractedContent.thumbnail || fallbackContent?.thumbnail || data.thumbnail,
-      images: (extractedContent.images && extractedContent.images.length > 0 ? extractedContent.images : fallbackContent?.images) || undefined,
-      videos: (extractedContent.videos && extractedContent.videos.length > 0 ? extractedContent.videos : fallbackContent?.videos) || undefined,
+      content: contentText,
+      thumbnail,
+      images,
+      videos,
       icon: extractedContent.icon,
       memo: data.memo,
       tags: data.tags

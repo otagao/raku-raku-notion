@@ -63,10 +63,10 @@ jobs:
           # 前のタグを取得（なければ最初のコミット）
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || git rev-list --max-parents=0 HEAD)
 
-          # コミットログからリリースノートを生成
+          # コミットログからリリースノートを生成（マージコミットは除外）
           echo "## 変更内容" > RELEASE_NOTES.md
           echo "" >> RELEASE_NOTES.md
-          git log --pretty=format:"- %s" ${PREV_TAG}..HEAD >> RELEASE_NOTES.md
+          git log --no-merges --pretty=format:"- %s" ${PREV_TAG}..HEAD >> RELEASE_NOTES.md
           echo "" >> RELEASE_NOTES.md
           echo "" >> RELEASE_NOTES.md
           echo "## インストール方法" >> RELEASE_NOTES.md
