@@ -91,9 +91,12 @@ function IndexPopup() {
   }
 
   const initializeAndLoadData = async () => {
-    await loadContainerPages()
-    await loadLanguage()
-    await loadCurrentTab()
+    // 互いに依存しない処理を並列実行して初期化を高速化
+    await Promise.all([
+      loadContainerPages(),
+      loadLanguage(),
+      loadCurrentTab()
+    ])
   }
 
   // クリップボードリストが変わったときに選択状態を同期
