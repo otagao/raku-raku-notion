@@ -332,11 +332,11 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 例：
 ```
-feat: クリップボード選択機能の実装
+feat: タグ機能の追加
 
-- SelectClipboardScreen を新規作成
-- 複数クリップボードから選択可能に
-- 1つの場合は自動選択
+- HomeScreenにタグ入力UIを追加
+- 既存タグの選択と新規タグ作成に対応
+- タグ候補のキャッシュ機能を実装
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 

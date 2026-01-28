@@ -1,4 +1,4 @@
-export type Screen = 'home' | 'create-clipboard' | 'select-clipboard'
+export type Screen = 'home'
 
 /**
  * コンテナ配下のページ（保存先候補）
