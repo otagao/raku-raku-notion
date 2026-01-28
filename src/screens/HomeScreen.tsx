@@ -620,7 +620,7 @@ const HomeScreen: FC<HomeScreenProps> = ({
           </label>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <select
-              value={selectedClipboardId || ''}
+              value={selectedClipboardId || '__new__'}
               onChange={(e) => onSelectClipboardId(e.target.value)}
               style={{
                 flex: '0 1 42%',
@@ -633,7 +633,6 @@ const HomeScreen: FC<HomeScreenProps> = ({
                 cursor: 'pointer'
               }}
             >
-              <option value="" disabled>{t.destinationPlaceholder}</option>
               <option value="__new__">{t.newDestinationOption}</option>
               {clipboards.map(cb => (
                 <option key={cb.id} value={cb.notionPageId}>

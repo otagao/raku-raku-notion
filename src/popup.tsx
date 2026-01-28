@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
 import HomeScreen from "~screens/HomeScreen"
-import CreateClipboardScreen from "~screens/CreateClipboardScreen"
-import SelectClipboardScreen from "~screens/SelectClipboardScreen"
 import ClippingProgressScreen from "~screens/ClippingProgressScreen"
 import { StorageService } from "~services/storage"
 import { createNotionClient } from "~services/notion"
@@ -99,9 +97,7 @@ function IndexPopup() {
   // クリップボードリストが変わったときに選択状態を同期
   useEffect(() => {
     if (clipboards.length === 0) {
-      if (selectedClipboardId !== '__new__') {
-        setSelectedClipboardId(undefined)
-      }
+      setSelectedClipboardId('__new__')
       return
     }
     if (selectedClipboardId === '__new__') {
@@ -112,7 +108,7 @@ function IndexPopup() {
     }
   }, [clipboards, selectedClipboardId])
 
-  const loadContainerPages = async () => {
+  const loadContainerPages = async (expectedNewId?: string) => {
     const config = await StorageService.getNotionConfig()
     if (!config.accessToken && !config.apiKey) {
       setClipboards([])
@@ -121,7 +117,27 @@ function IndexPopup() {
 
     try {
       const notionClient = createNotionClient(config)
-      const pages = await notionClient.listPagesUnderContainer()
+
+      // 新規作成されたIDを期待している場合はリトライロジックを使用
+      let pages = await notionClient.listPagesUnderContainer()
+
+      if (expectedNewId) {
+        const MAX_RETRIES = 10  // 最大10回（約10秒）
+        let retries = 0
+
+        while (retries < MAX_RETRIES && !pages.find(p => p.id === expectedNewId)) {
+          console.log(`[loadContainerPages] Waiting for new database ${expectedNewId} to appear (attempt ${retries + 1}/${MAX_RETRIES})`)
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          pages = await notionClient.listPagesUnderContainer()
+          retries++
+        }
+
+        if (!pages.find(p => p.id === expectedNewId)) {
+          console.warn(`[loadContainerPages] New database ${expectedNewId} not found after ${MAX_RETRIES} retries`)
+        } else {
+          console.log(`[loadContainerPages] New database ${expectedNewId} found after ${retries} retries`)
+        }
+      }
 
       // ContainerPage を Clipboard 型に変換（互換性のため）
       const clipboards: Clipboard[] = pages.map(page => ({
@@ -134,15 +150,19 @@ function IndexPopup() {
 
       setClipboards(clipboards)
 
-      // 選択状態の復元
+      // 選択状態の復元（新規作成時は自動選択）
       if (clipboards.length > 0) {
-        const storedId = await StorageService.getSelectedClipboardId()
-        const fallbackId = clipboards[0].notionPageId
-        setSelectedClipboardId(
-          storedId && clipboards.find(cb => cb.notionPageId === storedId)
-            ? storedId
-            : fallbackId
-        )
+        if (expectedNewId && clipboards.find(cb => cb.notionPageId === expectedNewId)) {
+          setSelectedClipboardId(expectedNewId)
+        } else {
+          const storedId = await StorageService.getSelectedClipboardId()
+          const fallbackId = clipboards[0].notionPageId
+          setSelectedClipboardId(
+            storedId && clipboards.find(cb => cb.notionPageId === storedId)
+              ? storedId
+              : fallbackId
+          )
+        }
       } else {
         setSelectedClipboardId(undefined)
       }
@@ -413,8 +433,8 @@ function IndexPopup() {
       // 内部APIは失敗しても保存先データベース作成は成功とする（警告のみ）
     }
 
-    // 作成後に保存先リストを再取得
-    await loadContainerPages()
+    // 作成後に保存先リストを再取得（新規IDを指定してリトライ処理を有効化）
+    await loadContainerPages(databaseId)
     console.log('[handleCreateClipboard] 保存先データベース created:', clipboardName)
   }
 
@@ -422,19 +442,21 @@ function IndexPopup() {
 
 
   const handleClipPage = async () => {
-    // 保存先データベースがない場合
-    if (clipboards.length === 0) {
-      alert('保存先データベースを先に作成してください')
-      handleNavigate('create-clipboard')
-      return
-    }
-
     if (selectedClipboardId === '__new__') {
-      alert('保存先を作成してください')
+      alert(language === 'ja'
+        ? '保存先を作成してから保存してください'
+        : 'Please create a destination before saving')
       return
     }
 
-    const targetId = selectedClipboardId || clipboards[0].notionPageId
+    const targetId = selectedClipboardId || clipboards[0]?.notionPageId
+    if (!targetId) {
+      alert(language === 'ja'
+        ? '保存先が見つかりません'
+        : 'No destination found')
+      return
+    }
+
     await performClip(targetId, memoDraft || undefined)
   }
 
@@ -508,18 +530,18 @@ function IndexPopup() {
   }
 
   const handleClipNow = async () => {
-    if (clipboards.length === 0) {
-      alert('保存先データベースを先に作成してください')
-      handleNavigate('create-clipboard')
-      return
-    }
     if (selectedClipboardId === '__new__') {
-      alert('保存先を作成してください')
+      alert(language === 'ja'
+        ? '保存先を作成してから保存してください'
+        : 'Please create a destination before saving')
       return
     }
+
     const tabInfo = await StorageService.getCurrentTabInfo()
     if (!tabInfo) {
-      alert('ページ情報を取得できませんでした')
+      alert(language === 'ja'
+        ? 'ページ情報を取得できませんでした'
+        : 'Failed to get page information')
       return
     }
 
@@ -535,7 +557,14 @@ function IndexPopup() {
       console.warn('[handleClipNow] Failed to get YouTube time:', error)
     }
 
-    const targetId = selectedClipboardId || clipboards[0].notionPageId
+    const targetId = selectedClipboardId || clipboards[0]?.notionPageId
+    if (!targetId) {
+      alert(language === 'ja'
+        ? '保存先が見つかりません'
+        : 'No destination found')
+      return
+    }
+
     await performClip(targetId, memoDraft || undefined, urlToSave)
   }
 
@@ -554,73 +583,29 @@ function IndexPopup() {
   }
 
   const renderScreen = () => {
-    switch (currentScreen) {
-      case 'home':
-        return (
-          <HomeScreen
-            onNavigate={handleNavigate}
-            onClipPage={handleClipPage}
-            onClipNow={handleClipNow}
-            isYouTubeTab={isYouTubeTab}
-            language={language}
-            onToggleLanguage={toggleLanguage}
-            memo={memoDraft}
-            onMemoChange={setMemoDraft}
-            clipboards={clipboards}
-            selectedClipboardId={selectedClipboardId}
-            onSelectClipboardId={setSelectedClipboardId}
-            selectedTags={selectedTags}
-            onAddTag={addTagAndPersist}
-            onRemoveTag={(tag) => setSelectedTags(prev => prev.filter(t => t !== tag))}
-            existingTags={tagOptions}
-            onDisconnect={handleDisconnect}
-            onCreateClipboard={handleCreateClipboard}
-            lastClipResult={lastClipResult}
-            onClearClipResult={() => setLastClipResult(null)}
-          />
-        )
-      case 'create-clipboard':
-        return (
-          <CreateClipboardScreen
-            onNavigate={handleNavigate}
-            onCreateClipboard={handleCreateClipboard}
-            language={language}
-            countdown={creationCountdown}
-            status={creationStatus}
-          />
-        )
-      case 'select-clipboard':
-        return (
-          <SelectClipboardScreen
-            clipboards={clipboards}
-            onNavigate={handleNavigate}
-            onSelectClipboard={handleSelectClipboard}
-            language={language}
-          />
-        )
-      default:
-        return (
-          <HomeScreen
-            onNavigate={handleNavigate}
-            onClipPage={handleClipPage}
-            language={language}
-            onToggleLanguage={toggleLanguage}
-            memo={memoDraft}
-            onMemoChange={setMemoDraft}
-            clipboards={clipboards}
-            selectedClipboardId={selectedClipboardId}
-            onSelectClipboardId={setSelectedClipboardId}
-            selectedTags={selectedTags}
-            onAddTag={addTagAndPersist}
-            onRemoveTag={(tag) => setSelectedTags(prev => prev.filter(t => t !== tag))}
-            existingTags={tagOptions}
-            isYouTubeTab={isYouTubeTab}
-            onClipNow={handleClipNow}
-            onDisconnect={handleDisconnect}
-            onCreateClipboard={handleCreateClipboard}
-          />
-        )
-    }
+    return (
+      <HomeScreen
+        onNavigate={handleNavigate}
+        onClipPage={handleClipPage}
+        onClipNow={handleClipNow}
+        isYouTubeTab={isYouTubeTab}
+        language={language}
+        onToggleLanguage={toggleLanguage}
+        memo={memoDraft}
+        onMemoChange={setMemoDraft}
+        clipboards={clipboards}
+        selectedClipboardId={selectedClipboardId}
+        onSelectClipboardId={setSelectedClipboardId}
+        selectedTags={selectedTags}
+        onAddTag={addTagAndPersist}
+        onRemoveTag={(tag) => setSelectedTags(prev => prev.filter(t => t !== tag))}
+        existingTags={tagOptions}
+        onDisconnect={handleDisconnect}
+        onCreateClipboard={handleCreateClipboard}
+        lastClipResult={lastClipResult}
+        onClearClipResult={() => setLastClipResult(null)}
+      />
+    )
   }
 
   return (
