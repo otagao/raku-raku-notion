@@ -6,7 +6,7 @@ import ClippingProgressScreen from "~screens/ClippingProgressScreen"
 import { StorageService } from "~services/storage"
 import { createNotionClient } from "~services/notion"
 
-import type { Screen, Clipboard, Language } from "~types"
+import type { Screen, Clipboard, Language, ClipResult } from "~types"
 import "~styles/global.css"
 
 function IndexPopup() {
@@ -24,6 +24,7 @@ function IndexPopup() {
   const [creationCountdown, setCreationCountdown] = useState(0)
   const [creationStatus, setCreationStatus] = useState<string>("")
   const [memoDraft, setMemoDraft] = useState<string>("")
+  const [lastClipResult, setLastClipResult] = useState<ClipResult | null>(null)
 
   useEffect(() => {
     migrateStorageIfNeeded()
@@ -33,9 +34,19 @@ function IndexPopup() {
       if (message.type === 'CLIP_PROGRESS') {
         setClipProgress(message.status);
       } else if (message.type === 'CLIP_COMPLETE') {
+        const clipResult: ClipResult = {
+          success: message.success,
+          pageId: message.pageId,
+          pageUrl: message.pageUrl,
+          databaseId: message.databaseId,
+          error: message.error,
+          timestamp: Date.now()
+        };
+
         if (message.success) {
           setClipProgress('✓ クリップ完了！');
           setMemoDraft("");
+          setLastClipResult(clipResult);
 
           // 成功時は1秒後にホーム画面へ戻る（UIは閉じない）
           setTimeout(() => {
@@ -44,6 +55,7 @@ function IndexPopup() {
           }, 1000);
         } else {
           setClipProgress(`✗ クリップ失敗: ${message.error || '不明なエラー'}`);
+          setLastClipResult(clipResult);
 
           // 失敗時は3秒後に閉じる（エラーメッセージを読む時間を確保）
           setTimeout(() => {
@@ -563,6 +575,8 @@ function IndexPopup() {
             existingTags={tagOptions}
             onDisconnect={handleDisconnect}
             onCreateClipboard={handleCreateClipboard}
+            lastClipResult={lastClipResult}
+            onClearClipResult={() => setLastClipResult(null)}
           />
         )
       case 'create-clipboard':
