@@ -5,7 +5,8 @@ const STORAGE_KEYS = {
   UI_SIMPLIFY_CONFIG: 'raku-ui-simplify-config',
   LANGUAGE_CONFIG: 'raku-language-config',
   SELECTED_CLIPBOARD_ID: 'raku-selected-clipboard-id',
-  TAG_OPTIONS_MAP: 'raku-tag-options-map'
+  TAG_OPTIONS_MAP: 'raku-tag-options-map',
+  HOME_LAYOUT_CONFIG: 'raku-home-layout-config'
 } as const
 
 export class StorageService {
@@ -120,6 +121,37 @@ export class StorageService {
       await chrome.storage.local.set({ [STORAGE_KEYS.LANGUAGE_CONFIG]: config })
     } catch (error) {
       console.error('Failed to save language config:', error)
+      throw error
+    }
+  }
+
+  // ========== ホーム画面レイアウト状態 ==========
+
+  static async getHomeLayoutConfig(): Promise<HomeLayoutConfig> {
+    try {
+      const result = await chrome.storage.local.get(STORAGE_KEYS.HOME_LAYOUT_CONFIG)
+      return result[STORAGE_KEYS.HOME_LAYOUT_CONFIG] || {
+        headerExpanded: false,
+        footerExpanded: false,
+        tagExpanded: false,
+        memoExpanded: false
+      }
+    } catch (error) {
+      console.error('Failed to get home layout config:', error)
+      return {
+        headerExpanded: false,
+        footerExpanded: false,
+        tagExpanded: false,
+        memoExpanded: false
+      }
+    }
+  }
+
+  static async saveHomeLayoutConfig(config: HomeLayoutConfig): Promise<void> {
+    try {
+      await chrome.storage.local.set({ [STORAGE_KEYS.HOME_LAYOUT_CONFIG]: config })
+    } catch (error) {
+      console.error('Failed to save home layout config:', error)
       throw error
     }
   }
