@@ -14,6 +14,7 @@ export const TooltipIcon: FC<TooltipIconProps> = ({ text, style = {} }) => {
   const [showTooltip, setShowTooltip] = useState<boolean>(false)
   const [tooltipPosition, setTooltipPosition] = useState<'right' | 'left'>('right')
   const [maxWidth, setMaxWidth] = useState<number>(280)
+  const [tooltipVertical, setTooltipVertical] = useState<'center' | 'above' | 'below'>('center')
   const iconRef = useRef<HTMLSpanElement>(null)
   const tooltipRef = useRef<HTMLSpanElement>(null)
 
@@ -21,6 +22,7 @@ export const TooltipIcon: FC<TooltipIconProps> = ({ text, style = {} }) => {
     if (showTooltip && iconRef.current) {
       const iconRect = iconRef.current.getBoundingClientRect()
       const viewportWidth = window.innerWidth
+      const viewportHeight = window.innerHeight
 
       // 利用可能なスペースを計算
       const spaceOnRight = viewportWidth - iconRect.right - 24 - 10 // 24pxはアイコンとの距離、10pxはマージン
@@ -34,6 +36,21 @@ export const TooltipIcon: FC<TooltipIconProps> = ({ text, style = {} }) => {
         setTooltipPosition('right')
         setMaxWidth(Math.min(280, Math.max(150, spaceOnRight)))
       }
+
+      requestAnimationFrame(() => {
+        const tooltipEl = tooltipRef.current
+        if (!tooltipEl) return
+        const tooltipHeight = tooltipEl.getBoundingClientRect().height
+        const topWouldOverflow = iconRect.top - tooltipHeight / 2 < 8
+        const bottomWouldOverflow = iconRect.bottom + tooltipHeight / 2 > viewportHeight - 8
+        if (topWouldOverflow && !bottomWouldOverflow) {
+          setTooltipVertical('below')
+        } else if (bottomWouldOverflow && !topWouldOverflow) {
+          setTooltipVertical('above')
+        } else {
+          setTooltipVertical('center')
+        }
+      })
     }
   }, [showTooltip])
 
@@ -65,12 +82,16 @@ export const TooltipIcon: FC<TooltipIconProps> = ({ text, style = {} }) => {
           ref={tooltipRef}
           style={{
             position: 'absolute',
-            top: '50%',
+            ...(tooltipVertical === 'center'
+              ? { top: '50%', transform: 'translateY(-50%)' }
+              : tooltipVertical === 'above'
+                ? { bottom: '100%', marginBottom: '8px' }
+                : { top: '100%', marginTop: '8px' }
+            ),
             ...(tooltipPosition === 'right'
               ? { left: '24px' }
               : { right: '24px' }
             ),
-            transform: 'translateY(-50%)',
             background: '#333',
             color: '#fff',
             padding: '6px 8px',
