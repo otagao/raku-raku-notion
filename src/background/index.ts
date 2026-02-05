@@ -571,6 +571,20 @@ async function handleClipPage(
       return
     }
 
+    // YouTubeの場合は現在の再生時間をURLに付与
+    if (data.tabId) {
+      const youtubeVideoId = extractYouTubeVideoId(data.url)
+      if (youtubeVideoId) {
+        const currentTime = await getYouTubeCurrentTime(data.tabId)
+        if (currentTime !== null) {
+          data = {
+            ...data,
+            url: withYouTubeTime(data.url, currentTime)
+          }
+        }
+      }
+    }
+
     // Content Scriptからコンテンツを抽出（tabIdが指定されている場合）
     let extractedContent: { text?: string; thumbnail?: string; images?: string[]; videos?: { url: string; poster?: string }[]; icon?: string } = {}
     let fallbackContent: { text?: string; thumbnail?: string; images?: string[]; videos?: { url: string; poster?: string }[] } | null = null
@@ -811,6 +825,23 @@ async function getYouTubeCurrentTime(tabId: number): Promise<number | null> {
     }
   } catch (error) {
     console.warn('[Background] Failed to get YouTube time:', error)
+  }
+  // content script が落ちる場合は executeScript で取得
+  try {
+    const [{ result } = {} as chrome.scripting.InjectionResult<number | null>] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        try {
+          const video = document.querySelector('video') as HTMLVideoElement | null
+          return video ? Math.floor(video.currentTime || 0) : null
+        } catch {
+          return null
+        }
+      }
+    })
+    if (typeof result === 'number') return result
+  } catch (error) {
+    console.warn('[Background] Failed to get YouTube time via executeScript:', error)
   }
   return null
 }
