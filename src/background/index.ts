@@ -772,7 +772,7 @@ async function extractContentViaExecuteScript(tabId: number): Promise<{ text?: s
           const mediaImgs = Array.from(scope.querySelectorAll('img'))
           mediaImgs.forEach(img => {
             const src = (img as HTMLImageElement).currentSrc || (img as HTMLImageElement).src || ''
-            if (src.includes('pbs.twimg.com/media') && !images.includes(src)) {
+            if ((src.includes('pbs.twimg.com/media') || src.includes('pbs.twimg.com/amplify_video_thumb')) && !images.includes(src)) {
               images.push(src)
             }
           })
@@ -789,6 +789,9 @@ async function extractContentViaExecuteScript(tabId: number): Promise<{ text?: s
           return video?.getAttribute('poster') || ''
         })()
 
+        if (!images.includes(videoPoster) && videoPoster) {
+          images.unshift(videoPoster)
+        }
         if (images.length === 0) {
           const fallback = og || tw || firstImg
           if (fallback) images.push(fallback)

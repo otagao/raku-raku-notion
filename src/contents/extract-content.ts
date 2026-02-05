@@ -354,7 +354,19 @@ function getVideos(): { url: string; poster?: string }[] | undefined {
   } catch {
     hostname = ''
   }
-  const max = (hostname.includes('twitter.com') || hostname.includes('x.com')) ? 4 : 1
+  const isTwitter = hostname.includes('twitter.com') || hostname.includes('x.com')
+  const max = isTwitter ? 4 : 1
+  const mainTweet = isTwitter ? getMainTweetElement() : null
+  const mainTweetFirstImage = (() => {
+    if (!mainTweet) return undefined
+    const img = mainTweet.querySelector('img') as HTMLImageElement | null
+    return img?.currentSrc || img?.src || undefined
+  })()
+  const mainTweetVideoPoster = (() => {
+    if (!mainTweet) return undefined
+    const v = mainTweet.querySelector('video') as HTMLVideoElement | null
+    return v?.getAttribute('poster') || undefined
+  })()
   let youtubeVideoId: string | undefined
   try {
     const u = new URL(window.location.href)
@@ -379,7 +391,7 @@ function getVideos(): { url: string; poster?: string }[] | undefined {
     return undefined
   })()
 
-  const videos = Array.from(document.querySelectorAll('video'))
+  const videos = isTwitter && mainTweet ? Array.from(mainTweet.querySelectorAll('video')) : Array.from(document.querySelectorAll('video'))
   videos.forEach(video => {
     if (urls.length >= max) return
     const sources = Array.from(video.querySelectorAll('source'))
@@ -392,9 +404,12 @@ function getVideos(): { url: string; poster?: string }[] | undefined {
     }
     const isAdLike = candidate.includes('ads') || candidate.includes('imasdk') || candidate.includes('ad-delivery') || candidate.includes('doubleclick')
     if (candidate && !isAdLike) {
+      const poster = isTwitter
+        ? (video.getAttribute('poster') || mainTweetVideoPoster || mainTweetFirstImage || ogPoster)
+        : (video.getAttribute('poster') || youtubeThumb || ogPoster)
       urls.push({
         url: candidate,
-        poster: video.getAttribute('poster') || youtubeThumb || ogPoster || undefined
+        poster: poster || undefined
       })
     }
   })
@@ -403,9 +418,17 @@ function getVideos(): { url: string; poster?: string }[] | undefined {
   if (urls.length < max) {
     const ogVideo = document.querySelector('meta[property="og:video"]')?.getAttribute('content')
     if (ogVideo && !urls.find(v => v.url === ogVideo)) {
-      const poster = youtubeThumb || ogPoster
+      const poster = isTwitter ? (mainTweetVideoPoster || mainTweetFirstImage || ogPoster) : (youtubeThumb || ogPoster)
       urls.push({ url: ogVideo, poster })
     }
+  }
+
+  // X/Twitterで動画があるがURLが取れない場合のフォールバック
+  if (isTwitter && urls.length === 0 && (mainTweetVideoPoster || ogPoster)) {
+    urls.push({
+      url: window.location.href,
+      poster: mainTweetVideoPoster || ogPoster
+    })
   }
 
   // ページ自体がYouTube等の場合、ページURLを動画URLとして扱う
