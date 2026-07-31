@@ -1,33 +1,82 @@
 # Raku Raku Notion
 
-> Notionのウェブクリップ機能を簡略化したブラウザ拡張機能
+**見つけた情報を、その場でNotionへ。**
 
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
-[![React](https://img.shields.io/badge/React-18.3-61dafb.svg)](https://reactjs.org/)
-[![Plasmo](https://img.shields.io/badge/Plasmo-0.90-blueviolet.svg)](https://www.plasmo.com/)
+Raku Raku Notionは、WebページやYouTube動画を、あとで活用しやすい形でNotionに保存するブラウザ拡張機能です。
 
-ウェブページの情報を簡単にNotionに保存できるブラウザ拡張機能です。
-Notionの公式ウェブクリッパーよりもシンプルで、カスタマイズ可能な設計を目指しています。
+![Webページを選び、ワンクリックでNotionのギャラリーへ整理するRaku Raku Notionの利用イメージ](assets/raku-raku-notion-overview.png)
 
-## ✨ 主な機能
+記事のURLだけをブックマークするのではなく、**本文・画像・動画・サムネイルなどを自動で取り込み、タグや自分のメモと一緒に保存**できます。保存先のデータベースも拡張機能から作れるので、Notion側で先に細かな準備をする必要はありません。
 
-- 📎 **ワンクリックWebクリップ**: 現在のページをNotionに即座に保存
-- 📋 **クリップボード管理**: 複数のクリップボードで情報を整理
-- 🗂️ **既存データベース取り込み**: Notionの既存データベースをクリップボードに追加可能
-- 🔐 **Notion OAuth認証**: Cloudflare Workers対応の安全な認証フロー（手動トークンにも対応）
-- 🎨 **シンプルなUI**: Notionスタイルを参考にした直感的なデザイン
-- ⚡ **自動データベース作成**: クリップボード作成時に自動でNotionデータベースを生成
-- 🖼️ **ギャラリービュー自動設定**: 新規データベースをギャラリー形式で表示（デフォルトビューを自動削除、Content Script経由で権限エラーを回避）
-- 📄 **自動コンテンツ抽出**: ページ本文、サムネイル、アイコンを自動取得
-- 📝 **メモ機能**: クリップ時にメモを追加可能（IME対応）
-- 📊 **クリップ進行状況表示**: クリップ実行中のリアルタイム進捗表示
-- 🧹 **Notion UI簡略化**: Notionのサイドバーやツールバーを非表示にしてスッキリ表示（トグル切り替え可能）
+## こんなときに使えます
 
-詳細は [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) を参照してください。
+- 気になった記事を「あとで読む」リストへ集めたい
+- 技術資料やデザイン事例を、テーマ別のデータベースに整理したい
+- レシピや旅行先など、画像付きで見返したい情報を残したい
+- YouTube動画を「どこまで見たか」分かる再生位置付きで保存したい
+- ページを保存するときに、思いついたメモやタグも一緒に残したい
 
-## 🚀 クイックスタート
+## できること
 
-### 1. インストール
+### 1. 閲覧中のページをすぐに保存
+
+拡張機能を開き、保存先を選んで「このページを保存」を押すだけです。ページのタイトルとURLに加えて、本文、画像、動画、サムネイル、ページアイコンを自動で取得し、Notionページとして保存します。
+
+保存したページはギャラリーで見やすく並ぶため、URLだけの一覧よりも内容を思い出しやすくなります。
+
+### 2. 用途ごとに保存先を分けて整理
+
+「技術記事」「レシピ」「デザイン参考」など、用途に合わせた保存先を複数作成できます。新しい保存先を作ると、必要なプロパティを備えたNotionデータベースとギャラリービューが自動で用意されます。
+
+### 3. タグとメモを添えて、あとで探しやすく
+
+保存時に既存のタグを選んだり、その場で新しいタグを追加したりできます。自由入力のメモも一緒に残せるため、「なぜ保存したのか」「次に何を試すか」まで情報とセットで管理できます。
+
+### 4. YouTubeを再生位置付きでクリップ
+
+YouTubeでは、保存ボタンを押した時点の再生位置をURLに含めて保存します。サムネイルや動画情報も取り込むので、学習動画や長い配信の続きを見返す用途にも便利です。
+
+### 5. Notionの画面をシンプルに表示
+
+「Notion UI簡略化」をオンにすると、Notionのサイドバーやツールバーを隠し、コンテンツに集中できる表示へ切り替えられます。設定はいつでも元に戻せます。
+
+## 使い方は3ステップ
+
+1. **Notionと接続する** — 拡張機能からOAuth認証を行います。
+2. **保存先を選ぶ** — 既存の保存先を選ぶか、新しいデータベースを作成します。
+3. **ページを保存する** — 必要に応じてタグやメモを追加し、「このページを保存」を押します。
+
+拡張機能はツールバーのアイコンのほか、右クリックメニューや `Ctrl + Shift + Y` からも開けます。
+
+詳しい操作方法は[使い方ガイド](docs/USAGE.md)を参照してください。
+
+## 保存される情報
+
+| 情報 | 内容 |
+| --- | --- |
+| タイトル・URL | 元のページへすぐ戻れる基本情報 |
+| 本文 | ページから抽出した読み返し用テキスト |
+| 画像・動画 | ページ内の主要なビジュアルや動画 |
+| カバー・アイコン | ギャラリーで内容を見分けやすくする画像 |
+| タグ | テーマや用途による分類 |
+| メモ | 保存時に自分で追記したコメント |
+
+サイトの構造やアクセス制限によっては、一部の本文・画像を取得できない場合があります。
+
+## プライバシー
+
+Raku Raku Notionは、必要なときだけ閲覧中のタブへアクセスする設計です。
+
+- クリップした情報の送信先はNotionです
+- 広告・アクセス解析・第三者の追跡ツールは使用しません
+- 認証情報や設定はChromeのローカルストレージに保存します
+- ページ情報の取得は、ユーザーが保存操作をしたときに実行します
+
+権限とデータの扱いは[権限とプライバシー](docs/PERMISSIONS.md)で詳しく説明しています。
+
+## 開発版をインストールする
+
+現在は、このリポジトリから開発版をビルドしてChromeへ読み込みます。
 
 ```bash
 git clone https://github.com/otagao/raku-raku-notion.git
@@ -36,170 +85,32 @@ npm install
 npm run dev
 ```
 
-### 2. ブラウザに読み込み
+続いてChromeで `chrome://extensions` を開き、次の手順で読み込みます。
 
-1. Chromeで `chrome://extensions` を開く
-2. 「デベロッパーモード」をONにする
-3. 「パッケージ化されていない拡張機能を読み込む」をクリック
-4. `build/chrome-mv3-dev` フォルダを選択
+1. 「デベロッパーモード」をオンにする
+2. 「パッケージ化されていない拡張機能を読み込む」を選ぶ
+3. `build/chrome-mv3-dev` フォルダを指定する
+4. 拡張機能を開き、「Notionで認証して接続」を選ぶ
 
-### 3. Notion連携
+環境構築やOAuth設定の詳細は[セットアップガイド](docs/SETUP.md)と[Notion認証設定](docs/NOTION_AUTH.md)を参照してください。
 
-1. 拡張機能を開くとログイン画面が表示されます
-2. 「Notionで認証して接続」を選択
-3. 指示に従ってNotionと拡張機能を接続する
+## 開発者向け情報
 
-詳細は [docs/SETUP.md](docs/SETUP.md) と [docs/NOTION_AUTH.md](docs/NOTION_AUTH.md) を参照してください。
-
-## 📖 ドキュメント
-
-- [セットアップガイド](docs/SETUP.md) - 開発環境の構築
-- [Notion認証設定](docs/NOTION_AUTH.md) - 認証方法の詳細
-- [使い方ガイド](docs/USAGE.md) - 基本的な使い方
-- [開発ガイド](docs/DEVELOPMENT.md) - コーディング規約と開発タスク
-- [プロジェクト構造](docs/ARCHITECTURE.md) - アーキテクチャの詳細
-- [OAuth設定ガイド](docs/OAUTH_SETUP_GUIDE.md) - OAuth認証の詳細設定
-- [Workersセットアップ](docs/WORKERS_SETUP_GUIDE.md) - Cloudflare Workers設定
-- [権限とプライバシー](docs/PERMISSIONS.md) - 拡張機能の権限とプライバシー保護について
-
-## 🔐 プライバシーとセキュリティ
-
-この拡張機能は**最小権限の原則（Principle of Least Privilege）**に基づいて設計されています。
-
-### 権限の要求範囲
-
-- **Notionページのみアクセス**: デフォルトでは `https://*.notion.so/*` のみ
-- **ユーザーアクション時のみ実行**: 明示的なショートカット（Ctrl+Shift+Y）、コンテキストメニュー、拡張機能アイコンクリック時のみ動作
-- **動的スクリプト注入**: ユーザーがアクションを起こしたタブにのみContent Scriptsを注入（自動注入なし）
-
-### データの扱い
-
-- **データ送信先はNotionのみ**: クリップしたページ情報（テキスト、画像URL、動画URL、メタデータ）はNotionにのみ送信されます
-- **第三者への送信なし**: Google Analytics等の追跡ツール、広告ネットワーク、その他の第三者サーバーへのデータ送信は一切行いません
-- **ローカルストレージのみ**: 設定はChrome Storage API（`chrome.storage.local`）でローカルに保存され、クラウド同期はされません
-
-### セキュリティ対策
-
-- **OAuth CLIENT_SECRETの保護**: Cloudflare Workers上で管理され、クライアントサイドには露出しません
-- **CSRF対策**: OAuth認証時にstateパラメータによる検証を実施
-- **CSP対応**: Content Security Policyに準拠した実装
-
-詳細は [docs/PERMISSIONS.md](docs/PERMISSIONS.md) を参照してください。
-
-## 📁 プロジェクト構造
-
-```
-raku-raku-notion/
-├── src/
-│   ├── popup.tsx              # メインエントリーポイント
-│   ├── screens/               # 画面コンポーネント
-│   ├── components/            # 再利用可能コンポーネント
-│   ├── contents/              # Content Scripts
-│   │   ├── extract-content.ts # ページコンテンツ抽出
-│   │   └── notion-simplify.ts # Notion UI簡略化
-│   ├── services/              # ビジネスロジック層
-│   ├── background/            # Service Worker
-│   ├── utils/                 # ユーティリティ
-│   ├── styles/                # スタイルシート
-│   │   ├── global.css         # グローバルスタイル
-│   │   └── notion-custom.css  # Notion UI簡略化用CSS
-│   └── types/                 # TypeScript型定義
-├── oauth-static/              # OAuth認証用静的サイト
-│   ├── callback.html          # OAuth認証コールバック
-│   ├── error.html             # エラーページ
-│   ├── privacy.html           # プライバシーポリシー
-│   ├── terms.html             # 利用規約
-│   └── README.md              # デプロイ手順
-├── workers/                   # Cloudflare Workers（OAuthバックエンド）
-├── docs/                      # ドキュメント
-├── assets/                    # アイコンなど
-└── build/                     # ビルド出力
-```
-
-詳細は [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) を参照してください。
-
-## 🛠️ 開発コマンド
+Raku Raku Notionは、React、TypeScript、Plasmoで作られています。
 
 ```bash
-# 開発サーバー起動
-npm run dev
-
-# プロダクションビルド
-npm run build
-
-# ストレージのリセット（開発者ツールのコンソールで実行）
-chrome.storage.local.clear()
+npm run dev    # 開発モード
+npm run build  # プロダクションビルド
 ```
 
-**注意**: OAuth認証のテストには、`oauth-static/`を静的サイトホスティング（Cloudflare Pages等）にデプロイする必要があります。
-詳細は [oauth-static/README.md](oauth-static/README.md) を参照してください。
-
-## 🤝 貢献
-
-プルリクエストを歓迎します！
-
-### 貢献の流れ
-
-1. リポジトリをフォーク
-2. 新しいブランチを作成 (`git checkout -b feature/amazing-feature`)
-3. 変更をコミット (`git commit -m 'feat: amazing feature'`)
-4. ブランチにプッシュ (`git push origin feature/amazing-feature`)
-5. プルリクエストを作成
-
-詳細は [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) を参照してください。
-
-## 📄 ライセンス
-
-ISC License
-
-Copyright (c) 2024-2025 Team Bookmark (True)
-
-詳細は [LICENSE](LICENSE) ファイルを参照してください。
-
-## 🔧 トラブルシューティング
-
-### OAuth認証ボタンが押せない（グレーアウトしている）
-
-**症状**：設定画面でOAuth認証ボタンが無効化されていて押せない
-
-**原因**：
-- 環境変数が正しくビルドに埋め込まれていない
-- OAuth処理中フラグがスタック状態になっている
-
-**対処方法**：
-
-1. **開発者ツールでログを確認**
-   - F12キーを押して開発者ツールを開く
-   - コンソールタブで `[Settings] OAuth Config Debug:` を探す
-   - `clientId: 'MISSING'` と表示されている場合は、開発者に連絡してください
-
-2. **ストレージをリセット**（一時的な問題の場合）
-   - F12キーを押して開発者ツールを開く
-   - コンソールで以下を実行：
-   ```javascript
-   chrome.storage.local.clear()
-   ```
-   - 拡張機能を再読み込み
-
-3. **拡張機能を再インストール**
-   - 拡張機能をアンインストール
-   - 最新版を再インストール
-
-詳細は [docs/OAUTH_BUTTON_FIX.md](docs/OAUTH_BUTTON_FIX.md) を参照してください。
-
-### その他の問題
-
-その他の問題については、[docs/](docs/)ディレクトリ内の関連ドキュメントを参照してください：
+- [アーキテクチャ](docs/ARCHITECTURE.md)
+- [開発ガイド](docs/DEVELOPMENT.md)
 - [OAuth設定ガイド](docs/OAUTH_SETUP_GUIDE.md)
-- [Notion認証について](docs/NOTION_AUTH.md)
+- [Cloudflare Workers設定](docs/WORKERS_SETUP_GUIDE.md)
+- [変更履歴](CHANGELOG.md)
 
-## 📚 参考資料
+## ライセンス・お問い合わせ
 
-- [Plasmo公式ドキュメント](https://docs.plasmo.com)
-- [Chrome拡張機能ドキュメント](https://developer.chrome.com/docs/extensions/)
-- [Notion API リファレンス](https://developers.notion.com/)
-- [React公式ドキュメント](https://react.dev/)
+[ISC License](LICENSE) © 2024–2025 Team Bookmark (True)
 
-## 📞 お問い合わせ
-
-質問やフィードバックは、GitHubのIssueでお願いします。
+不具合の報告や機能の提案は、[GitHub Issues](https://github.com/otagao/raku-raku-notion/issues)へお願いします。
