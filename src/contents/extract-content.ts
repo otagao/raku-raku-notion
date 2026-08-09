@@ -5,7 +5,7 @@
 
 import type { PlasmoCSConfig } from "plasmo"
 import { extractYouTubeVideoId, getYouTubeThumb } from "~utils/youtube"
-import { isIgnoredImage, extractTextFromElement } from "~utils/content-extraction"
+import { isIgnoredImage, extractTextFromElement, collectImagesFromDoc, collectVideosFromDoc } from "~utils/content-extraction"
 
 // このContent Scriptは動的注入専用です
 // マッチパターンを実際にはマッチしないURLに設定することで、自動注入を防ぎます
@@ -22,6 +22,65 @@ export interface ExtractedContent {
   icon?: string
   title: string
   url: string
+}
+
+async function fetchContentFallback(url: string): Promise<{ text?: string; images?: string[]; videos?: { url: string; poster?: string }[]; thumbnail?: string }> {
+  const resp = await fetch(url, { method: 'GET' })
+  if (!resp.ok) {
+    throw new Error(`Fallback fetch failed: ${resp.status}`)
+  }
+  const html = await resp.text()
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, 'text/html')
+
+  const candidates = [
+    doc.querySelector('article'),
+    doc.querySelector('main'),
+    doc.querySelector('[role="main"]'),
+    doc.body
+  ].filter(Boolean) as Element[]
+
+  const text = candidates.length > 0 ? extractTextFromElement(candidates[0]) : undefined
+  let images = collectImagesFromDoc(doc) || []
+  let videos = collectVideosFromDoc(doc) || []
+
+  const ogPoster = (() => {
+    const og = doc.querySelector('meta[property="og:image"]')?.getAttribute('content')
+    if (og && !isIgnoredImage(og)) return og
+    const tw = doc.querySelector('meta[name="twitter:image"]')?.getAttribute('content')
+    if (tw && !isIgnoredImage(tw)) return tw
+    return undefined
+  })()
+
+  const youtubeVideoId = extractYouTubeVideoId(url)
+  if (youtubeVideoId) {
+    const youtubeThumb = getYouTubeThumb(youtubeVideoId)
+    if (youtubeThumb) {
+      if (!images.includes(youtubeThumb)) {
+        images = [youtubeThumb, ...images].slice(0, 20)
+      }
+      videos = videos.map(v => v.poster ? v : { ...v, poster: youtubeThumb })
+      if (videos.length === 0) {
+        videos.push({ url, poster: youtubeThumb })
+      }
+    }
+  } else if (ogPoster) {
+    videos = videos.map(v => v.poster ? v : { ...v, poster: ogPoster })
+    if (videos.length === 0) {
+      videos.push({ url, poster: ogPoster })
+    }
+  }
+
+  const thumbnail = videos && videos.length > 0 && videos[0].poster
+    ? videos[0].poster
+    : (images && images.length > 0 ? images[0] : undefined)
+
+  return {
+    text,
+    images: images.length > 0 ? images : undefined,
+    videos: videos.length > 0 ? videos : undefined,
+    thumbnail
+  }
 }
 
 /**
@@ -295,7 +354,19 @@ function getVideos(): { url: string; poster?: string }[] | undefined {
   } catch {
     hostname = ''
   }
-  const max = (hostname.includes('twitter.com') || hostname.includes('x.com')) ? 4 : 1
+  const isTwitter = hostname.includes('twitter.com') || hostname.includes('x.com')
+  const max = isTwitter ? 4 : 1
+  const mainTweet = isTwitter ? getMainTweetElement() : null
+  const mainTweetFirstImage = (() => {
+    if (!mainTweet) return undefined
+    const img = mainTweet.querySelector('img') as HTMLImageElement | null
+    return img?.currentSrc || img?.src || undefined
+  })()
+  const mainTweetVideoPoster = (() => {
+    if (!mainTweet) return undefined
+    const v = mainTweet.querySelector('video') as HTMLVideoElement | null
+    return v?.getAttribute('poster') || undefined
+  })()
   let youtubeVideoId: string | undefined
   try {
     const u = new URL(window.location.href)
@@ -320,7 +391,7 @@ function getVideos(): { url: string; poster?: string }[] | undefined {
     return undefined
   })()
 
-  const videos = Array.from(document.querySelectorAll('video'))
+  const videos = isTwitter && mainTweet ? Array.from(mainTweet.querySelectorAll('video')) : Array.from(document.querySelectorAll('video'))
   videos.forEach(video => {
     if (urls.length >= max) return
     const sources = Array.from(video.querySelectorAll('source'))
@@ -333,9 +404,12 @@ function getVideos(): { url: string; poster?: string }[] | undefined {
     }
     const isAdLike = candidate.includes('ads') || candidate.includes('imasdk') || candidate.includes('ad-delivery') || candidate.includes('doubleclick')
     if (candidate && !isAdLike) {
+      const poster = isTwitter
+        ? (video.getAttribute('poster') || mainTweetVideoPoster || mainTweetFirstImage || ogPoster)
+        : (video.getAttribute('poster') || youtubeThumb || ogPoster)
       urls.push({
         url: candidate,
-        poster: video.getAttribute('poster') || youtubeThumb || ogPoster || undefined
+        poster: poster || undefined
       })
     }
   })
@@ -344,9 +418,17 @@ function getVideos(): { url: string; poster?: string }[] | undefined {
   if (urls.length < max) {
     const ogVideo = document.querySelector('meta[property="og:video"]')?.getAttribute('content')
     if (ogVideo && !urls.find(v => v.url === ogVideo)) {
-      const poster = youtubeThumb || ogPoster
+      const poster = isTwitter ? (mainTweetVideoPoster || mainTweetFirstImage || ogPoster) : (youtubeThumb || ogPoster)
       urls.push({ url: ogVideo, poster })
     }
+  }
+
+  // X/Twitterで動画があるがURLが取れない場合のフォールバック
+  if (isTwitter && urls.length === 0 && (mainTweetVideoPoster || ogPoster)) {
+    urls.push({
+      url: window.location.href,
+      poster: mainTweetVideoPoster || ogPoster
+    })
   }
 
   // ページ自体がYouTube等の場合、ページURLを動画URLとして扱う
@@ -522,6 +604,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       })
     }
     return true // 非同期レスポンスを示す
+  }
+
+  if (message.type === 'ping-extract-content') {
+    sendResponse({ success: true })
+    return true
+  }
+
+  if (message.type === 'fetch-content-fallback') {
+    try {
+      Promise.resolve(fetchContentFallback(message.url || window.location.href))
+        .then(content => sendResponse({ success: true, content }))
+        .catch(error => {
+          console.error('[Content Script] Fallback fetch failed:', error)
+          sendResponse({
+            success: false,
+            error: error instanceof Error ? error.message : '不明なエラー'
+          })
+        })
+    } catch (error) {
+      console.error('[Content Script] Fallback fetch failed:', error)
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : '不明なエラー'
+      })
+    }
+    return true
   }
 
   if (message.type === 'get-youtube-time') {
